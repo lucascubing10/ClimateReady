@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   withSpring, 
@@ -45,6 +45,9 @@ const ProgressBar = ({ percentage }: ProgressBarProps) => {
           ]} 
         />
       </View>
+      <View style={styles.percentageContainer}>
+        <Text style={styles.percentageText}>{Math.round(percentage)}% complete</Text>
+      </View>
     </View>
   );
 };
@@ -54,14 +57,24 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   progressBar: {
-    height: 6,
+    height: 8,
     backgroundColor: '#e2e8f0',
     borderRadius: 3,
     overflow: 'hidden',
+    marginBottom: 4,
   },
   progressFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  percentageContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  percentageText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
 

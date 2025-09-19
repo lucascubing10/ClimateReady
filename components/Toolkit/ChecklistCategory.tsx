@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   withSpring, 
-  withTiming,
   useSharedValue,
   interpolate
 } from 'react-native-reanimated';
-import ChecklistItem from '@/components/Toolkit/ChecklistItem';
-import ProgressBar from '@/components/Toolkit/ProgressBar';
+import ChecklistItem from './ChecklistItem';
+import ProgressBar from './ProgressBar';
 
 interface ChecklistCategoryProps {
   category: any;
@@ -19,6 +18,8 @@ interface ChecklistCategoryProps {
 
 const ChecklistCategory = ({ category, progress, onToggleItem, index }: ChecklistCategoryProps) => {
   const [expanded, setExpanded] = useState(false);
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768;
   const animationProgress = useSharedValue(0);
 
   React.useEffect(() => {
@@ -39,7 +40,7 @@ const ChecklistCategory = ({ category, progress, onToggleItem, index }: Checklis
   const progressPercentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
 
   return (
-    <View style={styles.categoryContainer}>
+    <View style={[styles.categoryContainer, isLargeScreen && styles.categoryContainerLarge]}>
       <TouchableOpacity 
         style={styles.categoryHeader}
         onPress={() => setExpanded(!expanded)}
@@ -47,6 +48,7 @@ const ChecklistCategory = ({ category, progress, onToggleItem, index }: Checklis
       >
         <View style={styles.categoryInfo}>
           <Text style={styles.categoryTitle}>{category.title}</Text>
+          <Text style={styles.categoryDescription}>{category.description}</Text>
           <Text style={styles.categoryProgress}>
             {completedItems}/{totalItems} completed
           </Text>
@@ -87,10 +89,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  categoryContainerLarge: {
+    width: '48%',
+    minWidth: 300,
+  },
   categoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   categoryInfo: {
@@ -102,14 +108,21 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     marginBottom: 4,
   },
-  categoryProgress: {
+  categoryDescription: {
     fontSize: 14,
     color: '#64748b',
+    marginBottom: 8,
+  },
+  categoryProgress: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
   },
   arrow: {
     fontSize: 14,
     color: '#64748b',
     marginLeft: 8,
+    marginTop: 4,
   },
   itemsContainer: {
     marginTop: 12,

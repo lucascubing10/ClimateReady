@@ -1,44 +1,29 @@
 import { UserProgress } from './storage';
 import { checklistData } from './checklistData';
 
-// Scoring weights
-const SCORING_WEIGHTS = {
-  ITEM_COMPLETED: 10,
-  CATEGORY_COMPLETED: 50,
-  ALL_CATEGORIES_COMPLETED: 200,
-};
-
-// Calculate total score based on progress
+// Calculate total score based on progress (0-100 scale)
 export const calculateScore = (progress: UserProgress): number => {
   if (!progress || !progress.checklists) return 0;
 
-  let score = 0;
+  let totalPossiblePoints = 0;
+  let earnedPoints = 0;
 
-  // Calculate points for completed items
-  Object.values(progress.checklists).forEach(category => {
-    Object.values(category).forEach(completed => {
-      if (completed) {
-        score += SCORING_WEIGHTS.ITEM_COMPLETED;
+  // Calculate points for each category
+  checklistData.forEach(category => {
+    category.items.forEach(item => {
+      totalPossiblePoints += item.points;
+      
+      // Add points if item is completed
+      if (progress.checklists[category.id]?.[item.id]) {
+        earnedPoints += item.points;
       }
     });
   });
 
-  // Calculate points for completed categories
-  const completedCategories = Object.keys(progress.checklists).filter(categoryId => {
-    const category = progress.checklists[categoryId];
-    const categoryItems = checklistData.find(c => c.id === categoryId)?.items || [];
-    return categoryItems.every(item => category[item.id]);
-  });
-
-  score += completedCategories.length * SCORING_WEIGHTS.CATEGORY_COMPLETED;
-
-  // Bonus for completing all categories
-  if (completedCategories.length === checklistData.length) {
-    score += SCORING_WEIGHTS.ALL_CATEGORIES_COMPLETED;
-  }
-
-  // Cap score at 1000
-  return Math.min(score, 1000);
+  // Calculate percentage score (0-100)
+  const score = totalPossiblePoints > 0 ? (earnedPoints / totalPossiblePoints) * 100 : 0;
+  
+  return Math.min(score, 100); // Cap at 100
 };
 
 // Calculate progress percentage
@@ -72,7 +57,20 @@ export const getCategoryCompletion = (progress: UserProgress, categoryId: string
 
 // Unit tests for scoring logic
 export const runScoringTests = () => {
-  const testProgress: UserProgress = {
+  console.log('=== Running Scoring Tests ===');
+  
+  // Test 1: Empty progress
+  const emptyProgress: UserProgress = {
+    checklists: {},
+    completedCategories: 0,
+    lastUpdated: new Date().toISOString(),
+  };
+  
+  console.log('Empty progress score:', calculateScore(emptyProgress));
+  console.log('Empty progress percentage:', calculateProgressPercentage(emptyProgress));
+  
+  // Test 2: Partial progress
+  const partialProgress: UserProgress = {
     checklists: {
       family: {
         'family-1': true,
@@ -90,13 +88,30 @@ export const runScoringTests = () => {
     completedCategories: 0,
     lastUpdated: new Date().toISOString(),
   };
-
-  console.log('Scoring tests:');
-  console.log('Basic score:', calculateScore(testProgress));
-  console.log('Progress percentage:', calculateProgressPercentage(testProgress));
-  console.log('Family completion:', getCategoryCompletion(testProgress, 'family'));
-  console.log('Supplies completion:', getCategoryCompletion(testProgress, 'supplies'));
+  
+  console.log('Partial progress score:', calculateScore(partialProgress));
+  console.log('Partial progress percentage:', calculateProgressPercentage(partialProgress));
+  console.log('Family completion:', getCategoryCompletion(partialProgress, 'family'));
+  console.log('Supplies completion:', getCategoryCompletion(partialProgress, 'supplies'));
+  
+  // Test 3: Full progress
+  const fullProgress: UserProgress = {
+    checklists: checklistData.reduce((acc, category) => {
+      acc[category.id] = category.items.reduce((itemAcc, item) => {
+        itemAcc[item.id] = true;
+        return itemAcc;
+      }, {} as any);
+      return acc;
+    }, {} as any),
+    completedCategories: checklistData.length,
+    lastUpdated: new Date().toISOString(),
+  };
+  
+  console.log('Full progress score:', calculateScore(fullProgress));
+  console.log('Full progress percentage:', calculateProgressPercentage(fullProgress));
+  
+  console.log('=== Tests Completed ===');
 };
 
-// Test the scoring logic
+// Uncomment to run tests
 // runScoringTests();

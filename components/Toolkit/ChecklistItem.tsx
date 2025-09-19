@@ -52,6 +52,11 @@ const ChecklistItem = ({ item, completed, onToggle }: ChecklistItemProps) => {
         <Text style={[styles.itemText, completed && styles.itemTextCompleted]}>
           {item.text}
         </Text>
+        {completed && (
+          <View style={styles.pointsBadge}>
+            <Text style={styles.pointsText}>+{item.points}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -97,6 +102,18 @@ const styles = StyleSheet.create({
   itemTextCompleted: {
     textDecorationLine: 'line-through',
     color: '#94a3b8',
+  },
+  pointsBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  pointsText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

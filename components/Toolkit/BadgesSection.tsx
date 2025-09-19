@@ -7,7 +7,9 @@ import Animated, {
   withDelay,
   interpolate
 } from 'react-native-reanimated';
-import { badgesData } from '../../utils/checklistData';
+// If badgesData is a default export:
+import badgesData from '@/components/Toolkit/badgesData';
+
 import AnimatedCard from '@/components/Toolkit/AnimatedCard';
 
 const BadgesSection = () => {
@@ -17,7 +19,7 @@ const BadgesSection = () => {
       <Text style={styles.sectionSubtitle}>Earn badges by completing preparedness tasks</Text>
       
       <View style={styles.badgesGrid}>
-        {badgesData.map((badge, index) => (
+        {badgesData.map((badge: any, index: number) => (
           <BadgeCard key={badge.id} badge={badge} index={index} />
         ))}
       </View>

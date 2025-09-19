@@ -5,17 +5,17 @@ import Animated, {
   withSpring, 
   useSharedValue,
   withSequence,
-  withTiming,
-  withDelay
+  withTiming
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
 
 interface ProgressScoringProps {
   score: number;
+  progressPercentage: number;
   progress: any;
 }
 
-const ProgressScoring = ({ score, progress }: ProgressScoringProps) => {
+const ProgressScoring = ({ score, progressPercentage, progress }: ProgressScoringProps) => {
   const animatedScore = useSharedValue(0);
   const pulse = useSharedValue(1);
 
@@ -39,6 +39,21 @@ const ProgressScoring = ({ score, progress }: ProgressScoringProps) => {
     };
   });
 
+  const getMotivationalText = () => {
+    if (score >= 90) return "Excellent! You're fully prepared! 🎉";
+    if (score >= 70) return "Great job! You're well on your way! 👍";
+    if (score >= 50) return "Good progress! Keep going! 💪";
+    if (score >= 30) return "Getting started! Every step counts! 🌱";
+    return "Let's begin your preparedness journey! 🚀";
+  };
+
+  const getScoreColor = () => {
+    if (score >= 80) return '#10b981'; // green
+    if (score >= 60) return '#f59e0b'; // orange
+    if (score >= 40) return '#3b82f6'; // blue
+    return '#ef4444'; // red
+  };
+
   if (!progress) {
     return (
       <View style={styles.container}>
@@ -47,37 +62,36 @@ const ProgressScoring = ({ score, progress }: ProgressScoringProps) => {
     );
   }
 
-  // Calculate overall progress
+  // Calculate stats
   const totalItems = Object.values(progress.checklists).reduce((total: number, category: any) => {
-    return total + Object.values(category).filter(Boolean).length;
+    return total + Object.keys(category).length;
   }, 0);
 
   const completedItems = Object.values(progress.checklists).reduce((completed: number, category: any) => {
     return completed + Object.values(category).filter(item => item === true).length;
   }, 0);
 
-  const overallProgress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-
   return (
     <View style={styles.container}>
       <View style={styles.scoreSection}>
         <Text style={styles.scoreLabel}>Your Preparedness Score</Text>
-        <Animated.Text style={[styles.scoreValue, scoreStyle]}>
+        <Animated.Text style={[styles.scoreValue, scoreStyle, { color: getScoreColor() }]}>
           {Math.round(score)}
         </Animated.Text>
-        <Text style={styles.scoreSubtitle}>out of 1000 points</Text>
+        <Text style={styles.scoreSubtitle}>out of 100 points</Text>
+        <Text style={styles.motivationText}>{getMotivationalText()}</Text>
       </View>
 
       <View style={styles.progressSection}>
         <View style={styles.progressRow}>
           <Text style={styles.progressLabel}>Overall Progress</Text>
-          <Text style={styles.progressPercentage}>{Math.round(overallProgress)}%</Text>
+          <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
         </View>
         <View style={styles.progressBar}>
           <View 
             style={[
               styles.progressFill, 
-              { width: `${overallProgress}%` }
+              { width: `${progressPercentage}%`, backgroundColor: getScoreColor() }
             ]} 
           />
         </View>
@@ -126,13 +140,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   scoreValue: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: '800',
-    color: '#3b82f6',
+    marginBottom: 4,
   },
   scoreSubtitle: {
     fontSize: 12,
     color: '#94a3b8',
+    marginBottom: 8,
+  },
+  motivationText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
   progressSection: {
     marginTop: 8,
@@ -162,7 +184,6 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3b82f6',
     borderRadius: 4,
   },
   statsRow: {

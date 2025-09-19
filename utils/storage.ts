@@ -88,14 +88,3 @@ export const exportProgress = async (): Promise<string> => {
   const progress = await getUserProgress();
   return JSON.stringify(progress, null, 2);
 };
-
-// Import progress data
-export const importProgress = async (data: string): Promise<void> => {
-  try {
-    const progress = JSON.parse(data);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  } catch (error) {
-    console.error('Error importing progress:', error);
-    throw new Error('Invalid progress data format');
-  }
-};

@@ -1,15 +1,15 @@
 import { Stack } from 'expo-router';
 
-export default function ToolkitLayout() {
+export default function RootLayout() {
+
   return (
-    <Stack>
-      <Stack.Screen 
-        name="index" 
-        options={{
-          title: 'Preparedness Toolkit',
-          headerShown: false,
-        }} 
-      />
-    </Stack>
+    <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen 
+          name="(tabs)" 
+          options={{ 
+          }} 
+        />  
+        <Stack.Screen name='+not-found' options={{}} />
+      </Stack>
   );
 }

@@ -1,14 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withSpring, 
-  withTiming,
-  useSharedValue,
-  interpolate
-} from 'react-native-reanimated';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { checklistData } from '../../utils/checklistData';
-import ChecklistCategory from '@/components/Toolkit/ChecklistCategory';
+import ChecklistCategory from './ChecklistCategory';
 
 interface ChecklistSectionProps {
   progress: any;
@@ -16,6 +9,9 @@ interface ChecklistSectionProps {
 }
 
 const ChecklistSection = ({ progress, onToggleItem }: ChecklistSectionProps) => {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width > 768; // Tablet size
+
   if (!progress) {
     return (
       <View style={styles.container}>
@@ -25,7 +21,7 @@ const ChecklistSection = ({ progress, onToggleItem }: ChecklistSectionProps) => 
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLargeScreen && styles.containerLarge]}>
       {checklistData.map((category, index) => (
         <ChecklistCategory
           key={category.id}
@@ -41,7 +37,13 @@ const ChecklistSection = ({ progress, onToggleItem }: ChecklistSectionProps) => 
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    padding: 10,
+  },
+  containerLarge: {
+    padding: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
 });
 
