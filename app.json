@@ -1,22 +1,35 @@
 {
   "expo": {
-    "name": "MyFirstApp",
-    "slug": "MyFirstApp",
+    "name": "ClimateReady",
+    "slug": "climateready",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myfirstapp",
+    "icon": "./assets/images/ClimateReadyv3.png",
+    "scheme": "climateready",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ClimateReady uses your location to provide accurate weather information and emergency alerts tailored to your area.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ClimateReady uses your location to provide accurate weather information and emergency alerts even when the app is in the background.",
+        "NSLocationAlwaysUsageDescription": "ClimateReady uses your location to provide accurate weather information and emergency alerts even when the app is in the background.",
+        "UIBackgroundModes": ["location", "fetch"]
+      },
+      "bundleIdentifier": "com.yourcompany.climateready"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#5ba24f"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ],
+      "package": "com.yourcompany.climateready"
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +45,14 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ClimateReady to use your location to provide accurate weather and emergency alerts.",
+          "locationAlwaysPermission": "Allow ClimateReady to use your location to provide accurate weather and emergency alerts.",
+          "locationWhenInUsePermission": "Allow ClimateReady to use your location to provide accurate weather and emergency alerts."
         }
       ]
     ],

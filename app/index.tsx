@@ -1,218 +1,366 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, { FadeInDown, FadeInUp, FadeIn, ZoomIn, ZoomInEasyDown, SlideInDown } from "react-native-reanimated";
+import React, { useEffect, useState, useCallback, JSX } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, AppState, ActivityIndicator } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Card } from '../components/Toolkit/Card';
+import { Badge } from '../components/Toolkit/Badge';
+import { ProgressBar } from '../components/Toolkit/ProgressBar';
+import { getUserProgress } from '../utils/storage';
+import { getEarnedBadges } from '../utils/badges';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 
-const { width } = Dimensions.get("window");
+const PRIMARY = '#5ba24f';
+const YELLOW = '#fac609';
+const ORANGE = '#e5793a';
+const BG = '#dcefdd';
 
-export default function HomeScreen({ navigation }: any) {
-  const [score, setScore] = useState(65); // Preparedness score mock
+// Replace with your OpenWeatherMap API key
+const OPENWEATHER_API_KEY = Constants.expoConfig?.extra?.openWeatherApiKey; // Get from https://openweathermap.org/api
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Header with background and logo */}
-      <Animated.View entering={FadeInDown.duration(700)} style={styles.heroHeader}>
-        <View style={styles.heroBg}>
-          <Image source={require("@/assets/images/ClimateReady v2.png")} style={styles.heroImage} resizeMode="contain" />
-        </View>
-        <Text style={styles.title}>🌍 ClimateReady</Text>
-        <Text style={styles.subtitle}>Be prepared. Stay safe. Protect your community.</Text>
-      </Animated.View>
+const quickActions: {
+  title: string;
+  subtitle: string;
+  icon: JSX.Element;
+  bgColor: string;
+  screen: 'safe-zone' | 'toolkit' | 'community';
+}[] = [
+  {
+    title: 'Safe Zones',
+    subtitle: 'Find nearby shelters',
+    icon: <Ionicons name="map" size={24} color="#fff" />,
+    bgColor: '#5ba24f',
+    screen: 'safe-zone',
+  },
+  {
+    title: 'Toolkit',
+    subtitle: 'Emergency checklists',
+    icon: <Feather name="package" size={24} color="#fff" />,
+    bgColor: '#fac609',
+    screen: 'toolkit',
+  },
+  {
+    title: 'Community',
+    subtitle: 'Connect & share',
+    icon: <Ionicons name="people" size={24} color="#fff" />,
+    bgColor: '#e5793a',
+    screen: 'community',
+  },
+];
 
-      {/* Preparedness Score with animated ring */}
-      <Animated.View entering={ZoomIn.duration(600)} style={styles.scoreCard}>
-        <Text style={styles.scoreLabel}>Preparedness Score</Text>
-        <View style={styles.scoreCircleWrap}>
-          <Animated.View entering={FadeInUp.delay(200).duration(600)} style={styles.scoreCircleGlow} />
-          <View style={styles.scoreCircle}>
-            <Text style={styles.scoreText}>{score}</Text>
-            <Text style={styles.scoreUnit}>/100</Text>
-          </View>
-        </View>
-      </Animated.View>
+const mockAlerts = [
+  {
+    id: '1',
+    type: 'warning',
+    title: 'Heat Wave Warning',
+    description: 'Excessive heat expected. Temperatures may reach 40°C.',
+    severity: 'high',
+    timestamp: '2 hours ago',
+  },
+  {
+    id: '2',
+    type: 'watch',
+    title: 'Air Quality Advisory',
+    description: 'Unhealthy air quality due to wildfire smoke.',
+    severity: 'medium',
+    timestamp: '5 hours ago',
+  },
+];
 
-      {/* Quick Actions with more color and animation */}
-      <Text style={styles.sectionTitle}>Quick Access</Text>
-      <View style={styles.grid}>
-        <Animated.View entering={FadeIn.delay(100).duration(400)} style={styles.gridItemWrap}>
-          <TouchableOpacity
-            style={[styles.gridItem, { backgroundColor: "#e0f2fe" }]}
-            onPress={() => navigation.navigate("toolKit")}
-          >
-            <Ionicons name="checkbox-outline" size={30} color="#0284c7" />
-            <Text style={styles.gridText}>Toolkit</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View entering={FadeIn.delay(200).duration(400)} style={styles.gridItemWrap}>
-          <TouchableOpacity style={[styles.gridItem, { backgroundColor: "#ffe4e6" }]}
-            onPress={() => {}}>
-            <Ionicons name="notifications" size={30} color="#e53935" />
-            <Text style={styles.gridText}>Alerts</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View entering={FadeIn.delay(300).duration(400)} style={styles.gridItemWrap}>
-          <TouchableOpacity style={[styles.gridItem, { backgroundColor: "#e0ffe6" }]}
-            onPress={() => {}}>
-            <MaterialCommunityIcons name="map-marker-check" size={30} color="#43a047" />
-            <Text style={styles.gridText}>Safe Zones</Text>
-          </TouchableOpacity>
-        </Animated.View>
-        <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.gridItemWrap}>
-          <TouchableOpacity style={[styles.gridItem, { backgroundColor: "#fff7e6" }]}
-            onPress={() => {}}>
-            <Ionicons name="chatbubbles" size={30} color="#ff9800" />
-            <Text style={styles.gridText}>Community</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-
-      {/* Recent Alerts with icons and color */}
-      <Text style={styles.sectionTitle}>Recent Alerts</Text>
-      <Animated.View entering={SlideInDown.delay(100).duration(400)} style={[styles.alertCard, { borderLeftColor: "#e53935", borderLeftWidth: 4 }]}> 
-        <Ionicons name="warning" size={22} color="#e53935" />
-        <Text style={styles.alertText}>⚠️ Heatwave warning in your area</Text>
-      </Animated.View>
-      <Animated.View entering={SlideInDown.delay(200).duration(400)} style={[styles.alertCard, { borderLeftColor: "#2196f3", borderLeftWidth: 4 }]}> 
-        <Ionicons name="rainy" size={22} color="#2196f3" />
-        <Text style={styles.alertText}>Heavy rainfall expected tomorrow</Text>
-      </Animated.View>
-      <Animated.View entering={SlideInDown.delay(300).duration(400)} style={[styles.alertCard, { borderLeftColor: "#43a047", borderLeftWidth: 4 }]}> 
-        <Ionicons name="leaf" size={22} color="#43a047" />
-        <Text style={styles.alertText}>Air quality is good today</Text>
-      </Animated.View>
-    </ScrollView>
-  );
+interface WeatherData {
+  temperature: number;
+  condition: string;
+  description: string;
+  location: string;
+  icon: string;
+  humidity: number;
+  windSpeed: number;
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f9ff",
-    padding: 0,
-  },
-  heroHeader: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 32,
-    paddingBottom: 18,
-    backgroundColor: "#e0f2fe",
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    marginBottom: 10,
-    shadowColor: "#0284c7",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  heroBg: {
-    width: width * 0.32,
-    height: width * 0.32,
-    backgroundColor: "#bae6fd",
-    borderRadius: 100,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    shadowColor: "#0284c7",
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  heroImage: {
-    width: "80%",
-    height: "80%",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#0284c7",
-    textAlign: "center",
-    letterSpacing: 1,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#64748b",
-    marginTop: 6,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  scoreCard: {
-    backgroundColor: "#fff",
-    padding: 24,
-    borderRadius: 18,
-    alignItems: "center",
-    shadowColor: "#0284c7",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 28,
-    marginHorizontal: 18,
-  },
-  scoreLabel: { fontSize: 15, color: "#0284c7", marginBottom: 10, fontWeight: "600" },
-  scoreCircleWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-    marginBottom: 2,
-  },
-  scoreCircleGlow: {
-    position: "absolute",
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "#bae6fd",
-    opacity: 0.5,
-    zIndex: 0,
-  },
-  scoreCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 7,
-    borderColor: "#0284c7",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f0f9ff",
-    zIndex: 1,
-  },
-  scoreText: { fontSize: 32, fontWeight: "bold", color: "#0284c7" },
-  scoreUnit: { fontSize: 13, color: "#64748b" },
-  sectionTitle: { fontSize: 19, fontWeight: "700", marginBottom: 12, marginLeft: 18, color: "#1e293b" },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginHorizontal: 12,
-    marginBottom: 10,
-  },
-  gridItemWrap: {
-    width: "48%",
-    marginBottom: 16,
-  },
-  gridItem: {
-    width: "100%",
-    backgroundColor: "white",
-    paddingVertical: 22,
-    borderRadius: 16,
-    alignItems: "center",
-    shadowColor: "#0284c7",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  gridText: { marginTop: 10, fontSize: 15, fontWeight: "600", color: "#222" },
-  alertCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
-    marginHorizontal: 18,
-    shadowColor: "#0284c7",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-    borderLeftWidth: 4,
-  },
-  alertText: { marginLeft: 12, fontSize: 15, color: "#1e293b", fontWeight: "500" },
-});
+export default function HomeScreen() {
+  const [greeting, setGreeting] = useState('');
+  const [progress, setProgress] = useState<any>(null);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  // Greeting logic
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good Morning');
+    else if (hour < 17) setGreeting('Good Afternoon');
+    else setGreeting('Good Evening');
+    setAlerts(mockAlerts);
+  }, []);
+
+  // Fetch weather data based on location
+  const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
+    try {
+      setIsLoadingWeather(true);
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${OPENWEATHER_API_KEY}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Weather data fetch failed');
+      }
+      
+      const data = await response.json();
+      
+      setWeather({
+        temperature: Math.round(data.main.temp),
+        condition: data.weather[0].main,
+        description: data.weather[0].description,
+        location: data.name,
+        icon: data.weather[0].icon,
+        humidity: data.main.humidity,
+        windSpeed: data.wind.speed
+      });
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+      setLocationError('Unable to fetch weather data');
+    } finally {
+      setIsLoadingWeather(false);
+    }
+  }, []);
+
+  // Get user's location and fetch weather
+  const getLocationAndWeather = useCallback(async () => {
+    try {
+      setIsLoadingWeather(true);
+      setLocationError(null);
+      
+      // Request location permissions
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Location permission denied');
+        setIsLoadingWeather(false);
+        return;
+      }
+
+      // Get current location
+      let location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+
+      const { latitude, longitude } = location.coords;
+      
+      // Fetch weather data
+      await fetchWeatherData(latitude, longitude);
+      
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setLocationError('Unable to get location');
+      setIsLoadingWeather(false);
+    }
+  }, [fetchWeatherData]);
+
+  // Fetch progress and badges
+  const refreshProgress = useCallback(async () => {
+    const userProgress = await getUserProgress();
+    setProgress(userProgress);
+    setBadges(getEarnedBadges(userProgress));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshProgress();
+      getLocationAndWeather();
+    }, [refreshProgress, getLocationAndWeather])
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshProgress();
+        getLocationAndWeather();
+      }
+    });
+    return () => sub.remove();
+  }, [refreshProgress, getLocationAndWeather]);
+
+  const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
+    const routeMap: Record<typeof screen, string> = {
+      'safe-zone': '/safe-zone',
+      'toolkit': '/toolkit',
+      'community': '/community',
+    };
+    router.push(routeMap[screen] as any);
+  };
+
+  // Get weather icon based on condition
+  const getWeatherIcon = (condition: string) => {
+    switch (condition.toLowerCase()) {
+      case 'clear':
+        return 'weather-sunny';
+      case 'clouds':
+        return 'weather-cloudy';
+      case 'rain':
+        return 'weather-rainy';
+      case 'snow':
+        return 'weather-snowy';
+      case 'thunderstorm':
+        return 'weather-lightning';
+      case 'drizzle':
+        return 'weather-pouring';
+      case 'mist':
+      case 'fog':
+      case 'haze':
+        return 'weather-fog';
+      default:
+        return 'weather-partly-cloudy';
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
+      {/* Header */}
+      <View style={{ backgroundColor: '#fff', padding: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: PRIMARY }}>{greeting}</Text>
+            <Text style={{ color: '#666', fontSize: 14 }}>Your ClimateReady App</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={{ marginRight: 12 }}>
+              <Ionicons name="notifications" size={24} color={alerts.length ? ORANGE : '#888'} />
+              {alerts.length > 0 && (
+                <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, backgroundColor: ORANGE, borderRadius: 4 }} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Ionicons name="settings" size={24} color="#888" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Weather Card */}
+        <Card style={{ marginTop: 16, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', padding: 16 }}>
+          {isLoadingWeather ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <ActivityIndicator color="#fff" />
+              <Text style={{ color: '#fff', marginLeft: 12 }}>Getting weather...</Text>
+            </View>
+          ) : locationError ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <MaterialCommunityIcons name="weather-cloudy-alert" size={32} color="#fff" />
+              <View style={{ marginLeft: 16 }}>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Weather Unavailable</Text>
+                <Text style={{ color: '#e0ffe0', fontSize: 13 }}>{locationError}</Text>
+              </View>
+            </View>
+          ) : weather ? (
+            <>
+              <MaterialCommunityIcons 
+                name={getWeatherIcon(weather.condition)} 
+                size={32} 
+                color="#fff" 
+              />
+              <View style={{ marginLeft: 16, flex: 1 }}>
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>
+                  {weather.temperature}°C - {weather.condition}
+                </Text>
+                <Text style={{ color: '#e0ffe0', fontSize: 13 }}>
+                  {weather.location} • {weather.description}
+                </Text>
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  <Text style={{ color: '#e0ffe0', fontSize: 12, marginRight: 12 }}>
+                    💧 {weather.humidity}%
+                  </Text>
+                  <Text style={{ color: '#e0ffe0', fontSize: 12 }}>
+                    💨 {weather.windSpeed} m/s
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+        </Card>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        {/* Alerts */}
+        {alerts.length > 0 && (
+          <Animated.View entering={FadeInUp.duration(500)}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginBottom: 8 }}>Active Alerts</Text>
+            {alerts.map((alert) => (
+              <Card key={alert.id} style={{
+                borderLeftWidth: 4,
+                borderLeftColor: alert.severity === 'high' ? ORANGE : alert.severity === 'medium' ? YELLOW : PRIMARY,
+                marginBottom: 8,
+                backgroundColor: '#fff'
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+                  <Feather name={alert.type === 'warning' ? 'alert-triangle' : 'cloud'} size={20} color={alert.severity === 'high' ? ORANGE : alert.severity === 'medium' ? YELLOW : PRIMARY} />
+                  <View style={{ marginLeft: 12, flex: 1 }}>
+                    <Text style={{ fontWeight: 'bold', color: '#333' }}>{alert.title}</Text>
+                    <Text style={{ color: '#666', fontSize: 13 }}>{alert.description}</Text>
+                    <Text style={{ color: '#aaa', fontSize: 12 }}>{alert.timestamp}</Text>
+                  </View>
+                </View>
+              </Card>
+            ))}
+          </Animated.View>
+        )}
+
+        {/* Quick Actions */}
+        <Animated.View entering={FadeInUp.delay(100).duration(500)}>
+          <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginVertical: 12 }}>Quick Actions</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.title}
+                style={{ flex: 1, marginHorizontal: 4 }}
+                onPress={() => navigateToScreen(action.screen)}
+              >
+                <Card style={{ alignItems: 'center', padding: 16, backgroundColor: action.bgColor }}>
+                  {action.icon}
+                  <Text style={{ color: '#fff', fontWeight: 'bold', marginTop: 8 }}>{action.title}</Text>
+                  <Text style={{ color: '#fff', fontSize: 12 }}>{action.subtitle}</Text>
+                </Card>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Progress & Badges */}
+        <Animated.View entering={FadeInUp.delay(200).duration(500)}>
+          <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginVertical: 12 }}>Your Progress</Text>
+          <Card style={{ backgroundColor: '#fff', padding: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ backgroundColor: PRIMARY, borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="award" size={22} color="#fff" />
+              </View>
+              <View style={{ marginLeft: 12 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, color: PRIMARY }}>Level {progress?.level || 1}</Text>
+                <Text style={{ color: '#666', fontSize: 13 }}>{progress?.points || 0} points</Text>
+              </View>
+            </View>
+            <ProgressBar progress={progress?.percent || 0} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              {badges.map((badge, i) => (
+                <Badge key={i} icon={badge.icon} label={badge.label} />
+              ))}
+              <Text style={{ color: '#666', fontSize: 13, marginLeft: 8 }}>{badges.length} badges earned</Text>
+            </View>
+          </Card>
+        </Animated.View>
+
+        {/* Hero Image */}
+        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+          <Card style={{ marginTop: 20, overflow: 'hidden', borderRadius: 16, padding: 0 }}>
+            <View style={{ width: '100%', height: 120, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="shield" size={32} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: 'bold', marginTop: 4 }}>Stay Prepared, Stay Safe</Text>
+            </View>
+          </Card>
+        </Animated.View>
+      </ScrollView>
+    </View>
+  );
+}

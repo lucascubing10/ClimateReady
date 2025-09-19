@@ -10,16 +10,20 @@ import Animated, {
 // If badgesData is a default export:
 import badgesData from '@/components/Toolkit/badgesData';
 
+interface BadgesSectionProps {
+  badges?: typeof badgesData;
+}
+
 import AnimatedCard from '@/components/Toolkit/AnimatedCard';
 
-const BadgesSection = () => {
+const BadgesSection = ({ badges }: BadgesSectionProps) => {
+  const displayBadges = badges || badgesData;
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Your Achievements</Text>
       <Text style={styles.sectionSubtitle}>Earn badges by completing preparedness tasks</Text>
-      
       <View style={styles.badgesGrid}>
-        {badgesData.map((badge: any, index: number) => (
+        {displayBadges.map((badge: any, index: number) => (
           <BadgeCard key={badge.id} badge={badge} index={index} />
         ))}
       </View>

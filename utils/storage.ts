@@ -3,6 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'user_preparedness_progress';
 
 export interface UserProgress {
+  level: number;
+  points: number;
+  percent: number;
   checklists: {
     [categoryId: string]: {
       [itemId: string]: boolean;
@@ -13,19 +16,20 @@ export interface UserProgress {
 }
 
 export const defaultUserProgress: UserProgress = {
+  level: 1,
+  points: 0,
+  percent: 0,
   checklists: {},
   completedCategories: 0,
   lastUpdated: new Date().toISOString(),
 };
 
-// Get user progress from storage
 export const getUserProgress = async (): Promise<UserProgress> => {
   try {
     const storedProgress = await AsyncStorage.getItem(STORAGE_KEY);
     if (storedProgress) {
       return JSON.parse(storedProgress);
     }
-    // Initialize with default progress if none exists
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUserProgress));
     return defaultUserProgress;
   } catch (error) {
@@ -34,7 +38,6 @@ export const getUserProgress = async (): Promise<UserProgress> => {
   }
 };
 
-// Update checklist item status
 export const updateChecklistItem = async (
   categoryId: string, 
   itemId: string, 
@@ -43,48 +46,29 @@ export const updateChecklistItem = async (
   try {
     const progress = await getUserProgress();
     
-    // Initialize category if it doesn't exist
     if (!progress.checklists[categoryId]) {
       progress.checklists[categoryId] = {};
     }
     
-    // Update the item status
     progress.checklists[categoryId][itemId] = completed;
     progress.lastUpdated = new Date().toISOString();
     
-    // Check if category is now complete
-    const categoryItems = Object.keys(progress.checklists[categoryId]);
-    const completedItems = categoryItems.filter(id => progress.checklists[categoryId][id]);
+    // Calculate new progress
+    const totalItems = Object.values(progress.checklists).reduce((total, category) => {
+      return total + Object.keys(category).length;
+    }, 0);
     
-    // Update completed categories count
-    const allCategories = Object.keys(progress.checklists);
-    const completedCategories = allCategories.filter(catId => {
-      const catItems = Object.keys(progress.checklists[catId]);
-      return catItems.every(itemId => progress.checklists[catId][itemId]);
-    });
+    const completedItems = Object.values(progress.checklists).reduce((completed, category) => {
+      return completed + Object.values(category).filter(item => item === true).length;
+    }, 0);
     
-    progress.completedCategories = completedCategories.length;
+    progress.percent = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    progress.points = Math.floor(progress.percent * 10);
+    progress.level = Math.floor(progress.points / 100) + 1;
     
-    // Save updated progress
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch (error) {
     console.error('Error updating checklist item:', error);
     throw error;
   }
-};
-
-// Reset all progress
-export const resetProgress = async (): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUserProgress));
-  } catch (error) {
-    console.error('Error resetting progress:', error);
-    throw error;
-  }
-};
-
-// Export progress data
-export const exportProgress = async (): Promise<string> => {
-  const progress = await getUserProgress();
-  return JSON.stringify(progress, null, 2);
 };

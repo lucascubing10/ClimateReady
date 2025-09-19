@@ -1,81 +1,50 @@
 import React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withSpring, 
-  useSharedValue,
-  interpolate
-} from 'react-native-reanimated';
-import { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface ProgressBarProps {
-  percentage: number;
+  progress: number;
 }
 
-const ProgressBar = ({ percentage }: ProgressBarProps) => {
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = withSpring(percentage / 100, {
-      damping: 20,
-      stiffness: 90
-    });
-  }, [percentage]);
-
-  const progressStyle = useAnimatedStyle(() => {
-    return {
-      width: `${interpolate(progress.value, [0, 1], [0, 100])}%`,
-    };
-  });
-
-  const getProgressColor = () => {
-    if (percentage < 33) return '#ef4444'; // red
-    if (percentage < 66) return '#f59e0b'; // orange
-    return '#10b981'; // green
-  };
-
+const ProgressBar = ({ progress }: ProgressBarProps) => {
   return (
     <View style={styles.progressContainer}>
       <View style={styles.progressBar}>
-        <Animated.View 
+        <View 
           style={[
             styles.progressFill, 
-            progressStyle, 
-            { backgroundColor: getProgressColor() }
+            { width: `${Math.min(100, Math.max(0, progress))}%` }
           ]} 
         />
       </View>
-      <View style={styles.percentageContainer}>
-        <Text style={styles.percentageText}>{Math.round(percentage)}% complete</Text>
-      </View>
+      <Text style={styles.progressText}>{Math.round(progress)}%</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   progressContainer: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   progressBar: {
+    flex: 1,
     height: 8,
     backgroundColor: '#e2e8f0',
-    borderRadius: 3,
+    borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 4,
+    marginRight: 8,
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    backgroundColor: '#5ba24f',
+    borderRadius: 4,
   },
-  percentageContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  percentageText: {
+  progressText: {
     fontSize: 12,
-    color: '#64748b',
-    fontWeight: '500',
+    color: '#666',
+    fontWeight: '600',
+    minWidth: 30,
   },
 });
 
-export default ProgressBar;
+export { ProgressBar };

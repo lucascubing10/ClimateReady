@@ -7,7 +7,7 @@ import Animated, {
   interpolate
 } from 'react-native-reanimated';
 import ChecklistItem from './ChecklistItem';
-import ProgressBar from './ProgressBar';
+import { ProgressBar } from './ProgressBar';
 
 interface ChecklistCategoryProps {
   category: any;
@@ -59,7 +59,7 @@ const ChecklistCategory = ({ category, progress, onToggleItem, index }: Checklis
         </Animated.Text>
       </TouchableOpacity>
 
-      <ProgressBar percentage={progressPercentage} />
+      <ProgressBar progress={progressPercentage} />
 
       {expanded && (
         <View style={styles.itemsContainer}>
