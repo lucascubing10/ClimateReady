@@ -21,6 +21,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  reloadUserProfile: () => Promise<boolean>;
   isLoggedIn: boolean;
 }
 
@@ -52,12 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const docSnapshot = await getUserDocument(firebaseUser.uid);
           if (docSnapshot.exists()) {
             setUserProfile(docSnapshot.data() as UserProfile);
+          } else {
+            // If the user exists in authentication but not in Firestore,
+            // create a minimal profile to prevent indefinite loading
+            console.warn('User exists in Auth but not in Firestore. Creating minimal profile.');
+            const minimalProfile = createEmptyUserProfile(
+              firebaseUser.email || '', 
+              firebaseUser.displayName?.split(' ')[0] || 'User', 
+              firebaseUser.displayName?.split(' ').slice(1).join(' ') || ''
+            );
+            await createUserDocument(firebaseUser.uid, minimalProfile);
+            setUserProfile(minimalProfile);
           }
           
           // Store authentication state in AsyncStorage
           await AsyncStorage.setItem('user_authenticated', 'true');
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          // Set a minimal profile to prevent indefinite loading
+          const fallbackProfile = createEmptyUserProfile(
+            firebaseUser.email || '', 
+            firebaseUser.displayName?.split(' ')[0] || 'User', 
+            firebaseUser.displayName?.split(' ').slice(1).join(' ') || ''
+          );
+          setUserProfile(fallbackProfile);
         }
       } else {
         // Clear user profile when logged out
@@ -174,6 +193,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+  
+  // Method to reload the user profile from Firestore
+  const reloadUserProfile = async () => {
+    if (!user) throw new Error('No authenticated user');
+    try {
+      setIsLoading(true);
+      
+      // Get fresh user profile from Firestore
+      const docSnapshot = await getUserDocument(user.uid);
+      if (docSnapshot.exists()) {
+        setUserProfile(docSnapshot.data() as UserProfile);
+      } else {
+        // If the profile doesn't exist in Firestore, create a minimal one
+        const minimalProfile = createEmptyUserProfile(
+          user.email || '', 
+          user.displayName?.split(' ')[0] || 'User', 
+          user.displayName?.split(' ').slice(1).join(' ') || ''
+        );
+        await createUserDocument(user.uid, minimalProfile);
+        setUserProfile(minimalProfile);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error reloading user profile:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const value = {
     user,
@@ -184,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     resetPassword,
     updateUserProfile,
+    reloadUserProfile,
     isLoggedIn,
   };
 

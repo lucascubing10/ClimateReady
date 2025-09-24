@@ -14,6 +14,7 @@ import { Stack } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfile } from '../../utils/userDataModel';
+import refreshProfile from '../../utils/profileRefresh';
 
 // Progress bar component for profile completeness
 const ProfileCompleteness = ({ percentage }: { percentage: number }) => (
@@ -87,8 +88,9 @@ const ProfileSection = ({
 );
 
 export default function ProfileScreen() {
-  const { userProfile, logout, isLoading } = useAuth();
+  const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Handle logout
   const handleLogout = async () => {
@@ -126,14 +128,54 @@ export default function ProfileScreen() {
     // In a complete implementation, we would navigate to the appropriate edit screen
   };
   
+  // State for tracking loading timeouts
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Set a timeout for loading
+  useEffect(() => {
+    if (!userProfile) {
+      // Set a timeout to show an error message if profile takes too long to load
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 5000); // 5 seconds timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [userProfile]);
+
   // Handle when there's no user profile
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.container}>
         <Stack.Screen options={{ title: 'Profile' }} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0284c7" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          {loadingTimeout ? (
+            <>
+              <Ionicons name="warning" size={40} color="#f59e0b" />
+              <Text style={styles.errorText}>Failed to load profile</Text>
+              <TouchableOpacity 
+                style={styles.retryButton}
+                onPress={async () => {
+                  setLoadingTimeout(false);
+                  setIsRefreshing(true);
+                  try {
+                    await reloadUserProfile();
+                  } catch (error) {
+                    console.error('Failed to reload profile:', error);
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+              >
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <ActivityIndicator size="large" color="#0284c7" />
+              <Text style={styles.loadingText}>Loading profile...</Text>
+            </>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -445,5 +487,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
+  },
+  errorText: {
+    marginTop: 16,
+    color: '#dc2626',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
