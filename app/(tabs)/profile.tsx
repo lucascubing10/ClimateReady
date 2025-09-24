@@ -201,6 +201,19 @@ export default function ProfileScreen() {
       <ScrollView>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
+          {/* Logout Button in Header */}
+          <TouchableOpacity 
+            style={styles.headerLogoutButton}
+            onPress={handleLogout}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="log-out-outline" size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
+          
           <View style={styles.profileImageContainer}>
             <Text style={styles.profileInitials}>
               {userProfile.firstName?.[0] || ''}{userProfile.lastName?.[0] || ''}
@@ -319,22 +332,6 @@ export default function ProfileScreen() {
               },
             ]}
           />
-          
-          {/* Logout Button */}
-          <TouchableOpacity 
-            style={styles.logoutButton}
-            onPress={handleLogout}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="log-out-outline" size={20} color="#fff" />
-                <Text style={styles.logoutText}>Logout</Text>
-              </>
-            )}
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -487,6 +484,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 16,
     marginLeft: 8,
+  },
+  headerLogoutButton: {
+    position: 'absolute',
+    top: 10,
+    right: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    zIndex: 10,
   },
   errorText: {
     marginTop: 16,
