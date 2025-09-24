@@ -80,7 +80,7 @@ export default function EditBasicInfoScreen() {
       
       Alert.alert('Success', 'Basic information updated successfully');
       // Navigate back to profile page
-      router.replace('/(tabs)/profile' as any);
+      router.replace('/tabs/profile' as any);
     } catch (error) {
       // @ts-ignore
       Alert.alert('Error', error.message || 'Failed to update basic information');

@@ -8,7 +8,7 @@ export default function Index() {
   // Redirect to the appropriate route based on authentication status
   if (isLoggedIn) {
     // Using type assertion to bypass type checking for path - needed for group routes
-    return <Redirect href={'/(tabs)/' as any} />;
+    return <Redirect href={'/tabs/' as any} />;
   }
   
   // Using type assertion to bypass type checking for path

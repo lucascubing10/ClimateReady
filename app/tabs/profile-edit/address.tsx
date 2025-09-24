@@ -15,27 +15,32 @@ import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { InputField, Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
-import { genderOptions } from '../../../utils/userDataModel';
 
-export default function EditPersonalDetailsScreen() {
+export default function EditAddressScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
   // Use current profile data as initial state
   const [formData, setFormData] = useState({
-    gender: userProfile?.gender || '',
-    birthday: userProfile?.birthday || '',
+    street: userProfile?.address?.street || '',
+    city: userProfile?.address?.city || '',
+    state: userProfile?.address?.state || '',
+    zip: userProfile?.address?.zip || '',
+    country: userProfile?.address?.country || 'United States', // Default value
   });
   
   const [errors, setErrors] = useState({
-    birthday: '',
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
   });
   
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (field === 'birthday' && errors.birthday) {
-      setErrors(prev => ({ ...prev, birthday: '' }));
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
   
@@ -43,9 +48,9 @@ export default function EditPersonalDetailsScreen() {
     const newErrors = { ...errors };
     let isValid = true;
     
-    // Birthday validation (YYYY-MM-DD format)
-    if (formData.birthday && !/^\d{4}-\d{2}-\d{2}$/.test(formData.birthday)) {
-      newErrors.birthday = 'Please use YYYY-MM-DD format';
+    // Basic ZIP code validation (US format)
+    if (formData.zip && !/^\d{5}(-\d{4})?$/.test(formData.zip)) {
+      newErrors.zip = 'Please enter a valid ZIP code';
       isValid = false;
     }
     
@@ -60,17 +65,22 @@ export default function EditPersonalDetailsScreen() {
       setIsLoading(true);
       
       await updateUserProfile({
-        gender: formData.gender,
-        birthday: formData.birthday,
+        address: {
+          street: formData.street,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          country: formData.country,
+        },
         updatedAt: Date.now(),
       });
       
-      Alert.alert('Success', 'Personal details updated successfully');
+      Alert.alert('Success', 'Address updated successfully');
       // Navigate back to profile page
-      router.replace('/(tabs)/profile' as any);
+      router.replace('/tabs/profile' as any);
     } catch (error) {
       // @ts-ignore
-      Alert.alert('Error', error.message || 'Failed to update personal details');
+      Alert.alert('Error', error.message || 'Failed to update address');
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +90,7 @@ export default function EditPersonalDetailsScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: 'Edit Personal Details',
+          title: 'Edit Address',
           headerShown: true,
           headerTitleAlign: 'center',
           headerLeft: () => (
@@ -103,44 +113,57 @@ export default function EditPersonalDetailsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Personal Details</Text>
+            <Text style={styles.sectionTitle}>Home Address</Text>
             
-            <Text style={styles.fieldLabel}>Gender</Text>
-            <View style={styles.optionsContainer}>
-              {genderOptions.map((gender) => (
-                <TouchableOpacity
-                  key={gender}
-                  style={[
-                    styles.optionButton,
-                    formData.gender === gender && styles.selectedOption
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, gender }))}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      formData.gender === gender && styles.selectedOptionText
-                    ]}
-                  >
-                    {gender}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <InputField
+              label="Street Address"
+              value={formData.street}
+              onChangeText={(text) => handleChange('street', text)}
+              placeholder="123 Main St"
+              error={errors.street}
+              leftIcon={<Ionicons name="location-outline" size={20} color="#9ca3af" />}
+            />
+            
+            <InputField
+              label="City"
+              value={formData.city}
+              onChangeText={(text) => handleChange('city', text)}
+              placeholder="City"
+              error={errors.city}
+            />
+            
+            <View style={styles.rowContainer}>
+              <InputField
+                label="State"
+                value={formData.state}
+                onChangeText={(text) => handleChange('state', text)}
+                placeholder="State"
+                error={errors.state}
+                containerStyle={styles.stateInput}
+              />
+              
+              <InputField
+                label="ZIP Code"
+                value={formData.zip}
+                onChangeText={(text) => handleChange('zip', text)}
+                placeholder="12345"
+                keyboardType="number-pad"
+                error={errors.zip}
+                containerStyle={styles.zipInput}
+              />
             </View>
             
             <InputField
-              label="Birthday"
-              value={formData.birthday}
-              onChangeText={(text) => handleChange('birthday', text)}
-              placeholder="YYYY-MM-DD"
-              error={errors.birthday}
-              leftIcon={<Ionicons name="calendar-outline" size={20} color="#9ca3af" />}
+              label="Country"
+              value={formData.country}
+              onChangeText={(text) => handleChange('country', text)}
+              placeholder="Country"
             />
             
             <View style={styles.noteContainer}>
               <Ionicons name="information-circle" size={20} color="#6b7280" />
               <Text style={styles.noteText}>
-                This information helps provide age-appropriate safety recommendations.
+                Your address helps us provide location-specific emergency information.
               </Text>
             </View>
             
@@ -181,37 +204,15 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 16,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  optionsContainer: {
+  rowContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
+    justifyContent: 'space-between',
   },
-  optionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-    marginBottom: 8,
+  stateInput: {
+    width: '48%',
   },
-  selectedOption: {
-    backgroundColor: '#0284c7',
-    borderColor: '#0284c7',
-  },
-  optionText: {
-    color: '#4b5563',
-    fontSize: 14,
-  },
-  selectedOptionText: {
-    color: '#fff',
-    fontWeight: '500',
+  zipInput: {
+    width: '48%',
   },
   noteContainer: {
     flexDirection: 'row',

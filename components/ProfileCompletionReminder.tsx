@@ -51,7 +51,7 @@ const ProfileCompletionReminder = () => {
   };
   
   const handleComplete = () => {
-    router.push('/(tabs)/edit-profile' as any);
+    router.push('/tabs/edit-profile' as any);
     setVisible(false);
   };
   

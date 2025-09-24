@@ -25,7 +25,7 @@ function RootLayoutNav() {
       try {
         if (isLoggedIn && user) {
           // Navigate to the home screen tab - Make sure this path matches your folder structure
-          router.replace('/(tabs)/' as any);
+          router.replace('/tabs/' as any);
         } else {
           // Navigate to login
           router.replace('/login' as any);

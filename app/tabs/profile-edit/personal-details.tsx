@@ -13,37 +13,64 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../../../components/AuthComponents';
+import { InputField, Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
-import { householdTypes, languageOptions } from '../../../utils/userDataModel';
+import { genderOptions } from '../../../utils/userDataModel';
 
-export default function EditPreferencesScreen() {
+export default function EditPersonalDetailsScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
   // Use current profile data as initial state
   const [formData, setFormData] = useState({
-    preferredLanguage: userProfile?.preferredLanguage || '',
-    householdType: userProfile?.householdType || '',
+    gender: userProfile?.gender || '',
+    birthday: userProfile?.birthday || '',
   });
   
+  const [errors, setErrors] = useState({
+    birthday: '',
+  });
+  
+  const handleChange = (field: keyof typeof formData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'birthday' && errors.birthday) {
+      setErrors(prev => ({ ...prev, birthday: '' }));
+    }
+  };
+  
+  const validateForm = () => {
+    const newErrors = { ...errors };
+    let isValid = true;
+    
+    // Birthday validation (YYYY-MM-DD format)
+    if (formData.birthday && !/^\d{4}-\d{2}-\d{2}$/.test(formData.birthday)) {
+      newErrors.birthday = 'Please use YYYY-MM-DD format';
+      isValid = false;
+    }
+    
+    setErrors(newErrors);
+    return isValid;
+  };
+  
   const handleSave = async () => {
+    if (!validateForm()) return;
+    
     try {
       setIsLoading(true);
       
       await updateUserProfile({
-        preferredLanguage: formData.preferredLanguage,
-        householdType: formData.householdType,
+        gender: formData.gender,
+        birthday: formData.birthday,
         updatedAt: Date.now(),
       });
       
-      Alert.alert('Success', 'Preferences updated successfully');
+      Alert.alert('Success', 'Personal details updated successfully');
       // Navigate back to profile page
-      router.replace('/(tabs)/profile' as any);
+      router.replace('/tabs/profile' as any);
     } catch (error) {
       // @ts-ignore
-      Alert.alert('Error', error.message || 'Failed to update preferences');
+      Alert.alert('Error', error.message || 'Failed to update personal details');
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +80,7 @@ export default function EditPreferencesScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: 'Edit Preferences',
+          title: 'Edit Personal Details',
           headerShown: true,
           headerTitleAlign: 'center',
           headerLeft: () => (
@@ -76,58 +103,44 @@ export default function EditPreferencesScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
+            <Text style={styles.sectionTitle}>Personal Details</Text>
             
-            <Text style={styles.fieldLabel}>Preferred Language</Text>
+            <Text style={styles.fieldLabel}>Gender</Text>
             <View style={styles.optionsContainer}>
-              {languageOptions.map((language) => (
+              {genderOptions.map((gender) => (
                 <TouchableOpacity
-                  key={language}
+                  key={gender}
                   style={[
                     styles.optionButton,
-                    formData.preferredLanguage === language && styles.selectedOption
+                    formData.gender === gender && styles.selectedOption
                   ]}
-                  onPress={() => setFormData(prev => ({ ...prev, preferredLanguage: language }))}
+                  onPress={() => setFormData(prev => ({ ...prev, gender }))}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      formData.preferredLanguage === language && styles.selectedOptionText
+                      formData.gender === gender && styles.selectedOptionText
                     ]}
                   >
-                    {language}
+                    {gender}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
             
-            <Text style={styles.fieldLabel}>Household Type</Text>
-            <View style={styles.optionsContainer}>
-              {householdTypes.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.optionButton,
-                    formData.householdType === type && styles.selectedOption
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, householdType: type }))}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      formData.householdType === type && styles.selectedOptionText
-                    ]}
-                  >
-                    {type}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <InputField
+              label="Birthday"
+              value={formData.birthday}
+              onChangeText={(text) => handleChange('birthday', text)}
+              placeholder="YYYY-MM-DD"
+              error={errors.birthday}
+              leftIcon={<Ionicons name="calendar-outline" size={20} color="#9ca3af" />}
+            />
             
             <View style={styles.noteContainer}>
               <Ionicons name="information-circle" size={20} color="#6b7280" />
               <Text style={styles.noteText}>
-                Your preferences help us provide more relevant safety recommendations based on your living situation.
+                This information helps provide age-appropriate safety recommendations.
               </Text>
             </View>
             

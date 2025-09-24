@@ -128,26 +128,26 @@ export default function ProfileScreen() {
     // Navigate to the appropriate edit screen based on section
     switch(section.toLowerCase()) {
       case 'basic info':
-        router.push('/(tabs)/profile-edit/basic-info' as any);
+        router.push('/tabs/profile-edit/basic-info' as any);
         break;
       case 'preferences':
-        router.push('/(tabs)/profile-edit/preferences' as any);
+        router.push('/tabs/profile-edit/preferences' as any);
         break;
       case 'personal details':
-        router.push('/(tabs)/profile-edit/personal-details' as any);
+        router.push('/tabs/profile-edit/personal-details' as any);
         break;
       case 'address':
-        router.push('/(tabs)/profile-edit/address' as any);
+        router.push('/tabs/profile-edit/address' as any);
         break;
       case 'emergency contacts':
-        router.push('/(tabs)/profile-edit/emergency-contacts' as any);
+        router.push('/tabs/profile-edit/emergency-contacts' as any);
         break;
       case 'medical info':
-        router.push('/(tabs)/profile-edit/medical-info' as any);
+        router.push('/tabs/profile-edit/medical-info' as any);
         break;
       default:
         // Fallback to the profile screen if section is not recognized
-        router.push('/(tabs)/profile' as any);
+        router.push('/tabs/profile' as any);
     }
   };
   
