@@ -58,7 +58,7 @@ export default function EditPreferencesScreen() {
           headerTitleAlign: 'center',
           headerLeft: () => (
             <TouchableOpacity 
-              onPress={() => router.back()}
+              onPress={() => router.push('/tabs/profile' as any)}
               style={{ paddingHorizontal: 16 }}
             >
               <Ionicons name="arrow-back" size={24} color="#0284c7" />
