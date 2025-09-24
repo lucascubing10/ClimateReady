@@ -24,16 +24,16 @@ function RootLayoutNav() {
       // Automatically route based on auth status
       try {
         if (isLoggedIn && user) {
-          // Navigate to the home screen tab
-          router.replace('/(tabs)/index' as any);
+          // Navigate to the home screen tab - Make sure this path matches your folder structure
+          router.replace('/(tabs)/' as any);
         } else {
           // Navigate to login
-          router.replace('/(auth)/login' as any);
+          router.replace('/login' as any);
         }
       } catch (error) {
         console.error('Navigation error:', error);
         // Fallback navigation if the main routes fail
-        router.replace('/');
+        router.replace('/login');
       }
       
       // Hide splash screen once we know where to go
