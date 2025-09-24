@@ -43,6 +43,12 @@ export default function TabsLayout() {
             href: null, // Hide this tab from the bottom tab bar
           }}
         />
+        <Tabs.Screen
+          name="profile-edit"
+          options={{
+            href: null, // Hide this tab and its children from the bottom tab bar
+          }}
+        />
       </Tabs>
       
       {/* Show profile completion reminder when needed */}
