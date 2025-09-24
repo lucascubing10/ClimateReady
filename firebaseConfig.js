@@ -2,7 +2,7 @@
 import { initializeApp } from "firebase/app";
 // https://firebase.google.com/docs/web/setup#available-libraries
 import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, addDoc, getDoc, setDoc, doc, updateDoc, query, where, getDocs } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from 'react-native';
 
