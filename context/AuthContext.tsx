@@ -182,12 +182,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       
       // Always update local state immediately for better UX
-      setUserProfile(prevProfile => 
-        prevProfile ? { ...prevProfile, ...updatedData } : null
-      );
+      let updatedProfile;
+      let completeness;
+      
+      setUserProfile(prevProfile => {
+        if (!prevProfile) return null;
+        
+        // Create the updated profile
+        updatedProfile = { ...prevProfile, ...updatedData };
+        
+        // Recalculate profile completeness
+        const { calculateProfileCompleteness } = require('../utils/userDataModel');
+        completeness = calculateProfileCompleteness(updatedProfile);
+        
+        // Add the completeness to the updated profile
+        return { ...updatedProfile, profileCompleteness: completeness };
+      });
+      
+      // Include the recalculated completeness in the data sent to Firestore
+      const firestoreData = {
+        ...updatedData,
+        profileCompleteness: completeness
+      };
       
       // Update Firestore
-      const result = await updateUserDocument(user.uid, updatedData);
+      const result = await updateUserDocument(user.uid, firestoreData);
       
       if (!result.success) {
         // If Firestore update failed but it's because of being offline,
@@ -219,9 +238,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       try {
         // Get fresh user profile from Firestore
-        const docSnapshot = await getUserDocument(user.uid);
+          const docSnapshot = await getUserDocument(user.uid);
         if (docSnapshot.exists()) {
-          setUserProfile(docSnapshot.data() as UserProfile);
+          // Get profile data and ensure completeness is calculated
+          const profileData = docSnapshot.data() as UserProfile;
+          const { calculateProfileCompleteness } = require('../utils/userDataModel');
+          const completeness = calculateProfileCompleteness(profileData);
+          
+          // Update the profile data with the calculated completeness
+          setUserProfile({...profileData, profileCompleteness: completeness});
           return true;
         } else {
           // If the profile doesn't exist in Firestore, create a minimal one
@@ -229,9 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user.email || '', 
             user.displayName?.split(' ')[0] || 'User', 
             user.displayName?.split(' ').slice(1).join(' ') || ''
-          );
-          
-          const createResult = await createUserDocument(user.uid, minimalProfile);
+          );          const createResult = await createUserDocument(user.uid, minimalProfile);
           if (createResult.success) {
             setUserProfile(minimalProfile);
             return true;
