@@ -110,9 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (docSnapshot.exists()) {
         setUserProfile(docSnapshot.data() as UserProfile);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      
+      // Format Firebase error with code and message for better handling
+      const formattedError = {
+        code: error.code || 'unknown-error',
+        message: error.message || 'An unknown error occurred during login',
+        originalError: error
+      };
+      
+      throw formattedError;
     } finally {
       setIsLoading(false);
     }

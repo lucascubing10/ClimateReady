@@ -21,6 +21,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({ email: '', password: '' });
+  const [authError, setAuthError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   const { login } = useAuth();
@@ -49,20 +50,33 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     if (!validateInputs()) return;
     
+    // Clear any previous auth errors
+    setAuthError('');
+    
     try {
       setIsLoading(true);
       await login(email, password);
       // Navigation will be handled by the auth state change in _layout.tsx
     } catch (error) {
+      console.log('Login error details:', JSON.stringify(error));
+      
+      // Get the error code from Firebase error
+      // @ts-ignore
+      const errorCode = error.code || '';
       // @ts-ignore
       const errorMessage = error.message || 'Failed to log in';
       
-      if (errorMessage.includes('user-not-found') || 
+      // Handle specific Firebase auth error codes
+      if (errorCode === 'auth/user-not-found' || 
+          errorCode === 'auth/wrong-password' || 
+          errorCode === 'auth/invalid-credential' ||
+          errorCode === 'auth/invalid-email' ||
+          errorMessage.includes('user-not-found') || 
           errorMessage.includes('wrong-password') || 
           errorMessage.includes('invalid-credential')) {
-        Alert.alert('Login Failed', 'Invalid email or password. Please try again.');
+        setAuthError('Invalid email or password. Please try again.');
       } else {
-        Alert.alert('Login Error', errorMessage);
+        setAuthError(errorMessage || 'An error occurred during login.');
       }
     } finally {
       setIsLoading(false);
@@ -92,11 +106,20 @@ export default function LoginScreen() {
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Sign in to continue to ClimateReady</Text>
           
+          {authError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{authError}</Text>
+            </View>
+          ) : null}
+          
           <View style={styles.formContainer}>
             <InputField
               label="Email"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (authError) setAuthError('');
+              }}
               placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -108,7 +131,10 @@ export default function LoginScreen() {
             <InputField
               label="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (authError) setAuthError('');
+              }}
               placeholder="Enter your password"
               secureTextEntry
               error={errors.password}
@@ -198,5 +224,19 @@ const styles = StyleSheet.create({
   noAccountText: {
     textAlign: 'center',
     marginTop: 8,
+  },
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
