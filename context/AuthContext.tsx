@@ -175,17 +175,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      // Update Firestore
-      const userDocRef = getUserDocument(user.uid);
-      await updateUserDocument(user.uid, {
+      const timestamp = Date.now();
+      const updatedData = {
         ...data,
-        updatedAt: Date.now()
-      });
+        updatedAt: timestamp
+      };
       
-      // Update local state
+      // Always update local state immediately for better UX
       setUserProfile(prevProfile => 
-        prevProfile ? { ...prevProfile, ...data, updatedAt: Date.now() } : null
+        prevProfile ? { ...prevProfile, ...updatedData } : null
       );
+      
+      // Update Firestore
+      const result = await updateUserDocument(user.uid, updatedData);
+      
+      if (!result.success) {
+        // If Firestore update failed but it's because of being offline,
+        // we can still keep the local changes and let Firestore sync later
+        const errorMsg = result.error ? (result.error as any).message : '';
+        const errorCode = result.error ? (result.error as any).code : '';
+        
+        if (errorCode === 'unavailable' || errorMsg.includes('offline')) {
+          console.log('Profile updated locally. Changes will sync when online.');
+          // Don't throw an error, as the changes are saved locally
+          return;
+        } else {
+          throw result.error;
+        }
+      }
     } catch (error) {
       console.error('Profile update error:', error);
       throw error;
@@ -200,25 +217,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      // Get fresh user profile from Firestore
-      const docSnapshot = await getUserDocument(user.uid);
-      if (docSnapshot.exists()) {
-        setUserProfile(docSnapshot.data() as UserProfile);
-      } else {
-        // If the profile doesn't exist in Firestore, create a minimal one
-        const minimalProfile = createEmptyUserProfile(
-          user.email || '', 
-          user.displayName?.split(' ')[0] || 'User', 
-          user.displayName?.split(' ').slice(1).join(' ') || ''
-        );
-        await createUserDocument(user.uid, minimalProfile);
-        setUserProfile(minimalProfile);
+      try {
+        // Get fresh user profile from Firestore
+        const docSnapshot = await getUserDocument(user.uid);
+        if (docSnapshot.exists()) {
+          setUserProfile(docSnapshot.data() as UserProfile);
+          return true;
+        } else {
+          // If the profile doesn't exist in Firestore, create a minimal one
+          const minimalProfile = createEmptyUserProfile(
+            user.email || '', 
+            user.displayName?.split(' ')[0] || 'User', 
+            user.displayName?.split(' ').slice(1).join(' ') || ''
+          );
+          
+          const createResult = await createUserDocument(user.uid, minimalProfile);
+          if (createResult.success) {
+            setUserProfile(minimalProfile);
+            return true;
+          } else {
+            // If creating document failed due to being offline
+            const errorMsg = createResult.error ? (createResult.error as any).message : '';
+            if (errorMsg.includes('offline')) {
+              // Still set profile locally
+              setUserProfile(minimalProfile);
+              return true;
+            } else {
+              throw createResult.error;
+            }
+          }
+        }
+      } catch (firestoreError) {
+        // Handle offline scenario - if we have a cached profile, use it
+        const errorMsg = firestoreError ? (firestoreError as any).message : '';
+        if (errorMsg.includes('offline') && userProfile) {
+          console.log('Device is offline, using cached profile data');
+          return true;
+        }
+        throw firestoreError;
       }
-      
-      return true;
     } catch (error) {
       console.error('Error reloading user profile:', error);
-      throw error;
+      return false;
     } finally {
       setIsLoading(false);
     }
