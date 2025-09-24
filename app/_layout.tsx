@@ -23,9 +23,11 @@ function RootLayoutNav() {
     if (!isLoading) {
       // Automatically route based on auth status
       if (isLoggedIn && user) {
-        router.replace('/(tabs)');
+        // Using type assertion to bypass type checking for path
+        router.replace('/(tabs)' as any);
       } else {
-        router.replace('/login');
+        // Using type assertion to bypass type checking for path
+        router.replace('/(auth)/login' as any);
       }
       
       // Hide splash screen once we know where to go
@@ -38,6 +40,4 @@ function RootLayoutNav() {
   
   // Return a slot to enable child routes to be rendered
   return <Slot />;
-}
-  );
 }
