@@ -116,10 +116,17 @@ export default function RegisterScreen() {
     } catch (error) {
       // @ts-ignore
       const errorMessage = error.message || 'Failed to register';
+      console.error('Registration error:', error);
       
       if (errorMessage.includes('email-already-in-use')) {
         Alert.alert('Registration Failed', 'This email is already in use.');
         setErrors(prev => ({ ...prev, email: 'Email already in use' }));
+      } else if (errorMessage.includes('weak-password')) {
+        Alert.alert('Registration Failed', 'Password is too weak. Please choose a stronger password.');
+        setErrors(prev => ({ ...prev, password: 'Password is too weak' }));
+      } else if (errorMessage.includes('invalid-email')) {
+        Alert.alert('Registration Failed', 'Please enter a valid email address.');
+        setErrors(prev => ({ ...prev, email: 'Invalid email format' }));
       } else {
         Alert.alert('Registration Error', errorMessage);
       }
@@ -143,8 +150,7 @@ export default function RegisterScreen() {
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/images/ClimateReadyV4.png')} 
-              style={styles.logo} 
-              resizeMode="contain"
+              style={{...styles.logo, resizeMode: 'contain'}} 
             />
           </View>
           

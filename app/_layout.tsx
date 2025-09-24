@@ -22,12 +22,18 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!isLoading) {
       // Automatically route based on auth status
-      if (isLoggedIn && user) {
-        // Using type assertion to bypass type checking for path
-        router.replace('/(tabs)' as any);
-      } else {
-        // Using type assertion to bypass type checking for path
-        router.replace('/(auth)/login' as any);
+      try {
+        if (isLoggedIn && user) {
+          // Navigate to the home screen tab
+          router.replace('/(tabs)/index' as any);
+        } else {
+          // Navigate to login
+          router.replace('/(auth)/login' as any);
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback navigation if the main routes fail
+        router.replace('/');
       }
       
       // Hide splash screen once we know where to go

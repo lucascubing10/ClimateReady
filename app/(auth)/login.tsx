@@ -57,7 +57,9 @@ export default function LoginScreen() {
       // @ts-ignore
       const errorMessage = error.message || 'Failed to log in';
       
-      if (errorMessage.includes('user-not-found') || errorMessage.includes('wrong-password')) {
+      if (errorMessage.includes('user-not-found') || 
+          errorMessage.includes('wrong-password') || 
+          errorMessage.includes('invalid-credential')) {
         Alert.alert('Login Failed', 'Invalid email or password. Please try again.');
       } else {
         Alert.alert('Login Error', errorMessage);
@@ -83,8 +85,7 @@ export default function LoginScreen() {
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/images/ClimateReadyV4.png')} 
-              style={styles.logo} 
-              resizeMode="contain"
+              style={{...styles.logo, resizeMode: 'contain'}} 
             />
           </View>
           
