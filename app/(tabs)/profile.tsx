@@ -10,7 +10,7 @@ import {
   Image,
   ActivityIndicator
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfile } from '../../utils/userDataModel';
@@ -89,6 +89,7 @@ const ProfileSection = ({
 
 export default function ProfileScreen() {
   const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
+  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -124,8 +125,30 @@ export default function ProfileScreen() {
   
   // Navigate to edit profile section
   const navigateToEditSection = (section: string) => {
-    Alert.alert('Edit Profile', `Navigate to edit ${section}`);
-    // In a complete implementation, we would navigate to the appropriate edit screen
+    // Navigate to the appropriate edit screen based on section
+    switch(section.toLowerCase()) {
+      case 'basic info':
+        router.push('/(tabs)/profile-edit/basic-info' as any);
+        break;
+      case 'preferences':
+        router.push('/(tabs)/profile-edit/preferences' as any);
+        break;
+      case 'personal details':
+        router.push('/(tabs)/profile-edit/personal-details' as any);
+        break;
+      case 'address':
+        router.push('/(tabs)/profile-edit/address' as any);
+        break;
+      case 'emergency contacts':
+        router.push('/(tabs)/profile-edit/emergency-contacts' as any);
+        break;
+      case 'medical info':
+        router.push('/(tabs)/profile-edit/medical-info' as any);
+        break;
+      default:
+        // Fallback to the profile screen if section is not recognized
+        router.push('/(tabs)/profile' as any);
+    }
   };
   
   // State for tracking loading timeouts

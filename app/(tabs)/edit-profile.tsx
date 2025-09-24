@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { InputField, Button } from '../../components/AuthComponents';
 import { useAuth } from '../../context/AuthContext';
@@ -20,7 +20,17 @@ import { UserProfile, householdTypes, languageOptions, genderOptions } from '../
 export default function EditProfileScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
+  const { section } = useLocalSearchParams<{ section: string }>();
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Refs for each section to enable scrolling
+  const scrollViewRef = useRef<ScrollView>(null);
+  const basicInfoRef = useRef<View>(null);
+  const preferencesRef = useRef<View>(null);
+  const personalDetailsRef = useRef<View>(null);
+  const addressRef = useRef<View>(null);
+  const emergencyContactsRef = useRef<View>(null);
+  const medicalInfoRef = useRef<View>(null);
   
   // Use current profile data as initial state
   const [formData, setFormData] = useState({
@@ -115,6 +125,41 @@ export default function EditProfileScreen() {
   
   const completenessPercentage = calculateCompleteness();
   
+  // Scroll to the appropriate section when the component mounts
+  useEffect(() => {
+    if (section && scrollViewRef.current) {
+      setTimeout(() => {
+        let sectionRef;
+        switch(section.toLowerCase()) {
+          case 'basic info':
+            sectionRef = basicInfoRef;
+            break;
+          case 'preferences':
+            sectionRef = preferencesRef;
+            break;
+          case 'personal details':
+            sectionRef = personalDetailsRef;
+            break;
+          case 'address':
+            sectionRef = addressRef;
+            break;
+          case 'emergency contacts':
+            sectionRef = emergencyContactsRef;
+            break;
+          case 'medical info':
+            sectionRef = medicalInfoRef;
+            break;
+        }
+        
+        if (sectionRef?.current) {
+          sectionRef.current.measure((fx, fy, width, height, px, py) => {
+            scrollViewRef.current?.scrollTo({ y: py - 100, animated: true });
+          });
+        }
+      }, 300);
+    }
+  }, [section]);
+  
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
@@ -136,6 +181,7 @@ export default function EditProfileScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -157,7 +203,10 @@ export default function EditProfileScreen() {
             </Text>
           </View>
           
-          <View style={styles.formContainer}>
+          <View 
+            style={styles.formContainer} 
+            ref={basicInfoRef}
+          >
             <Text style={styles.sectionTitle}>Basic Information</Text>
             
             <View style={styles.nameRow}>
@@ -194,7 +243,11 @@ export default function EditProfileScreen() {
               leftIcon={<Ionicons name="call-outline" size={20} color="#9ca3af" />}
             />
             
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Preferences</Text>
+            <View ref={preferencesRef}>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+                Preferences
+              </Text>
+            </View>
             
             <Text style={styles.fieldLabel}>Preferred Language</Text>
             <View style={styles.optionsContainer}>
@@ -242,7 +295,9 @@ export default function EditProfileScreen() {
               ))}
             </View>
             
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Personal Details</Text>
+            <View ref={personalDetailsRef}>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Personal Details</Text>
+            </View>
             
             <Text style={styles.fieldLabel}>Gender</Text>
             <View style={styles.optionsContainer}>
@@ -274,6 +329,54 @@ export default function EditProfileScreen() {
               placeholder="YYYY-MM-DD"
               leftIcon={<Ionicons name="calendar-outline" size={20} color="#9ca3af" />}
             />
+            
+            {/* Address Section */}
+            <View ref={addressRef}>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Address</Text>
+            </View>
+            <View style={styles.placeholderSection}>
+              <Text style={styles.placeholderText}>
+                Address editing will be available in a future update.
+              </Text>
+              <TouchableOpacity 
+                style={styles.comingSoonButton}
+                onPress={() => Alert.alert('Coming Soon', 'Address editing will be available in a future update.')}
+              >
+                <Text style={styles.comingSoonButtonText}>Coming Soon</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Emergency Contacts Section */}
+            <View ref={emergencyContactsRef}>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Emergency Contacts</Text>
+            </View>
+            <View style={styles.placeholderSection}>
+              <Text style={styles.placeholderText}>
+                Emergency contact management will be available in a future update.
+              </Text>
+              <TouchableOpacity 
+                style={styles.comingSoonButton}
+                onPress={() => Alert.alert('Coming Soon', 'Emergency contact management will be available in a future update.')}
+              >
+                <Text style={styles.comingSoonButtonText}>Coming Soon</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Medical Information Section */}
+            <View ref={medicalInfoRef}>
+              <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Medical Information</Text>
+            </View>
+            <View style={styles.placeholderSection}>
+              <Text style={styles.placeholderText}>
+                Medical information management will be available in a future update.
+              </Text>
+              <TouchableOpacity 
+                style={styles.comingSoonButton}
+                onPress={() => Alert.alert('Coming Soon', 'Medical information management will be available in a future update.')}
+              >
+                <Text style={styles.comingSoonButtonText}>Coming Soon</Text>
+              </TouchableOpacity>
+            </View>
             
             <View style={styles.noteContainer}>
               <Ionicons name="information-circle" size={20} color="#6b7280" />
@@ -401,5 +504,29 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginBottom: 16,
+  },
+  placeholderSection: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 16,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#6b7280',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  comingSoonButton: {
+    backgroundColor: '#e5e7eb',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  comingSoonButtonText: {
+    color: '#4b5563',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
