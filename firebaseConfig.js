@@ -73,8 +73,17 @@ export const createUserDocument = async (userId, userData) => {
 // Update user document with error handling
 export const updateUserDocument = async (userId, userData) => {
   try {
+    // Clean the userData object to remove any undefined values
+    // Firebase doesn't accept undefined values
+    const cleanUserData = {};
+    Object.keys(userData).forEach(key => {
+      if (userData[key] !== undefined) {
+        cleanUserData[key] = userData[key];
+      }
+    });
+    
     const docRef = doc(db, 'users', userId);
-    await updateDoc(docRef, userData);
+    await updateDoc(docRef, cleanUserData);
     return { success: true };
   } catch (error) {
     console.error("Error updating user document: ", error);
@@ -90,12 +99,15 @@ export const updateUserDocument = async (userId, userData) => {
 // Get user document with error handling
 export const getUserDocument = async (userId) => {
   try {
-    const docSnapshot = await getDoc(doc(db, 'users', userId));
+    const docRef = doc(db, 'users', userId);
+    const docSnapshot = await getDoc(docRef);
     return docSnapshot;
   } catch (error) {
     console.error("Error getting user document: ", error);
     if (error.code === 'unavailable' || error.message.includes('offline')) {
       console.warn('Device is offline, returning cached data if available');
+      // Try to get from cache if available - getDoc should return cached data when offline
+      // but we explicitly handle the error to prevent app crashes
     }
     throw error;
   }

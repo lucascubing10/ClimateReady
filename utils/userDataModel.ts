@@ -96,6 +96,9 @@ export const genderOptions = [
 
 // Helper function to calculate profile completeness percentage
 export const calculateProfileCompleteness = (profile: UserProfile): number => {
+  // If profile is undefined or null, return 0
+  if (!profile) return 0;
+  
   // Define weights for different sections (must total 100)
   const weights = {
     basicInfo: 20, // First name, last name, email

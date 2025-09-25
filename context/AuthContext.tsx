@@ -182,22 +182,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       
       // Always update local state immediately for better UX
-      let updatedProfile;
-      let completeness;
+      let updatedProfile: UserProfile;
+      let completeness: number;
       
-      setUserProfile(prevProfile => {
-        if (!prevProfile) return null;
-        
-        // Create the updated profile
-        updatedProfile = { ...prevProfile, ...updatedData };
-        
-        // Recalculate profile completeness
-        const { calculateProfileCompleteness } = require('../utils/userDataModel');
-        completeness = calculateProfileCompleteness(updatedProfile);
-        
-        // Add the completeness to the updated profile
-        return { ...updatedProfile, profileCompleteness: completeness };
-      });
+      // We need to get the current profile first to ensure we have all data
+      const currentProfileSnapshot = await getUserDocument(user.uid);
+      const currentProfile = currentProfileSnapshot.exists() 
+        ? (currentProfileSnapshot.data() as UserProfile) 
+        : null;
+      
+      if (!currentProfile) throw new Error('User profile not found');
+      
+      // Create the updated profile by merging current and new data
+      updatedProfile = { ...currentProfile, ...updatedData };
+      
+      // Import and calculate profile completeness
+      const { calculateProfileCompleteness } = require('../utils/userDataModel');
+      completeness = calculateProfileCompleteness(updatedProfile);
+      
+      // Update the local state with the new profile data
+      setUserProfile({ ...updatedProfile, profileCompleteness: completeness });
       
       // Include the recalculated completeness in the data sent to Firestore
       const firestoreData = {
@@ -205,8 +209,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleteness: completeness
       };
       
+      // Validate data before sending to Firestore - ensure no undefined values
+      const cleanData: Record<string, any> = {};
+      Object.entries(firestoreData).forEach(([key, value]) => {
+        if (value !== undefined) {
+          cleanData[key] = value;
+        }
+      });
+      
       // Update Firestore
-      const result = await updateUserDocument(user.uid, firestoreData);
+      const result = await updateUserDocument(user.uid, cleanData);
       
       if (!result.success) {
         // If Firestore update failed but it's because of being offline,
@@ -238,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       try {
         // Get fresh user profile from Firestore
-          const docSnapshot = await getUserDocument(user.uid);
+        const docSnapshot = await getUserDocument(user.uid);
         if (docSnapshot.exists()) {
           // Get profile data and ensure completeness is calculated
           const profileData = docSnapshot.data() as UserProfile;
@@ -247,6 +259,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Update the profile data with the calculated completeness
           setUserProfile({...profileData, profileCompleteness: completeness});
+          
+          // If the profile exists but doesn't have completeness value, update it
+          if (profileData.profileCompleteness === undefined) {
+            await updateUserDocument(user.uid, { profileCompleteness: completeness });
+          }
           return true;
         } else {
           // If the profile doesn't exist in Firestore, create a minimal one
@@ -254,7 +271,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user.email || '', 
             user.displayName?.split(' ')[0] || 'User', 
             user.displayName?.split(' ').slice(1).join(' ') || ''
-          );          const createResult = await createUserDocument(user.uid, minimalProfile);
+          );
+          const createResult = await createUserDocument(user.uid, minimalProfile);
           if (createResult.success) {
             setUserProfile(minimalProfile);
             return true;
