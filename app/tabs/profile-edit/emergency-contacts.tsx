@@ -183,29 +183,12 @@ export default function EditEmergencyContactsScreen() {
       
       // Ensure contacts is a valid array
       const contactsToSave = Array.isArray(contacts) ? contacts : [];
-      console.log('Contact array is valid:', Array.isArray(contactsToSave));
-      console.log('Contact array length:', contactsToSave.length);
       
-      // Create a completely new array with plain objects (no references)
-      const cleanContacts = contactsToSave.map(contact => ({
-        name: contact.name || '',
-        phoneNumber: contact.phoneNumber || '',
-        relationship: contact.relationship || '',
-        email: contact.email || ''
-      }));
-      
-      console.log('Clean contacts to save:', JSON.stringify(cleanContacts));
-      
-      // Use a direct object for the update to avoid any reference issues
-      const updateData = {
-        emergencyContacts: cleanContacts,
-        hasAddedEmergencyContact: cleanContacts.length > 0,
-        updatedAt: Date.now()
-      };
-      
-      console.log('Full update data:', JSON.stringify(updateData));
-      
-      await updateUserProfile(updateData);
+      await updateUserProfile({
+        emergencyContacts: contactsToSave,
+        hasAddedEmergencyContact: contactsToSave.length > 0,
+        updatedAt: Date.now(),
+      });
       
       Alert.alert('Success', 'Emergency contacts updated successfully');
       // Navigate back to profile page

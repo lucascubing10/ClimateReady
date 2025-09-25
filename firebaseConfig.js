@@ -76,41 +76,12 @@ export const updateUserDocument = async (userId, userData) => {
     // Clean the userData object to remove any undefined values
     // Firebase doesn't accept undefined values
     const cleanUserData = {};
-    
-    // Debug before processing
-    console.log('Raw userData:', JSON.stringify(userData));
-    
     Object.keys(userData).forEach(key => {
       if (userData[key] !== undefined) {
         // Special handling for arrays
         if (Array.isArray(userData[key])) {
           console.log(`Processing array field ${key}:`, JSON.stringify(userData[key]));
-          
-          // Handle arrays of objects (like emergencyContacts)
-          // Create completely new objects with only valid data
-          if (key === 'emergencyContacts') {
-            const cleanArray = userData[key].map(item => {
-              if (typeof item === 'object' && item !== null) {
-                const cleanItem = {};
-                Object.keys(item).forEach(itemKey => {
-                  if (item[itemKey] !== undefined && item[itemKey] !== null) {
-                    cleanItem[itemKey] = item[itemKey];
-                  }
-                });
-                return cleanItem;
-              }
-              return item;
-            });
-            
-            // Only add if array has items
-            if (cleanArray.length > 0) {
-              console.log(`Clean array for ${key}:`, JSON.stringify(cleanArray));
-              cleanUserData[key] = cleanArray;
-            }
-          } else {
-            // Handle other arrays
-            cleanUserData[key] = userData[key];
-          }
+          cleanUserData[key] = userData[key];
         } else if (typeof userData[key] === 'object' && userData[key] !== null) {
           // Handle nested objects (but not arrays)
           const cleanNestedObj = {};
@@ -128,16 +99,8 @@ export const updateUserDocument = async (userId, userData) => {
     
     console.log('Sending to Firestore:', JSON.stringify(cleanUserData));
     const docRef = doc(db, 'users', userId);
-    
-    // Make sure to use a try/catch specifically for the updateDoc call
-    try {
-      await updateDoc(docRef, cleanUserData);
-      console.log('Firestore update successful for user:', userId);
-      return { success: true };
-    } catch (updateError) {
-      console.error('Error in updateDoc:', updateError);
-      return { success: false, error: updateError };
-    }
+    await updateDoc(docRef, cleanUserData);
+    return { success: true };
   } catch (error) {
     console.error("Error updating user document: ", error);
     // Store data locally if offline

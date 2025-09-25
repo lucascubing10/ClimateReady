@@ -93,27 +93,6 @@ export default function ProfileScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Reload profile data when the screen is focused
-  useEffect(() => {
-    const refreshProfileData = async () => {
-      console.log("Refreshing profile data");
-      setIsRefreshing(true);
-      try {
-        await reloadUserProfile();
-        console.log("Profile refreshed successfully");
-        if (userProfile?.emergencyContacts) {
-          console.log("Emergency contacts:", JSON.stringify(userProfile.emergencyContacts));
-        }
-      } catch (error) {
-        console.error("Error refreshing profile:", error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    };
-    
-    refreshProfileData();
-  }, []);
-  
   // Handle logout
   const handleLogout = async () => {
     Alert.alert(
@@ -241,59 +220,25 @@ export default function ProfileScreen() {
   // Profile completeness percentage
   const profileCompleteness = userProfile.profileCompleteness || 0;
   
-  // Handle manual refresh
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await reloadUserProfile();
-      Alert.alert("Success", "Profile data refreshed");
-    } catch (error) {
-      console.error("Error refreshing profile:", error);
-      Alert.alert("Error", "Failed to refresh profile data");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: false,
-        }} 
-      />
+      <Stack.Screen options={{ headerShown: false }} />
       
       <ScrollView>
         {/* Profile Header */}
         <View style={styles.profileHeader}>
-          {/* Header buttons container */}
-          <View style={styles.headerButtons}>
-            {/* Refresh Button */}
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Ionicons name="refresh-outline" size={24} color="#fff" />
-              )}
-            </TouchableOpacity>
-            
-            {/* Logout Button */}
-            <TouchableOpacity 
-              style={styles.headerLogoutButton}
-              onPress={handleLogout}
-              disabled={isLoggingOut}
-            >
-              {isLoggingOut ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Ionicons name="log-out-outline" size={24} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Logout Button in Header */}
+          <TouchableOpacity 
+            style={styles.headerLogoutButton}
+            onPress={handleLogout}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="log-out-outline" size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
           
           <View style={styles.profileImageContainer}>
             <Text style={styles.profileInitials}>
@@ -395,9 +340,8 @@ export default function ProfileScreen() {
                 value: userProfile.emergencyContacts && 
                        Array.isArray(userProfile.emergencyContacts) && 
                        userProfile.emergencyContacts.length > 0 && 
-                       userProfile.emergencyContacts[0] && 
-                       userProfile.emergencyContacts[0].name ? 
-                  `${userProfile.emergencyContacts[0].name} (${userProfile.emergencyContacts[0].relationship || 'Contact'})` : 
+                       userProfile.emergencyContacts[0] ? 
+                  `${userProfile.emergencyContacts[0].name} (${userProfile.emergencyContacts[0].relationship})` : 
                   null,
                 icon: <Ionicons name="people" size={20} color="#0284c7" />,
                 isComplete: emergencyContactsComplete,
@@ -570,29 +514,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
   },
-  headerButtons: {
+  headerLogoutButton: {
     position: 'absolute',
     top: 10,
     right: 15,
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     zIndex: 10,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    marginRight: 8,
-  },
-  headerLogoutButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   errorText: {
     marginTop: 16,
