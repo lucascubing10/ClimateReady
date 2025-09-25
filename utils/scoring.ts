@@ -61,6 +61,9 @@ export const runScoringTests = () => {
   
   // Test 1: Empty progress
   const emptyProgress: UserProgress = {
+    level: 1,      // User starts at level 1
+    points: 0,     // No points earned yet
+    percent: 0,    // 0% completion
     checklists: {},
     completedCategories: 0,
     lastUpdated: new Date().toISOString(),
@@ -71,6 +74,9 @@ export const runScoringTests = () => {
   
   // Test 2: Partial progress
   const partialProgress: UserProgress = {
+    level: 2,      // User has reached level 2
+    points: 50,    // User has earned 50 points
+    percent: 50,   // 50% of preparedness tasks completed
     checklists: {
       family: {
         'family-1': true,
@@ -96,6 +102,9 @@ export const runScoringTests = () => {
   
   // Test 3: Full progress
   const fullProgress: UserProgress = {
+    level: 5,      // User has reached maximum level
+    points: 100,   // User has earned maximum points
+    percent: 100,  // 100% of preparedness tasks completed
     checklists: checklistData.reduce((acc, category) => {
       acc[category.id] = category.items.reduce((itemAcc, item) => {
         itemAcc[item.id] = true;

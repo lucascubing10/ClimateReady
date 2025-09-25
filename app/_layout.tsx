@@ -1,32 +1,49 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Slot, router, SplashScreen } from 'expo-router';
+import { AuthProvider, useAuth } from '../context/AuthContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export default function TabsLayout() {
+// Keep the splash screen visible while we check authentication
+SplashScreen.preventAutoHideAsync();
 
+export default function RootLayout() {
   return (
-       <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#0284c7',
-        tabBarStyle: { borderTopLeftRadius: 18, borderTopRightRadius: 18, height: 62, paddingBottom: 8 },
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size ?? 24} />,
-        }}
-      />
-      <Tabs.Screen
-        name="toolKit"
-        options={{
-          title: 'Toolkit',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="construct" color={color} size={size ?? 24} />,
-        }}
-      />
-    </Tabs>
+    <AuthProvider>
+      <SafeAreaProvider>
+        <RootLayoutNav />
+      </SafeAreaProvider>
+    </AuthProvider>
   );
+}
+
+function RootLayoutNav() {
+  const { isLoading, isLoggedIn, user } = useAuth();
+  
+  useEffect(() => {
+    if (!isLoading) {
+      // Automatically route based on auth status
+      try {
+        if (isLoggedIn && user) {
+          // Navigate to the home screen tab - Make sure this path matches your folder structure
+          router.replace('/tabs/' as any);
+        } else {
+          // Navigate to login
+          router.replace('/login' as any);
+        }
+      } catch (error) {
+        console.error('Navigation error:', error);
+        // Fallback navigation if the main routes fail
+        router.replace('/login');
+      }
+      
+      // Hide splash screen once we know where to go
+      SplashScreen.hideAsync();
+    }
+  }, [isLoading, isLoggedIn, user]);
+  
+  // While loading, return nothing (splash screen remains visible)
+  if (isLoading) return null;
+  
+  // Return a slot to enable child routes to be rendered
+  return <Slot />;
 }
