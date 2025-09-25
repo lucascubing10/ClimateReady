@@ -175,6 +175,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
+      console.log('updateUserProfile received data:', JSON.stringify(data));
+      
       const timestamp = Date.now();
       const updatedData = {
         ...data,
@@ -193,8 +195,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!currentProfile) throw new Error('User profile not found');
       
+      // Special handling for emergencyContacts - completely replace the array
+      let mergedData = { ...updatedData };
+      if ('emergencyContacts' in data) {
+        // Don't merge arrays, replace them entirely
+        console.log('Detected emergencyContacts update');
+      } else {
+        console.log('No emergencyContacts in update data');
+      }
+      
       // Create the updated profile by merging current and new data
-      updatedProfile = { ...currentProfile, ...updatedData };
+      updatedProfile = { ...currentProfile, ...mergedData };
       
       // Import and calculate profile completeness
       const { calculateProfileCompleteness } = require('../utils/userDataModel');
@@ -209,6 +220,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileCompleteness: completeness
       };
       
+      console.log('Firestore data before cleaning:', JSON.stringify(firestoreData));
+      
       // Validate data before sending to Firestore - ensure no undefined values
       const cleanData: Record<string, any> = {};
       Object.entries(firestoreData).forEach(([key, value]) => {
@@ -216,17 +229,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Special handling for emergencyContacts array
           if (key === 'emergencyContacts' && Array.isArray(value)) {
             console.log('Processing emergency contacts array:', JSON.stringify(value));
-            // Filter out any contacts with undefined values
-            const cleanContacts = value.map(contact => {
-              const cleanContact: Record<string, any> = {};
-              Object.entries(contact).forEach(([contactKey, contactValue]) => {
-                if (contactValue !== undefined) {
-                  cleanContact[contactKey] = contactValue;
-                }
+            
+            // Create a completely new array with new objects to avoid reference issues
+            if (value.length > 0) {
+              const cleanContacts = value.map(contact => {
+                // Create a new object with only the needed fields
+                return {
+                  name: contact.name || '',
+                  phoneNumber: contact.phoneNumber || '',
+                  relationship: contact.relationship || '',
+                  email: contact.email || ''
+                };
               });
-              return cleanContact;
-            });
-            cleanData[key] = cleanContacts;
+              
+              console.log('Clean contacts:', JSON.stringify(cleanContacts));
+              cleanData[key] = cleanContacts;
+            } else {
+              // Empty array case
+              cleanData[key] = [];
+            }
           } else {
             cleanData[key] = value;
           }
@@ -270,6 +291,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (docSnapshot.exists()) {
           // Get profile data and ensure completeness is calculated
           const profileData = docSnapshot.data() as UserProfile;
+          console.log('Profile data from Firestore:', JSON.stringify(profileData));
+          
+          // Check emergency contacts specifically
+          if (profileData.emergencyContacts) {
+            console.log('Emergency contacts found:', JSON.stringify(profileData.emergencyContacts));
+          } else {
+            console.log('No emergency contacts found in Firestore');
+          }
+          
           const { calculateProfileCompleteness } = require('../utils/userDataModel');
           const completeness = calculateProfileCompleteness(profileData);
           
