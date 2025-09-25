@@ -213,7 +213,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const cleanData: Record<string, any> = {};
       Object.entries(firestoreData).forEach(([key, value]) => {
         if (value !== undefined) {
-          cleanData[key] = value;
+          // Special handling for emergencyContacts array
+          if (key === 'emergencyContacts' && Array.isArray(value)) {
+            console.log('Processing emergency contacts array:', JSON.stringify(value));
+            // Filter out any contacts with undefined values
+            const cleanContacts = value.map(contact => {
+              const cleanContact: Record<string, any> = {};
+              Object.entries(contact).forEach(([contactKey, contactValue]) => {
+                if (contactValue !== undefined) {
+                  cleanContact[contactKey] = contactValue;
+                }
+              });
+              return cleanContact;
+            });
+            cleanData[key] = cleanContacts;
+          } else {
+            cleanData[key] = value;
+          }
         }
       });
       

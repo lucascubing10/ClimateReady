@@ -78,10 +78,26 @@ export const updateUserDocument = async (userId, userData) => {
     const cleanUserData = {};
     Object.keys(userData).forEach(key => {
       if (userData[key] !== undefined) {
-        cleanUserData[key] = userData[key];
+        // Special handling for arrays
+        if (Array.isArray(userData[key])) {
+          console.log(`Processing array field ${key}:`, JSON.stringify(userData[key]));
+          cleanUserData[key] = userData[key];
+        } else if (typeof userData[key] === 'object' && userData[key] !== null) {
+          // Handle nested objects (but not arrays)
+          const cleanNestedObj = {};
+          Object.keys(userData[key]).forEach(nestedKey => {
+            if (userData[key][nestedKey] !== undefined) {
+              cleanNestedObj[nestedKey] = userData[key][nestedKey];
+            }
+          });
+          cleanUserData[key] = cleanNestedObj;
+        } else {
+          cleanUserData[key] = userData[key];
+        }
       }
     });
     
+    console.log('Sending to Firestore:', JSON.stringify(cleanUserData));
     const docRef = doc(db, 'users', userId);
     await updateDoc(docRef, cleanUserData);
     return { success: true };

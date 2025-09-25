@@ -211,7 +211,10 @@ export default function ProfileScreen() {
   const personalDetailsComplete = !!userProfile.gender && !!userProfile.birthday;
   const addressComplete = !!userProfile.address?.street && !!userProfile.address?.city && 
                           !!userProfile.address?.state && !!userProfile.address?.zip;
-  const emergencyContactsComplete = !!userProfile.emergencyContacts && userProfile.emergencyContacts.length > 0;
+  const emergencyContactsComplete = !!userProfile.emergencyContacts && 
+                              Array.isArray(userProfile.emergencyContacts) && 
+                              userProfile.emergencyContacts.length > 0 && 
+                              !!userProfile.emergencyContacts[0];
   const medicalInfoComplete = !!userProfile.medicalInfo;
   
   // Profile completeness percentage
@@ -334,7 +337,10 @@ export default function ProfileScreen() {
             items={[
               {
                 label: 'Primary Emergency Contact',
-                value: userProfile.emergencyContacts && userProfile.emergencyContacts.length > 0 ? 
+                value: userProfile.emergencyContacts && 
+                       Array.isArray(userProfile.emergencyContacts) && 
+                       userProfile.emergencyContacts.length > 0 && 
+                       userProfile.emergencyContacts[0] ? 
                   `${userProfile.emergencyContacts[0].name} (${userProfile.emergencyContacts[0].relationship})` : 
                   null,
                 icon: <Ionicons name="people" size={20} color="#0284c7" />,

@@ -22,9 +22,14 @@ export default function EditEmergencyContactsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   
   // Initialize contacts from user profile or with an empty array
-  const [contacts, setContacts] = useState(
-    userProfile?.emergencyContacts || []
-  );
+  const [contacts, setContacts] = useState(() => {
+    // Ensure we're working with a valid array
+    if (userProfile?.emergencyContacts && Array.isArray(userProfile.emergencyContacts)) {
+      console.log('Loading emergency contacts:', JSON.stringify(userProfile.emergencyContacts));
+      return [...userProfile.emergencyContacts];
+    }
+    return [];
+  });
   
   // State for the currently edited contact
   const [editingIndex, setEditingIndex] = useState(-1); // -1 means adding new
@@ -173,9 +178,15 @@ export default function EditEmergencyContactsScreen() {
     try {
       setIsLoading(true);
       
+      // Log contacts for debugging
+      console.log('Saving emergency contacts:', JSON.stringify(contacts));
+      
+      // Ensure contacts is a valid array
+      const contactsToSave = Array.isArray(contacts) ? contacts : [];
+      
       await updateUserProfile({
-        emergencyContacts: contacts,
-        hasAddedEmergencyContact: contacts.length > 0,
+        emergencyContacts: contactsToSave,
+        hasAddedEmergencyContact: contactsToSave.length > 0,
         updatedAt: Date.now(),
       });
       
@@ -183,6 +194,7 @@ export default function EditEmergencyContactsScreen() {
       // Navigate back to profile page
       router.push('/tabs/profile' as any);
     } catch (error) {
+      console.error('Error saving contacts:', error);
       // @ts-ignore
       Alert.alert('Error', error.message || 'Failed to update emergency contacts');
     } finally {
