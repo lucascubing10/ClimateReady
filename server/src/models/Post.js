@@ -14,6 +14,14 @@ const PostSchema = new mongoose.Schema({
 	resolvedAt: Date,
 	upvotes: { type: Number, default: 0 },
 	commentsCount: { type: Number, default: 0 }
+    ,
+	moderation: {
+		// Store latest AI moderation snapshot
+		reason: String,
+		scores: { type: mongoose.Schema.Types.Mixed },
+		model: String,
+		blocked: { type: Boolean, default: false }
+	}
 }, { timestamps: true });
 
 

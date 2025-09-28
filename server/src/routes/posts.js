@@ -4,7 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import Post from '../models/Post.js';
 import Comment from '../models/Comment.js';
-import { moderateText } from '../moderation.js';
+import { moderateText } from '../moderation.js'; // still used for comments fallback
+import { compositeModerate } from '../services/aiModeration.js';
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       return res.status(422).json({ error: 'text and userId are required' });
     }
 
-    const mod = await moderateText(text);
+  const mod = await compositeModerate(text);
 
     // Fallback: if no single file captured but array exists
     let fileRef = req.file;
@@ -84,6 +85,12 @@ router.post('/', upload.single('image'), async (req, res) => {
       status: mod.approved ? 'approved' : 'rejected',
       blocked: !!mod.blocked,
       moderationReason: mod.reason,
+      moderation: {
+        reason: mod.reason,
+        scores: mod.ai?.scores || {},
+        model: mod.ai?.model,
+        blocked: !!mod.blocked
+      },
       imageUrl,
     });
 
@@ -147,7 +154,7 @@ router.post('/:id/comments', async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
-    const mod = await moderateText(text);
+  const mod = await compositeModerate(text);
     if (!mod.approved) {
       return res.status(400).json({ error: 'Comment rejected by moderation', moderation: mod });
     }
@@ -208,10 +215,16 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
 
     // Optional re-moderate text if changed
     if (text && text !== post.text) {
-      const mod = await moderateText(text);
+      const mod = await compositeModerate(text);
       updates.status = mod.approved ? 'approved' : 'rejected';
       updates.blocked = !!mod.blocked;
       updates.moderationReason = mod.reason;
+      updates.moderation = {
+        reason: mod.reason,
+        scores: mod.ai?.scores || {},
+        model: mod.ai?.model,
+        blocked: !!mod.blocked
+      };
       updates._moderation = mod; // temp attach to respond later
     }
 
