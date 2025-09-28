@@ -3,17 +3,18 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // 👇 This makes `@/...` work
+      // Path alias so we can use "@/..." from project root
       [
         'module-resolver',
         {
           alias: {
-            '@': './', // "@" now means project root
+            '@': './',
           },
         },
       ],
-      // keep expo-router plugin here (important for your team leader’s code)
-      'expo-router/babel',
+      // NOTE: 'expo-router/babel' deprecated in SDK 50+. babel-preset-expo already includes what we need.
+      // Reanimated MUST be the last plugin
+      'react-native-reanimated/plugin',
     ],
   };
 };
