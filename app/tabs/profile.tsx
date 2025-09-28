@@ -108,7 +108,13 @@ export default function ProfileScreen() {
           onPress: async () => {
             setIsLoggingOut(true);
             try {
-              await logout();
+              console.log('Attempting to logout');
+              const success = await logout();
+              console.log('Logout result:', success);
+              
+              // Force navigation to login screen regardless of auth state
+              console.log('Forcing navigation to login screen');
+              router.replace('/auth/login');
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert('Error', 'Failed to log out. Please try again.');
@@ -365,25 +371,6 @@ export default function ProfileScreen() {
               },
             ]}
           />
-          
-          {/* Alternative Logout Button */}
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => {
-              console.log('Bottom logout button pressed');
-              handleLogout();
-            }}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="log-out-outline" size={20} color="#fff" />
-                <Text style={styles.logoutText}>Logout</Text>
-              </>
-            )}
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -546,13 +533,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 50, 50, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     zIndex: 10,
-    elevation: 5, // Android elevation
-    shadowColor: '#000', // iOS shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
   },
   errorText: {
     marginTop: 16,

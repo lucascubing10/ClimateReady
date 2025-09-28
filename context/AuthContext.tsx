@@ -157,11 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await signOut(auth);
       console.log('Firebase signOut completed');
       
+      // Explicitly clear user state
+      setUser(null);
       setUserProfile(null);
-      console.log('User profile set to null');
+      setIsLoggedIn(false);
+      console.log('User state reset');
       
       // Explicitly remove from AsyncStorage as well
       await AsyncStorage.removeItem('user_authenticated');
+      await AsyncStorage.removeItem('user_profile');
       console.log('AsyncStorage authentication cleared');
       
       return true;
