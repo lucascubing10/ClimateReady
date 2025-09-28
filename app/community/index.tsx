@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, Pressable, FlatList, ActivityIndicator, Image } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
 
 import { Api, Category } from '@/services/api';
+import { API_BASE } from '@/constants/env';
 import { CURRENT_USER } from '@/constants/user';
 
 const filters: { label: string; value: Category }[] = [
@@ -22,17 +23,91 @@ export default function CommunityList() {
   const [cat, setCat] = useState<Category>('all');
   const [mine, setMine] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const r = useRouter();
+// Component that displays a smaller, fully visible image without aggressive cropping
+function PostImage({ uri }: { uri: string }) {
+  const [ratio, setRatio] = useState<number | null>(null); // width/height
+  return (
+    <View
+      style={{
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        marginTop: 6,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 4,
+      }}
+    >
+      <Image
+        source={{ uri }}
+        style={{
+          width: '100%',
+          aspectRatio: ratio || 1.6, // placeholder aspect ratio until real one loads
+          maxHeight: 160,
+        }}
+        resizeMode="contain"
+        onLoad={(e) => {
+          const meta: any = e.nativeEvent?.source;
+          if (meta?.width && meta?.height) {
+            const r = meta.width / meta.height;
+            // Clamp ratio to avoid extreme tall images stretching layout
+            if (r > 0) setRatio(Math.min(Math.max(r, 0.6), 2.5));
+          }
+        }}
+      />
+    </View>
+  );
+}
 
   const load = async () => {
     setLoading(true);
+    setError(null);
     const data = await Api.listPosts(cat, mine, CURRENT_USER.id);
-    setItems(data);
+    if (Array.isArray(data)) {
+      setItems(data);
+    } else {
+      setError(data.error || 'Failed to load');
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     load();
+  }, [cat, mine]);
+
+  // Reload when coming back to this screen (focus) to reflect deletes/edits from detail
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [cat, mine])
+  );
+
+  // Optimistic create/update/delete sync via custom events
+  useEffect(() => {
+    const onDeleted = (e: any) => {
+      const deletedId = e?.detail?.id; if (!deletedId) return;
+      setItems(prev => prev.filter(p => p._id !== deletedId));
+    };
+    const onCreated = (e: any) => {
+      const newPost = e?.detail?.post; if (!newPost) return;
+      if (mine && String(newPost.userId) !== CURRENT_USER.id) return;
+      if (cat !== 'all' && newPost.category !== cat) return;
+      setItems(prev => prev.find(p => p._id === newPost._id) ? prev : [newPost, ...prev]);
+    };
+    const onUpdated = (e: any) => {
+      const updated = e?.detail?.post; if (!updated) return;
+      setItems(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p));
+    };
+    window.addEventListener('cr_post_deleted', onDeleted as any);
+    window.addEventListener('cr_post_created', onCreated as any);
+    window.addEventListener('cr_post_updated', onUpdated as any);
+    return () => {
+      window.removeEventListener('cr_post_deleted', onDeleted as any);
+      window.removeEventListener('cr_post_created', onCreated as any);
+      window.removeEventListener('cr_post_updated', onUpdated as any);
+    };
   }, [cat, mine]);
 
   return (
@@ -64,9 +139,19 @@ export default function CommunityList() {
         </Pressable>
       </View>
 
-      {loading ? (
+      {loading && (
         <ActivityIndicator style={{ marginTop: 20 }} />
-      ) : (
+      )}
+      {!loading && error && (
+        <View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
+          <Text style={{ color: '#b91c1c', fontWeight: '600' }}>Failed to fetch posts</Text>
+          <Text style={{ color: '#64748b', fontSize: 12 }}>{error}</Text>
+          <Pressable onPress={load} style={{ backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+          </Pressable>
+        </View>
+      )}
+      {!loading && !error && (
         <FlatList
           data={items}
           keyExtractor={(it) => it._id}
@@ -94,6 +179,11 @@ export default function CommunityList() {
                     RESOLVED
                   </Text>
                 )}
+                {mine && item.blocked && (
+                  <Text style={{ fontSize: 12, backgroundColor: '#fecaca', color: '#991b1b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                    BLOCKED
+                  </Text>
+                )}
 
                 {item.status === 'pending' && (
                   <Text style={{ fontSize: 12, backgroundColor: '#fff7ed', color: '#c2410c', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
@@ -105,11 +195,7 @@ export default function CommunityList() {
               <Text style={{ color: '#334155' }}>{item.text}</Text>
 
               {item.imageUrl && (
-                <View style={{ height: 160, backgroundColor: '#f1f5f9', borderRadius: 12, overflow: 'hidden', marginTop: 6 }}>
-                  <Text style={{ position: 'absolute', right: 10, top: 10, fontSize: 12, backgroundColor: '#0ea5e9', color: '#fff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
-                    photo
-                  </Text>
-                </View>
+                  <PostImage uri={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_BASE}${item.imageUrl}`} />
               )}
 
               <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>

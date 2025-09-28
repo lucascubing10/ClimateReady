@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Api, Category } from '@/services/api';
@@ -16,10 +17,16 @@ export default function CreatePost() {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
+      base64: true,
     });
     if (!res.canceled) {
       const a = res.assets[0];
-      setImage({ uri: a.uri, name: 'photo.jpg', type: a.mimeType || 'image/jpeg' });
+      setImage({
+        uri: a.uri,
+        name: a.fileName || 'photo.jpg',
+        type: a.mimeType || 'image/jpeg',
+        base64: a.base64, // may be undefined on some platforms
+      });
     }
   };
 
@@ -31,14 +38,23 @@ export default function CreatePost() {
       username: CURRENT_USER.username,
       category: category === 'all' ? 'general' : category,
       text,
+      // If we fall back to base64 (e.g., web where file object may fail) add it
+      imageBase64: image?.base64 ? `data:${image.type};base64,${image.base64}` : undefined,
     };
 
-    const result = await Api.createPost(payload, image);
-    if (result?.moderation) {
-      Alert.alert('Moderation', `${result.moderation.reason}`);
+    try {
+      const result = await Api.createPost(payload, image);
+      if (result?.moderation) {
+        Alert.alert('Moderation', `${result.moderation.reason}`);
+      }
+      if (result?.post && typeof window !== 'undefined') {
+        try { window.dispatchEvent(new CustomEvent('cr_post_created', { detail: { post: result.post } })); } catch {}
+      }
+      r.replace('/community' as any);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Failed to create post');
     }
-
-    r.replace('/community' as any);
   };
 
   return (

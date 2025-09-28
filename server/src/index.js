@@ -6,6 +6,8 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { Server as SocketIOServer } from 'socket.io';
 import postsRoute from './routes/posts.js';
+import fs from 'fs';
+import path from 'path';
 import messagesRoute from './routes/messages.js';
 import Message from './models/Message.js';
 
@@ -14,6 +16,13 @@ const server = http.createServer(app);
 const io = new SocketIOServer(server, { cors: { origin: '*' } });
 
 await mongoose.connect(process.env.MONGODB_URI);
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Created uploads directory');
+}
 
 app.use(morgan('dev'));
 app.use(cors({ origin: '*' })); // 👈 force allow all origins for now

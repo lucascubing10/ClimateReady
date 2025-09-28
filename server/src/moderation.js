@@ -8,7 +8,7 @@ export async function moderateText(text) {
 // quick rules first
 const low = text.toLowerCase();
 if (low.includes('buy now') || low.includes('free money') || low.includes('whatsapp number')) {
-return { approved: false, reason: 'Likely spam (rule-based)', scores: { spam: 0.99 } };
+	return { approved: false, reason: 'Blocked: spam phrase detected', scores: { spam: 0.99 }, blocked: true };
 }
 
 
@@ -24,6 +24,12 @@ headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json
 body: JSON.stringify({ inputs: text, parameters: { candidate_labels: LABELS } })
 });
 const data = await res.json();
+
+// HF may return { error: 'loading' } or other shapes while model warms
+if (!data || !Array.isArray(data.labels) || !Array.isArray(data.scores)) {
+	return { approved: true, reason: 'Approved (HF warmup/fallback)', scores: {} };
+}
+
 const scores = Object.fromEntries(data.labels.map((l, i) => [l, data.scores[i]]));
 
 
