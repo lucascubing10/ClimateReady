@@ -18,7 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   reloadUserProfile: () => Promise<boolean>;
@@ -149,11 +149,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       setIsLoading(true);
-      await signOut(auth);
+      
+      // Reset state variables first
+      setUser(null);
       setUserProfile(null);
+      setIsLoggedIn(false);
+      
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('user_authenticated');
+      await AsyncStorage.removeItem('user_profile');
+      
+      // Sign out from Firebase auth
+      await signOut(auth);
+      
+      // Small delay to ensure state updates have propagated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      return true;
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      // Even if there's an error, still try to reset state
+      setUser(null);
+      setUserProfile(null);
+      setIsLoggedIn(false);
+      return false;
     } finally {
       setIsLoading(false);
     }

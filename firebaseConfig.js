@@ -26,6 +26,9 @@ export const auth = Platform.OS === 'web'
       persistence: getReactNativePersistence(AsyncStorage)
     });
 
+// Export app for reference if needed
+export const firebaseApp = app;
+
 // Initialize Firestore with offline persistence
 export const db = getFirestore(app);
 

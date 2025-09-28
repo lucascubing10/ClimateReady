@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -93,35 +94,9 @@ export default function ProfileScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Handle logout
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            setIsLoggingOut(true);
-            try {
-              await logout();
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to log out. Please try again.');
-            } finally {
-              setIsLoggingOut(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-      { cancelable: true }
-    );
-  };
+
+  
+
   
   // Navigate to edit profile section
   const navigateToEditSection = (section: string) => {
@@ -230,8 +205,25 @@ export default function ProfileScreen() {
           {/* Logout Button in Header */}
           <TouchableOpacity 
             style={styles.headerLogoutButton}
-            onPress={handleLogout}
+            onPress={() => {
+              setIsLoggingOut(true);
+              try {
+                logout()
+                  .then(() => {
+                    router.replace('/auth/login');
+                  })
+                  .catch(e => {
+                    Alert.alert('Error', 'Failed to log out. Please try again.');
+                  })
+                  .finally(() => {
+                    setIsLoggingOut(false);
+                  });
+              } catch (error) {
+                setIsLoggingOut(false);
+              }
+            }}
             disabled={isLoggingOut}
+            activeOpacity={0.7}
           >
             {isLoggingOut ? (
               <ActivityIndicator color="#fff" size="small" />
@@ -361,6 +353,7 @@ export default function ProfileScreen() {
               },
             ]}
           />
+
         </View>
       </ScrollView>
     </SafeAreaView>

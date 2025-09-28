@@ -125,8 +125,8 @@ export default function EditEmergencyContactsScreen() {
     return isValid;
   };
   
-  // Save the current contact (add new or update existing)
-  const saveContact = () => {
+  // Save the current contact (add new or update existing) and save to database
+  const saveContact = async () => {
     if (!validateForm()) return;
     
     const newContact = {
@@ -136,21 +136,45 @@ export default function EditEmergencyContactsScreen() {
       email: formData.email,
     };
     
+    let updatedContactsList;
+    
     if (editingIndex === -1) {
       // Add new contact
-      setContacts([...contacts, newContact]);
+      updatedContactsList = [...contacts, newContact];
     } else {
       // Update existing contact
-      const updatedContacts = [...contacts];
-      updatedContacts[editingIndex] = newContact;
-      setContacts(updatedContacts);
+      updatedContactsList = [...contacts];
+      updatedContactsList[editingIndex] = newContact;
     }
     
-    // Reset form
-    startAddingContact();
+    // First update the local state for immediate UI feedback
+    setContacts(updatedContactsList);
+    
+    // Then save to database
+    try {
+      setIsLoading(true);
+      
+      await updateUserProfile({
+        emergencyContacts: updatedContactsList,
+        hasAddedEmergencyContact: updatedContactsList.length > 0,
+        updatedAt: Date.now(),
+      });
+      
+      // Show a brief success message
+      Alert.alert('Success', 'Emergency contact saved successfully');
+      
+      // Reset form for adding another contact
+      startAddingContact();
+    } catch (error) {
+      console.error('Error saving contact:', error);
+      // @ts-ignore
+      Alert.alert('Error', error.message || 'Failed to save emergency contact');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
-  // Remove a contact
+  // Remove a contact and save changes to database
   const removeContact = (index: number) => {
     Alert.alert(
       'Remove Contact',
@@ -162,10 +186,30 @@ export default function EditEmergencyContactsScreen() {
         },
         {
           text: 'Remove',
-          onPress: () => {
-            const updatedContacts = [...contacts];
-            updatedContacts.splice(index, 1);
-            setContacts(updatedContacts);
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              
+              // Update local state
+              const updatedContacts = [...contacts];
+              updatedContacts.splice(index, 1);
+              setContacts(updatedContacts);
+              
+              // Save to database
+              await updateUserProfile({
+                emergencyContacts: updatedContacts,
+                hasAddedEmergencyContact: updatedContacts.length > 0,
+                updatedAt: Date.now(),
+              });
+              
+              Alert.alert('Success', 'Emergency contact removed successfully');
+            } catch (error) {
+              console.error('Error removing contact:', error);
+              // @ts-ignore
+              Alert.alert('Error', error.message || 'Failed to remove emergency contact');
+            } finally {
+              setIsLoading(false);
+            }
           },
           style: 'destructive',
         },
@@ -173,40 +217,14 @@ export default function EditEmergencyContactsScreen() {
     );
   };
   
-  // Save all contacts to the user profile
-  const handleSave = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Log contacts for debugging
-      console.log('Saving emergency contacts:', JSON.stringify(contacts));
-      
-      // Ensure contacts is a valid array
-      const contactsToSave = Array.isArray(contacts) ? contacts : [];
-      
-      await updateUserProfile({
-        emergencyContacts: contactsToSave,
-        hasAddedEmergencyContact: contactsToSave.length > 0,
-        updatedAt: Date.now(),
-      });
-      
-      Alert.alert('Success', 'Emergency contacts updated successfully');
-      // Navigate back to profile page
-      router.push('/tabs/profile' as any);
-    } catch (error) {
-      console.error('Error saving contacts:', error);
-      // @ts-ignore
-      Alert.alert('Error', error.message || 'Failed to update emergency contacts');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // We've removed the handleSave function since we now save changes immediately
+  // when adding, editing, or removing contacts
   
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: 'Edit Emergency Contact',
+          title: 'Emergency Contacts',
           headerShown: true,
           headerTitleAlign: 'center',
           headerLeft: () => (
@@ -230,7 +248,8 @@ export default function EditEmergencyContactsScreen() {
         >
           {/* List of existing contacts */}
           <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Emergency Contacts</Text>
+            <Text style={styles.sectionTitle}>Your Emergency Contacts</Text>
+            <Text style={styles.subTitle}>Changes are saved automatically</Text>
             
             {contacts.length === 0 ? (
               <Text style={styles.noContactsText}>No emergency contacts added yet.</Text>
@@ -272,9 +291,16 @@ export default function EditEmergencyContactsScreen() {
             <TouchableOpacity
               style={styles.addContactButton}
               onPress={startAddingContact}
+              disabled={isLoading}
             >
-              <Ionicons name="add-circle" size={20} color="#0284c7" />
-              <Text style={styles.addContactText}>Add New Contact</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#0284c7" />
+              ) : (
+                <>
+                  <Ionicons name="add-circle" size={20} color="#0284c7" />
+                  <Text style={styles.addContactText}>Add New Contact</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
           
@@ -323,8 +349,9 @@ export default function EditEmergencyContactsScreen() {
               />
               
               <Button
-                title="Save Contact"
+                title={isLoading ? "Saving..." : "Save Contact"}
                 onPress={saveContact}
+                disabled={isLoading}
                 style={styles.buttonMargin}
               />
               
@@ -333,6 +360,7 @@ export default function EditEmergencyContactsScreen() {
                 onPress={() => startAddingContact()}
                 variant="outline"
                 style={styles.buttonMargin}
+                disabled={isLoading}
               />
             </View>
           )}
@@ -382,8 +410,9 @@ export default function EditEmergencyContactsScreen() {
               />
               
               <Button
-                title="Save Contact"
+                title={isLoading ? "Saving..." : "Save Contact"}
                 onPress={saveContact}
+                disabled={isLoading}
                 style={styles.buttonMargin}
               />
             </View>
@@ -399,9 +428,9 @@ export default function EditEmergencyContactsScreen() {
             </View>
             
             <Button
-              title={isLoading ? 'Saving...' : 'Save All Changes'}
-              onPress={handleSave}
-              disabled={isLoading}
+              title="Back to Profile"
+              onPress={() => router.push('/tabs/profile' as any)}
+              variant="outline"
               style={styles.saveButton}
             />
           </View>
@@ -439,7 +468,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#111827',
+    marginBottom: 8,
+  },
+  subTitle: {
+    fontSize: 14,
+    color: '#6b7280',
     marginBottom: 16,
+    fontStyle: 'italic',
   },
   noteContainer: {
     flexDirection: 'row',

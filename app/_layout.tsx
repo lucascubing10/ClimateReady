@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Slot, router, SplashScreen } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Keep the splash screen visible while we check authentication
 SplashScreen.preventAutoHideAsync();
@@ -21,19 +22,24 @@ function RootLayoutNav() {
   
   useEffect(() => {
     if (!isLoading) {
-      // Automatically route based on auth status
       try {
+        // Check for inconsistent auth state
+        const checkAuthState = async () => {
+          const asyncAuth = await AsyncStorage.getItem('user_authenticated');
+          if ((isLoggedIn && !user) || (!isLoggedIn && asyncAuth === 'true')) {
+            await AsyncStorage.removeItem('user_authenticated');
+          }
+        };
+        checkAuthState();
+        
         if (isLoggedIn && user) {
-          // Navigate to the home screen tab - Make sure this path matches your folder structure
           router.replace('/tabs/' as any);
         } else {
-          // Navigate to login
-          router.replace('/login' as any);
+          router.replace('/auth/login' as any);
         }
       } catch (error) {
         console.error('Navigation error:', error);
-        // Fallback navigation if the main routes fail
-        router.replace('/login');
+        router.replace('/auth/login');
       }
       
       // Hide splash screen once we know where to go
