@@ -18,7 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<boolean>;
   resetPassword: (email: string) => Promise<void>;
   updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
   reloadUserProfile: () => Promise<boolean>;
@@ -148,9 +148,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout user
   const logout = async () => {
     try {
+      console.log('Logout function called in AuthContext');
       setIsLoading(true);
+      
+      // Debug info before logout
+      console.log('Current auth state before logout:', auth.currentUser ? 'User is logged in' : 'No user logged in');
+      
       await signOut(auth);
+      console.log('Firebase signOut completed');
+      
       setUserProfile(null);
+      console.log('User profile set to null');
+      
+      // Explicitly remove from AsyncStorage as well
+      await AsyncStorage.removeItem('user_authenticated');
+      console.log('AsyncStorage authentication cleared');
+      
+      return true;
     } catch (error) {
       console.error('Logout error:', error);
       throw error;

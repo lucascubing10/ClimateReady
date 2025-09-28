@@ -230,8 +230,12 @@ export default function ProfileScreen() {
           {/* Logout Button in Header */}
           <TouchableOpacity 
             style={styles.headerLogoutButton}
-            onPress={handleLogout}
+            onPress={() => {
+              console.log('Logout button pressed');
+              handleLogout();
+            }}
             disabled={isLoggingOut}
+            activeOpacity={0.7}
           >
             {isLoggingOut ? (
               <ActivityIndicator color="#fff" size="small" />
@@ -361,6 +365,25 @@ export default function ProfileScreen() {
               },
             ]}
           />
+          
+          {/* Alternative Logout Button */}
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => {
+              console.log('Bottom logout button pressed');
+              handleLogout();
+            }}
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={20} color="#fff" />
+                <Text style={styles.logoutText}>Logout</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -523,8 +546,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(255, 50, 50, 0.8)',
     zIndex: 10,
+    elevation: 5, // Android elevation
+    shadowColor: '#000', // iOS shadow
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
   },
   errorText: {
     marginTop: 16,
