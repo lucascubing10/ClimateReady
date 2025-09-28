@@ -94,84 +94,9 @@ export default function ProfileScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Handle logout
-  const handleLogout = async () => {
-    console.log('handleLogout called');
-    
-    // Import debug function
-    const { debugFirebaseAuth } = require('../../debugAuth');
-    
-    // Debug auth state before showing alert
-    await debugFirebaseAuth();
-    
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            console.log('Logout confirmed in Alert');
-            setIsLoggingOut(true);
-            try {
-              console.log('Calling logout() function from AuthContext');
-              
-              // Import the router reset helper
-              const { CommonActions } = require('@react-navigation/native');
-              
-              // First attempt the regular logout
-              const success = await logout();
-              console.log('Logout function returned with result:', success);
-              
-              // Check auth state after logout
-              await debugFirebaseAuth();
-              
-              // Unconditionally force the app to go to login screen
-              console.log('Forcing navigation to login screen with hard reset');
-              
-              // First try Expo Router navigation
-              try {
-                router.replace('/auth/login');
-                console.log('Router replacement issued');
-              } catch (navError) {
-                console.error('Router navigation failed:', navError);
-              }
-              
-              // After a delay, try to force reset navigation stack
-              setTimeout(() => {
-                console.log('Using fallback navigation method');
-                try {
-                  router.navigate('/auth/login');
-                } catch (navError) {
-                  console.error('Fallback navigation failed:', navError);
-                }
-                
-                // Additionally, try clearing AsyncStorage again
-                try {
-                  AsyncStorage.clear()
-                    .then(() => console.log('AsyncStorage completely cleared'))
-                    .catch((err: Error) => console.error('AsyncStorage clear error:', err));
-                } catch (storageError) {
-                  console.error('AsyncStorage operation failed:', storageError);
-                }
-              }, 1000);
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Error', 'Failed to log out. Please try again.');
-            } finally {
-              setIsLoggingOut(false);
-            }
-          },
-          style: 'destructive',
-        },
-      ],
-      { cancelable: true }
-    );
-  };
+
+  
+
   
   // Navigate to edit profile section
   const navigateToEditSection = (section: string) => {
@@ -281,8 +206,21 @@ export default function ProfileScreen() {
           <TouchableOpacity 
             style={styles.headerLogoutButton}
             onPress={() => {
-              console.log('Logout button pressed');
-              handleLogout();
+              setIsLoggingOut(true);
+              try {
+                logout()
+                  .then(() => {
+                    router.replace('/auth/login');
+                  })
+                  .catch(e => {
+                    Alert.alert('Error', 'Failed to log out. Please try again.');
+                  })
+                  .finally(() => {
+                    setIsLoggingOut(false);
+                  });
+              } catch (error) {
+                setIsLoggingOut(false);
+              }
             }}
             disabled={isLoggingOut}
             activeOpacity={0.7}
@@ -415,6 +353,7 @@ export default function ProfileScreen() {
               },
             ]}
           />
+
         </View>
       </ScrollView>
     </SafeAreaView>

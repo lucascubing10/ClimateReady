@@ -26,18 +26,8 @@ export const auth = Platform.OS === 'web'
       persistence: getReactNativePersistence(AsyncStorage)
     });
 
-// Export app for debugging
+// Export app for reference if needed
 export const firebaseApp = app;
-
-// Debug function to reinitialize auth
-export const resetAuth = () => {
-  console.log('Explicitly resetting Firebase auth instance');
-  return Platform.OS === 'web' 
-    ? getAuth(app) 
-    : initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage)
-      });
-};
 
 // Initialize Firestore with offline persistence
 export const db = getFirestore(app);
