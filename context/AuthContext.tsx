@@ -42,8 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    console.log('Auth state change listener being set up');
     // Handle auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('Auth state changed:', firebaseUser ? `User logged in: ${firebaseUser.email}` : 'User logged out');
       setUser(firebaseUser);
       setIsLoggedIn(!!firebaseUser);
 
@@ -88,7 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Cleanup subscription
-    return () => unsubscribe();
+    return () => {
+      console.log('Cleaning up auth state change listener');
+      unsubscribe();
+    };
   }, []);
 
   // Register a new user
@@ -148,26 +153,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Logout user
   const logout = async () => {
     try {
+      console.log('===== LOGOUT PROCESS STARTED =====');
       console.log('Logout function called in AuthContext');
       setIsLoading(true);
       
+      // Import debug function
+      const { debugFirebaseAuth } = require('../debugAuth');
+      // Import firebaseApp and resetAuth from config
+      const { firebaseApp, resetAuth } = require('../firebaseConfig');
+      
       // Debug info before logout
-      console.log('Current auth state before logout:', auth.currentUser ? 'User is logged in' : 'No user logged in');
+      console.log('Current auth state before logout:', auth.currentUser ? `User is logged in: ${auth.currentUser.email}` : 'No user logged in');
+      await debugFirebaseAuth();
       
-      await signOut(auth);
-      console.log('Firebase signOut completed');
+      // STEP 1: Clear AsyncStorage completely
+      console.log('Cleaning up ALL AsyncStorage data');
+      const allKeys = await AsyncStorage.getAllKeys();
+      console.log('All AsyncStorage keys:', allKeys);
       
-      // Explicitly clear user state
+      // Clear all Firebase and auth-related keys
+      const authKeys = allKeys.filter(key => 
+        key.includes('firebase') || key.toLowerCase().includes('auth') || 
+        key.includes('user') || key.includes('persist'));
+      
+      if (authKeys.length > 0) {
+        console.log('Found auth-related AsyncStorage keys to remove:', authKeys);
+        await AsyncStorage.multiRemove(authKeys);
+      }
+      
+      // STEP 2: Reset state variables first (this is important)
+      console.log('Resetting local state...');
       setUser(null);
       setUserProfile(null);
       setIsLoggedIn(false);
-      console.log('User state reset');
       
-      // Explicitly remove from AsyncStorage as well
-      await AsyncStorage.removeItem('user_authenticated');
-      await AsyncStorage.removeItem('user_profile');
-      console.log('AsyncStorage authentication cleared');
+      // STEP 3: Try to sign out from Firebase auth
+      console.log('Calling Firebase signOut...');
+      try {
+        await signOut(auth);
+        console.log('Firebase signOut completed successfully');
+      } catch (signOutError) {
+        // If signOut fails, we'll reset auth anyway
+        console.error('Error during signOut:', signOutError);
+        console.log('Will attempt to reset auth instance anyway');
+      }
       
+      // STEP 4: Force reset the auth instance
+      console.log('Force resetting auth instance...');
+      const newAuth = resetAuth();
+      console.log('Auth instance reset:', newAuth.currentUser ? 'Still has user' : 'No user');
+      
+      // Check auth state after all operations
+      await debugFirebaseAuth();
+      
+      // Add a delay to ensure state updates have propagated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('===== LOGOUT PROCESS COMPLETED =====');
       return true;
     } catch (error) {
       console.error('Logout error:', error);

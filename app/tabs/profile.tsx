@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -95,6 +96,14 @@ export default function ProfileScreen() {
   
   // Handle logout
   const handleLogout = async () => {
+    console.log('handleLogout called');
+    
+    // Import debug function
+    const { debugFirebaseAuth } = require('../../debugAuth');
+    
+    // Debug auth state before showing alert
+    await debugFirebaseAuth();
+    
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -106,15 +115,50 @@ export default function ProfileScreen() {
         {
           text: 'Logout',
           onPress: async () => {
+            console.log('Logout confirmed in Alert');
             setIsLoggingOut(true);
             try {
-              console.log('Attempting to logout');
-              const success = await logout();
-              console.log('Logout result:', success);
+              console.log('Calling logout() function from AuthContext');
               
-              // Force navigation to login screen regardless of auth state
-              console.log('Forcing navigation to login screen');
-              router.replace('/auth/login');
+              // Import the router reset helper
+              const { CommonActions } = require('@react-navigation/native');
+              
+              // First attempt the regular logout
+              const success = await logout();
+              console.log('Logout function returned with result:', success);
+              
+              // Check auth state after logout
+              await debugFirebaseAuth();
+              
+              // Unconditionally force the app to go to login screen
+              console.log('Forcing navigation to login screen with hard reset');
+              
+              // First try Expo Router navigation
+              try {
+                router.replace('/auth/login');
+                console.log('Router replacement issued');
+              } catch (navError) {
+                console.error('Router navigation failed:', navError);
+              }
+              
+              // After a delay, try to force reset navigation stack
+              setTimeout(() => {
+                console.log('Using fallback navigation method');
+                try {
+                  router.navigate('/auth/login');
+                } catch (navError) {
+                  console.error('Fallback navigation failed:', navError);
+                }
+                
+                // Additionally, try clearing AsyncStorage again
+                try {
+                  AsyncStorage.clear()
+                    .then(() => console.log('AsyncStorage completely cleared'))
+                    .catch((err: Error) => console.error('AsyncStorage clear error:', err));
+                } catch (storageError) {
+                  console.error('AsyncStorage operation failed:', storageError);
+                }
+              }, 1000);
             } catch (error) {
               console.error('Logout error:', error);
               Alert.alert('Error', 'Failed to log out. Please try again.');
