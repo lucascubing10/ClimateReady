@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Api } from '@/services/api';
 import { API_BASE } from '@/constants/env';
 import { CURRENT_USER } from '@/constants/user';
+import { emitPostUpdated, emitPostDeleted } from '@/utils/eventBus';
 
 export default function PostDetail() {
   const { id } = useLocalSearchParams();
@@ -64,9 +65,7 @@ export default function PostDetail() {
           if (!d) return { post: result.post, comments: [] };
             return { ...d, post: result.post };
         });
-        if (typeof window !== 'undefined') {
-          try { window.dispatchEvent(new CustomEvent('cr_post_updated', { detail: { post: result.post } })); } catch {}
-        }
+        emitPostUpdated(result.post);
       } else {
         load();
       }
@@ -82,11 +81,7 @@ export default function PostDetail() {
       const res = await Api.deletePost(post._id, CURRENT_USER.id);
       console.log('[UI] delete result', res);
       if (res?.ok) {
-        try {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('cr_post_deleted', { detail: { id: post._id } }));
-          }
-        } catch {}
+        emitPostDeleted(post._id);
         if (Platform.OS === 'web') {
           alert('Post deleted');
         } else {

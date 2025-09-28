@@ -9,6 +9,7 @@ dayjs.extend(relativeTime);
 import { Api, Category } from '@/services/api';
 import { API_BASE } from '@/constants/env';
 import { CURRENT_USER } from '@/constants/user';
+import { onPostCreated, onPostDeleted, onPostUpdated } from '@/utils/eventBus';
 
 const filters: { label: string; value: Category }[] = [
   { label: 'All', value: 'all' },
@@ -84,29 +85,23 @@ function PostImage({ uri }: { uri: string }) {
     }, [cat, mine])
   );
 
-  // Optimistic create/update/delete sync via custom events
+  // Optimistic create/update/delete sync using cross-platform event bus
   useEffect(() => {
-    const onDeleted = (e: any) => {
-      const deletedId = e?.detail?.id; if (!deletedId) return;
-      setItems(prev => prev.filter(p => p._id !== deletedId));
-    };
-    const onCreated = (e: any) => {
-      const newPost = e?.detail?.post; if (!newPost) return;
+    const unsubCreate = onPostCreated(newPost => {
       if (mine && String(newPost.userId) !== CURRENT_USER.id) return;
       if (cat !== 'all' && newPost.category !== cat) return;
       setItems(prev => prev.find(p => p._id === newPost._id) ? prev : [newPost, ...prev]);
-    };
-    const onUpdated = (e: any) => {
-      const updated = e?.detail?.post; if (!updated) return;
+    });
+    const unsubDelete = onPostDeleted(id => {
+      setItems(prev => prev.filter(p => p._id !== id));
+    });
+    const unsubUpdate = onPostUpdated(updated => {
       setItems(prev => prev.map(p => p._id === updated._id ? { ...p, ...updated } : p));
-    };
-    window.addEventListener('cr_post_deleted', onDeleted as any);
-    window.addEventListener('cr_post_created', onCreated as any);
-    window.addEventListener('cr_post_updated', onUpdated as any);
+    });
     return () => {
-      window.removeEventListener('cr_post_deleted', onDeleted as any);
-      window.removeEventListener('cr_post_created', onCreated as any);
-      window.removeEventListener('cr_post_updated', onUpdated as any);
+      unsubCreate();
+      unsubDelete();
+      unsubUpdate();
     };
   }, [cat, mine]);
 

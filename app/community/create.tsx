@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 
 import { Api, Category } from '@/services/api';
 import { CURRENT_USER } from '@/constants/user';
+import { emitPostCreated } from '@/utils/eventBus';
 
 export default function CreatePost() {
   const [category, setCategory] = useState<Category>('general');
@@ -47,9 +48,7 @@ export default function CreatePost() {
       if (result?.moderation) {
         Alert.alert('Moderation', `${result.moderation.reason}`);
       }
-      if (result?.post && typeof window !== 'undefined') {
-        try { window.dispatchEvent(new CustomEvent('cr_post_created', { detail: { post: result.post } })); } catch {}
-      }
+      if (result?.post) emitPostCreated(result.post);
       r.replace('/community' as any);
     } catch (err) {
       console.error(err);
