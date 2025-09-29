@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, Image, Modal, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,23 +22,53 @@ export default function PostDetail() {
   const [newImage, setNewImage] = useState<any>(null);
   const [imgRatio, setImgRatio] = useState<number | null>(null); // width/height
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false); // editing save progress
+  const [sendingComment, setSendingComment] = useState(false); // comment send progress
+  const requestSeq = useRef(0); // guards against race conditions when rapidly switching posts
+
+  const resetStateForNewPost = () => {
+    setData(null);
+    setComment('');
+    setShowFull(false);
+    setEditing(false);
+    setEditText('');
+    setEditCategory('general');
+    setNewImage(null);
+    setImgRatio(null);
+    setDeleting(false);
+  };
 
   const load = async () => {
     if (!id) return;
-    const result = await Api.getPost(String(id));
-    setData(result);
-    if (result?.post) {
-      setEditText(result.post.text);
-      setEditCategory(result.post.category);
+    const seq = ++requestSeq.current;
+    try {
+      const result = await Api.getPost(String(id));
+      // If another request started after this one, ignore this response
+      if (seq !== requestSeq.current) return;
+      setData(result);
+      if (result?.post) {
+        setEditText(result.post.text);
+        setEditCategory(result.post.category);
+      }
+    } catch (e) {
+      if (seq === requestSeq.current) {
+        setData({ post: null, error: true });
+      }
     }
   };
 
   useEffect(() => {
+    // When the id changes we immediately clear old content so previous post doesn't flash
+    resetStateForNewPost();
     load();
   }, [id]);
 
   if (!data || !data.post) {
-    return <ActivityIndicator style={{ marginTop: 20 }} />;
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+        <ActivityIndicator />
+      </View>
+    );
   }
 
   const { post, comments = [] } = data;
@@ -54,25 +84,31 @@ export default function PostDetail() {
   };
 
   const saveEdit = async () => {
+    if (saving) return; // guard against double tap
     try {
-  if (!activeUserId) return Alert.alert('You must be logged in.');
-  const result = await Api.updatePost(post._id, { userId: activeUserId, text: editText, category: editCategory }, newImage);
-      if (result.moderation) {
+      setSaving(true);
+      if (!activeUserId) return Alert.alert('You must be logged in.');
+      const result = await Api.updatePost(post._id, { userId: activeUserId, text: editText, category: editCategory }, newImage);
+      if (result?.moderation) {
         Alert.alert('Moderation', result.moderation.reason || 'Reviewed');
       }
       setNewImage(null);
-      setEditing(false);
       if (result?.post) {
         setData((d: any) => {
           if (!d) return { post: result.post, comments: [] };
-            return { ...d, post: result.post };
+          return { ...d, post: result.post };
         });
         emitPostUpdated(result.post);
+        setEditing(false);
       } else {
+        // fallback refresh
         load();
+        setEditing(false);
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to update');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -146,19 +182,48 @@ export default function PostDetail() {
               multiline
               style={{ backgroundColor: '#f1f5f9', borderRadius: 12, padding: 10, minHeight: 100, marginTop: 8 }}
             />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {['general','flood','heatwave','earthquake'].map(c => (
-                <Pressable key={c} onPress={() => setEditCategory(c)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: editCategory === c ? '#0284c7' : '#e2e8f0' }}>
-                  <Text style={{ color: editCategory === c ? '#fff' : '#334155', fontSize: 12 }}>{c}</Text>
-                </Pressable>
-              ))}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, marginBottom: 10 }}>
+              {['general','flood','heatwave','earthquake'].map(c => {
+                const active = editCategory === c;
+                const label = c === 'heatwave' ? 'Heat Wave' : c.charAt(0).toUpperCase() + c.slice(1);
+                return (
+                  <Pressable
+                    key={c}
+                    onPress={() => setEditCategory(c)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 18,
+                      backgroundColor: active ? '#0284c7' : '#e2e8f0',
+                      marginRight: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: active ? '#fff' : '#334155', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 }} allowFontScaling={false}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
-              <Pressable onPress={pickReplacement} style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 }}>
-                <Text style={{ fontWeight: '600' }}>{newImage ? 'Change Image' : 'Replace Image'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Pressable
+                onPress={pickReplacement}
+                style={{
+                  backgroundColor: newImage ? '#c7d2fe' : '#dbeafe',
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 24,
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 2,
+                  shadowOffset: { width: 0, height: 1 },
+                }}
+              >
+                <Text style={{ fontWeight: '600', color: '#0369a1' }}>{newImage ? 'Change Image' : 'Replace Image'}</Text>
               </Pressable>
-              <Pressable onPress={saveEdit} style={{ backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, marginLeft: 'auto' }}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Save</Text>
+              <Pressable onPress={saveEdit} disabled={saving} style={{ backgroundColor: '#0284c7', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, marginLeft: 'auto', opacity: saving ? 0.7 : 1 }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? 'Saving...' : 'Save'}</Text>
               </Pressable>
             </View>
             {newImage && (
@@ -171,49 +236,50 @@ export default function PostDetail() {
           <Text style={{ color: '#64748b', marginVertical: 8 }}>{post.text}</Text>
         )}
 
-        {post.imageUrl && (
-          <Pressable onPress={() => setShowFull(true)}>
-            <View
-              style={{
-                borderRadius: 14,
-                overflow: 'hidden',
-                backgroundColor: '#f1f5f9',
-                marginBottom: 8,
-              }}
-            >
-              <Image
-                source={{ uri: post.imageUrl.startsWith('http') ? post.imageUrl : `${API_BASE}${post.imageUrl}` }}
+          {post.imageUrl && (
+            <Pressable onPress={() => setShowFull(true)}>
+              <View
                 style={{
-                  width: '100%',
-                  // dynamic height based on aspect ratio once loaded; fallback 220
-                  height: imgRatio ? Math.min(400, Math.max(180, 300 * (1 / imgRatio))) : 220,
+                  borderRadius: 14,
+                  overflow: 'hidden',
+                  backgroundColor: '#f1f5f9',
+                  marginBottom: 8,
+                  justifyContent: 'center',
+                  alignItems: 'center',
                 }}
-                resizeMode="cover"
-                onLoad={(e) => {
-                  const { width, height } = e.nativeEvent.source || {} as any;
-                  if (width && height) setImgRatio(width / height);
-                }}
-              />
-              <View style={{ position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-                <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view</Text>
+              >
+                <Image
+                  source={{ uri: post.imageUrl.startsWith('http') ? post.imageUrl : `${API_BASE}${post.imageUrl}` }}
+                  style={
+                    imgRatio
+                      ? (Platform.OS === 'web'
+                          ? { width: '100%', aspectRatio: imgRatio }
+                          : { width: '100%', height: Math.min(400, Math.max(180, 300 * (1 / imgRatio))) })
+                      : { width: '100%', height: 220 }
+                  }
+                  resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
+                  onLoad={(e) => {
+                    const { width, height } = (e.nativeEvent.source || {}) as any;
+                    if (width && height) setImgRatio(width / height);
+                  }}
+                />
+                <View style={{ position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                  <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view</Text>
+                </View>
               </View>
-            </View>
-          </Pressable>
-        )}
+            </Pressable>
+          )}
 
   <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-          <Text
-            style={{
-              fontSize: 12,
-              backgroundColor: '#e2e8f0',
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-              textTransform: 'capitalize',
-            }}
-          >
-            {post.category}
-          </Text>
+          <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, alignSelf: 'flex-start' }}>
+            <Text
+              style={{ fontSize: 12, fontWeight: '600', color: '#0f172a', letterSpacing: 0.2, textTransform: 'capitalize' }}
+              numberOfLines={1}
+              allowFontScaling={false}
+            >
+              {post.category === 'heatwave' ? 'Heat Wave' : post.category}
+            </Text>
+          </View>
 
           {post.resolved && (
             <Text
@@ -230,29 +296,24 @@ export default function PostDetail() {
             </Text>
           )}
           {isOwner && post.blocked && (
-            <Text
-              style={{
-                fontSize: 12,
-                backgroundColor: '#fecaca',
-                color: '#991b1b',
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 12,
-              }}
-            >
-              BLOCKED
-            </Text>
+            <View style={{ backgroundColor: '#fecaca', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 }}>
+              <Text style={{ fontSize: 12, color: '#991b1b', fontWeight: '600', letterSpacing: 0.4 }} allowFontScaling={false} numberOfLines={1}>BLOCKED</Text>
+            </View>
           )}
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
           <Pressable
             onPress={async () => {
-              await Api.upvote(post._id);
-              load();
+              if (!activeUserId) return Alert.alert('Login required');
+              // optimistic
+              const liked = post.likedBy?.includes(activeUserId);
+              setData((d: any) => d ? { ...d, post: { ...d.post, upvotes: d.post.upvotes + (liked ? -1 : 1), likedBy: liked ? d.post.likedBy.filter((u:string)=>u!==activeUserId) : [...(d.post.likedBy||[]), activeUserId] } } : d);
+              const res = await Api.upvote(post._id, activeUserId);
+              if (res?.post) setData((d:any)=> ({ ...d, post: res.post }));
             }}
           >
-            <Text>❤️ {post.upvotes}</Text>
+            <Text>{activeUserId && post.likedBy?.includes(activeUserId) ? '💖' : '❤️'} {post.upvotes}</Text>
           </Pressable>
 
           {post.userId === activeUserId && !post.resolved && (
@@ -299,24 +360,32 @@ export default function PostDetail() {
           />
           <Pressable
             onPress={async () => {
+              if (sendingComment) return;
               if (!comment.trim()) return;
               if (!activeUserId) return Alert.alert('Login required');
-              await Api.addComment(post._id, {
-                userId: activeUserId,
-                username: activeUsername,
-                text: comment,
-              });
-              setComment('');
-              load();
+              setSendingComment(true);
+              try {
+                await Api.addComment(post._id, {
+                  userId: activeUserId,
+                  username: activeUsername,
+                  text: comment,
+                });
+                setComment('');
+                load();
+              } finally {
+                setSendingComment(false);
+              }
             }}
             style={{
               backgroundColor: '#0284c7',
               paddingHorizontal: 16,
               borderRadius: 12,
               justifyContent: 'center',
+              opacity: sendingComment ? 0.7 : 1,
             }}
+            disabled={sendingComment}
           >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Send</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{sendingComment ? 'Sending...' : 'Send'}</Text>
           </Pressable>
         </View>
       </View>

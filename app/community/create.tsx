@@ -40,6 +40,13 @@ export default function CreatePost() {
   const [text, setText] = useState('');
   const [image, setImage] = useState<any>(null);
   const r = useRouter();
+  const [submitting, setSubmitting] = useState(false);
+
+  const clearForm = () => {
+    setCategory('general');
+    setText('');
+    setImage(null);
+  };
 
   const pick = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -59,30 +66,34 @@ export default function CreatePost() {
   };
 
   const submit = async () => {
+    if (submitting) return; // debounce
     if (!text.trim()) return Alert.alert('Say something about your issue');
+    if (!activeUserId) return Alert.alert('You must be logged in to post.');
 
-    if (!activeUserId) {
-      return Alert.alert('You must be logged in to post.');
-    }
     const payload = {
       userId: activeUserId,
       username: activeUsername,
       category: category === 'all' ? 'general' : category,
       text,
-      // If we fall back to base64 (e.g., web where file object may fail) add it
-      imageBase64: image?.base64 ? `data:${image.type};base64,${image.base64}` : undefined,
+      imageBase64: image?.base64 ? `data:${image.type || 'image/jpeg'};base64,${image.base64}` : undefined,
     };
 
     try {
+      setSubmitting(true);
       const result = await Api.createPost(payload, image);
       if (result?.moderation) {
         Alert.alert('Moderation', `${result.moderation.reason}`);
       }
-      if (result?.post) emitPostCreated(result.post);
-      r.replace('/community' as any);
+      if (result?.post) {
+        emitPostCreated(result.post);
+        clearForm();
+        r.replace('/community' as any);
+      }
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Failed to create post');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -116,15 +127,17 @@ export default function CreatePost() {
 
         <Pressable
           onPress={submit}
+          disabled={submitting}
           style={{
-            backgroundColor: '#0284c7',
+            backgroundColor: submitting ? '#7dd3fc' : '#0284c7',
             paddingHorizontal: 16,
             paddingVertical: 10,
             borderRadius: 12,
             marginLeft: 'auto',
+            opacity: submitting ? 0.75 : 1,
           }}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Post</Text>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>{submitting ? 'Posting...' : 'Post'}</Text>
         </Pressable>
       </View>
     </View>

@@ -184,8 +184,7 @@ function PostImage({ uri }: { uri: string }) {
           keyExtractor={(it) => it._id}
           contentContainerStyle={{ padding: 12, gap: 12 }}
           renderItem={({ item }) => (
-            <Pressable
-              onPress={() => r.push({ pathname: '/community/post/[id]', params: { id: String(item._id) } } as any)}
+            <View
               style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, gap: 6 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -213,9 +212,15 @@ function PostImage({ uri }: { uri: string }) {
                   </Text>
                 )}
                 {mine && item.blocked && (
-                  <Text style={{ fontSize: 12, backgroundColor: '#fecaca', color: '#991b1b', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                    BLOCKED
-                  </Text>
+                  <View style={{ backgroundColor: '#fecaca', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text
+                      style={{ fontSize: 12, color: '#991b1b', fontWeight: '600', letterSpacing: 0.4 }}
+                      allowFontScaling={false}
+                      numberOfLines={1}
+                    >
+                      BLOCKED
+                    </Text>
+                  </View>
                 )}
 
                 {item.status === 'pending' && (
@@ -225,17 +230,47 @@ function PostImage({ uri }: { uri: string }) {
                 )}
               </View>
 
-              <Text style={{ color: '#334155' }}>{item.text}</Text>
+              <Pressable onPress={() => r.push({ pathname: '/community/post/[id]', params: { id: String(item._id) } } as any)}>
+                <Text style={{ color: '#334155' }}>{item.text}</Text>
+              </Pressable>
 
               {item.imageUrl && (
                   <PostImage uri={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_BASE}${item.imageUrl}`} />
               )}
 
-              <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
-                <Text>❤️ {item.upvotes}</Text>
-                <Text>💬 {item.commentsCount}</Text>
+              <View style={{ flexDirection: 'row', gap: 24, marginTop: 8, alignItems: 'center' }}>
+                <Pressable
+                  disabled={!activeUserId}
+                  onPress={async () => {
+                    if (!activeUserId) return;
+                    // optimistic toggle
+                    setItems(prev => prev.map(p => {
+                      if (p._id !== item._id) return p;
+                      const liked = p.likedBy?.includes(activeUserId);
+                      return {
+                        ...p,
+                        upvotes: (p.upvotes || 0) + (liked ? -1 : 1),
+                        likedBy: liked ? p.likedBy.filter((u: string) => u !== activeUserId) : [...(p.likedBy || []), activeUserId]
+                      };
+                    }));
+                    const res = await Api.upvote(item._id, activeUserId);
+                    if (res?.post) {
+                      setItems(prev => prev.map(p => p._id === item._id ? res.post : p));
+                    }
+                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                >
+                  <Text style={{ fontSize: 16 }}>
+                    {activeUserId && item.likedBy?.includes(activeUserId) ? '💖' : '❤️'}
+                  </Text>
+                  <Text>{item.upvotes}</Text>
+                </Pressable>
+                <Pressable onPress={() => r.push({ pathname: '/community/post/[id]', params: { id: String(item._id) } } as any)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text>💬</Text>
+                  <Text>{item.commentsCount}</Text>
+                </Pressable>
               </View>
-            </Pressable>
+            </View>
           )}
         />
       )}

@@ -310,16 +310,29 @@ router.post('/:id/delete', async (req, res) => {
 // -------------------------
 router.post('/:id/upvote', async (req, res) => {
   try {
-    const post = await Post.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { upvotes: 1 } },
-      { new: true }
-    );
+    const { userId } = req.body || {};
+    if (!userId) return res.status(422).json({ error: 'userId required' });
+    const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    res.json(post);
+
+    const already = post.likedBy.includes(userId);
+    let update;
+    if (already) {
+      update = {
+        $inc: { upvotes: post.upvotes > 0 ? -1 : 0 },
+        $pull: { likedBy: userId }
+      };
+    } else {
+      update = {
+        $inc: { upvotes: 1 },
+        $addToSet: { likedBy: userId }
+      };
+    }
+    const updated = await Post.findByIdAndUpdate(post._id, update, { new: true });
+    res.json({ post: updated, liked: !already });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to upvote post' });
+    res.status(500).json({ error: 'Failed to toggle like' });
   }
 });
 

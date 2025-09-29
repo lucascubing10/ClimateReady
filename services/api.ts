@@ -101,8 +101,12 @@ export const Api = {
   },
 
   // Upvote post
-  async upvote(id: string) {
-    const res = await fetch(`${API_BASE}/api/posts/${id}/upvote`, { method: 'POST' });
+  async upvote(id: string, userId: string) {
+    const res = await fetch(`${API_BASE}/api/posts/${id}/upvote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    });
     return await res.json();
   },
 

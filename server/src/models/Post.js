@@ -15,6 +15,7 @@ const PostSchema = new mongoose.Schema({
 	resolvedAt: Date,
 	upvotes: { type: Number, default: 0 },
 	commentsCount: { type: Number, default: 0 },
+		likedBy: { type: [String], default: [] }, // store Firebase UIDs who liked
 	moderation: {
 		// Store latest AI moderation snapshot
 		reason: String,
