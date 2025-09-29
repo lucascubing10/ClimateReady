@@ -51,7 +51,8 @@ const ProfileCompletionReminder = () => {
   };
   
   const handleComplete = () => {
-    router.push('/tabs/edit-profile' as any);
+    // Redirect to the profile page instead of the outdated edit-profile page
+    router.push('/tabs/profile' as any);
     setVisible(false);
   };
   
