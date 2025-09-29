@@ -51,7 +51,7 @@ export const Api = {
 
   // Get a single post
   async getPost(id: string) {
-    const res = await fetch(`${API_BASE}/api/posts/${id}`);
+    const res = await fetch(`${API_BASE}/api/posts/${id}?t=${Date.now()}` , { cache: 'no-store' });
     return await res.json();
   },
 
@@ -125,10 +125,37 @@ export const Api = {
     });
     return await res.json();
   },
+  async getPostComments(postId: string) {
+    const res = await fetch(`${API_BASE}/api/posts/${postId}/comments?t=${Date.now()}`, { cache: 'no-store' });
+    return await res.json();
+  },
 
   // List messages for chat
   async listMessages() {
     const res = await fetch(`${API_BASE}/api/messages`);
     return await res.json();
   },
+
+  // -------- Community Notifications (scoped) --------
+  async listCommunityNotifications(userId: string, unreadOnly = false) {
+    if (!userId) return [];
+    const url = new URL(`${API_BASE}/api/community-notifications`);
+    url.searchParams.append('userId', userId);
+    if (unreadOnly) url.searchParams.append('unread', '1');
+    const res = await fetch(url.toString(), { cache: 'no-store' });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+  async markCommunityNotificationRead(id: string) {
+    const res = await fetch(`${API_BASE}/api/community-notifications/${id}/read`, { method: 'POST' });
+    return await res.json();
+  },
+  async markAllCommunityNotificationsRead(userId: string) {
+    const res = await fetch(`${API_BASE}/api/community-notifications/read-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    return await res.json();
+  }
 };

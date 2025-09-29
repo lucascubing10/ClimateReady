@@ -6,6 +6,7 @@ import Post from '../models/Post.js';
 import Comment from '../models/Comment.js';
 import { moderateText } from '../moderation.js'; // still used for comments fallback
 import { compositeModerate } from '../services/aiModeration.js';
+import CommunityNotification from '../models/CommunityNotification.js';
 
 const router = express.Router();
 
@@ -161,11 +162,40 @@ router.post('/:id/comments', async (req, res) => {
     }
 
   const comment = await Comment.create({ postId: post._id, userId: String(userId), username, text });
+    // Create community notification for post owner (if commenter is not the owner)
+    if (String(post.userId) !== String(userId)) {
+      try {
+        await CommunityNotification.create({
+          userId: String(post.userId),
+          actorId: String(userId),
+          actorName: username,
+          postId: post._id,
+          commentId: comment._id,
+          postSnippet: (post.text || '').slice(0, 80),
+          commentSnippet: text.slice(0, 80)
+        });
+      } catch (e) {
+        console.warn('Failed to create community notification', e.message);
+      }
+    }
     await Post.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
     res.json({ comment });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// Fetch comments only (lighter polling endpoint for client)
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id).select('_id');
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    const comments = await Comment.find({ postId: post._id }).sort({ createdAt: 1 });
+    res.json({ comments });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch comments' });
   }
 });
 

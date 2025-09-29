@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { Server as SocketIOServer } from 'socket.io';
 import postsRoute from './routes/posts.js';
+import communityNotificationsRoute from './routes/communityNotifications.js';
 import fs from 'fs';
 import path from 'path';
 import messagesRoute from './routes/messages.js';
@@ -30,6 +31,7 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 app.use('/api/posts', postsRoute);
+app.use('/api/community-notifications', communityNotificationsRoute);
 app.use('/api/messages', messagesRoute);
 
 io.on('connection', (socket) => {

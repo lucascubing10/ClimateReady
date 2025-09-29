@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, Image, Modal, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, RefreshControl } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -24,6 +24,8 @@ export default function PostDetail() {
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false); // editing save progress
   const [sendingComment, setSendingComment] = useState(false); // comment send progress
+  const [refreshing, setRefreshing] = useState(false);
+  const commentsPollRef = useRef<any>(null);
   const requestSeq = useRef(0); // guards against race conditions when rapidly switching posts
 
   const resetStateForNewPost = () => {
@@ -50,6 +52,20 @@ export default function PostDetail() {
         setEditText(result.post.text);
         setEditCategory(result.post.category);
       }
+      // If we navigated here from a notification there is a small chance the comment write
+      // replicated after our first read (especially with Atlas clusters). Perform a single
+      // quick refetch 600ms later if there are zero comments but the notification implied one.
+      if (result?.post && Array.isArray(result?.comments) && result.comments.length === 0) {
+        setTimeout(async () => {
+          if (requestSeq.current !== seq) return; // user navigated away or another load triggered
+          try {
+            const again = await Api.getPost(String(id));
+            if (requestSeq.current === seq && again?.comments?.length) {
+              setData(again);
+            }
+          } catch {}
+        }, 600);
+      }
     } catch (e) {
       if (seq === requestSeq.current) {
         setData({ post: null, error: true });
@@ -61,6 +77,19 @@ export default function PostDetail() {
     // When the id changes we immediately clear old content so previous post doesn't flash
     resetStateForNewPost();
     load();
+    // start polling comments every 10s (mobile only to mitigate multi-device sync lag)
+    if (commentsPollRef.current) clearInterval(commentsPollRef.current);
+    commentsPollRef.current = setInterval(async () => {
+      if (!id) return;
+      try {
+        const currentPostId = String(id);
+        const res = await Api.getPostComments(currentPostId);
+        if (res?.comments && Array.isArray(res.comments)) {
+          setData((d:any) => d && d.post ? { ...d, comments: res.comments } : d);
+        }
+      } catch {}
+    }, 10000);
+    return () => { if (commentsPollRef.current) clearInterval(commentsPollRef.current); };
   }, [id]);
 
   if (!data || !data.post) {
@@ -156,8 +185,14 @@ export default function PostDetail() {
     );
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+    <ScrollView style={{ flex: 1, backgroundColor: '#f8fafc' }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       {/* Post card */}
       <View style={{ backgroundColor: '#fff', margin: 12, padding: 14, borderRadius: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -342,7 +377,7 @@ export default function PostDetail() {
       </View>
 
       {/* Comments */}
-      <View style={{ backgroundColor: '#fff', marginHorizontal: 12, padding: 14, borderRadius: 16, gap: 8 }}>
+      <View style={{ backgroundColor: '#fff', marginHorizontal: 12, padding: 14, borderRadius: 16, gap: 8, marginBottom: 24 }}>
         {comments.map((c: any) => (
           <View key={c._id} style={{ paddingVertical: 8, borderBottomWidth: 0.5, borderColor: '#e5e7eb' }}>
             <Text style={{ fontWeight: '700' }}>{c.username}</Text>
@@ -437,6 +472,6 @@ export default function PostDetail() {
           </View>
         </Modal>
       )}
-    </View>
+    </ScrollView>
   );
 }

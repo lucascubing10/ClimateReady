@@ -7,6 +7,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import { Api, Category } from '@/services/api';
+import CommunityNotificationsBell from '@/components/community/CommunityNotificationsBell';
 import { API_BASE } from '@/constants/env';
 import { useActiveUser } from '@/utils/activeUser';
 import { onPostCreated, onPostDeleted, onPostUpdated } from '@/utils/eventBus';
@@ -58,6 +59,7 @@ export default function CommunityList() {
   const [mine, setMine] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const r = useRouter();
 // Component that displays a smaller, fully visible image without aggressive cropping
 function PostImage({ uri }: { uri: string }) {
@@ -95,16 +97,23 @@ function PostImage({ uri }: { uri: string }) {
   );
 }
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (opts?: { silent?: boolean }) => {
+    const silent = !!opts?.silent;
+    if (!silent) setLoading(true);
     setError(null);
-  const data = await Api.listPosts(cat, mine, activeUserId || '');
+    const data = await Api.listPosts(cat, mine, activeUserId || '');
     if (Array.isArray(data)) {
       setItems(data);
     } else {
-      setError(data.error || 'Failed to load');
+      setError((data as any).error || 'Failed to load');
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load({ silent: true });
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -141,7 +150,7 @@ function PostImage({ uri }: { uri: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* Filters */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12 }}>
+  <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12, alignItems: 'center' }}>
         {filters.map(f => (
           <FilterChip
             key={f.value}
@@ -164,6 +173,7 @@ function PostImage({ uri }: { uri: string }) {
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>+ Post</Text>
         </Pressable>
+        <CommunityNotificationsBell />
       </View>
 
       {loading && (
@@ -173,7 +183,7 @@ function PostImage({ uri }: { uri: string }) {
         <View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
           <Text style={{ color: '#b91c1c', fontWeight: '600' }}>Failed to fetch posts</Text>
           <Text style={{ color: '#64748b', fontSize: 12 }}>{error}</Text>
-          <Pressable onPress={load} style={{ backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
+          <Pressable onPress={() => load()} style={{ backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
           </Pressable>
         </View>
@@ -183,6 +193,8 @@ function PostImage({ uri }: { uri: string }) {
           data={items}
           keyExtractor={(it) => it._id}
           contentContainerStyle={{ padding: 12, gap: 12 }}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           renderItem={({ item }) => (
             <View
               style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, gap: 6 }}
