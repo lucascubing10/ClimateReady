@@ -19,6 +19,38 @@ const filters: { label: string; value: Category }[] = [
   { label: 'Earthquake', value: 'earthquake' },
 ];
 
+type ChipProps = { label: string; active?: boolean; onPress?: () => void; activeColor?: string };
+const FilterChip = ({ label, active, onPress, activeColor }: ChipProps) => (
+  <Pressable
+    onPress={onPress}
+    style={{
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 24,
+      backgroundColor: active ? (activeColor || '#0284c7') : '#e2e8f0',
+      marginRight: 8,
+      marginBottom: 8,
+      minHeight: 36,
+      justifyContent: 'center'
+    }}
+    hitSlop={6}
+  >
+    <Text
+      style={{
+        color: active ? '#fff' : '#334155',
+        fontWeight: '600',
+        fontSize: 13,
+        letterSpacing: 0.2,
+      }}
+      // Avoid platform font autoscaling distorting short words (e.g. "General" clipped)
+      allowFontScaling={false}
+      numberOfLines={1}
+    >
+      {label}
+    </Text>
+  </Pressable>
+);
+
 export default function CommunityList() {
   const [items, setItems] = useState<any[]>([]);
   const [cat, setCat] = useState<Category>('all');
@@ -108,29 +140,28 @@ function PostImage({ uri }: { uri: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* Filters */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
-        {filters.map((f) => (
-          <Pressable
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12 }}>
+        {filters.map(f => (
+          <FilterChip
             key={f.value}
+            label={f.label}
+            active={cat === f.value}
             onPress={() => setCat(f.value)}
-            style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: cat === f.value ? '#0284c7' : '#e2e8f0' }}
-          >
-            <Text style={{ color: cat === f.value ? '#fff' : '#334155', fontWeight: '600' }}>{f.label}</Text>
-          </Pressable>
+          />
         ))}
-
-        <Pressable
+        <FilterChip
+          label={mine ? 'My Posts ✓' : 'My Posts'}
+          active={mine}
           onPress={() => setMine(!mine)}
-          style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: mine ? '#16a34a' : '#e2e8f0' }}
-        >
-          <Text style={{ color: mine ? '#fff' : '#334155', fontWeight: '600' }}>My Posts</Text>
-        </Pressable>
-
+          activeColor="#16a34a"
+        />
+        <View style={{ marginLeft: 'auto' }} />
         <Pressable
           onPress={() => r.push('/community/create' as any)}
-          style={{ marginLeft: 'auto', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#0284c7' }}
+          style={{ marginLeft: 'auto', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: '#0284c7', marginTop: 8 }}
+          hitSlop={8}
         >
-          <Text style={{ color: '#fff', fontWeight: '700' }}>+ Post</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>+ Post</Text>
         </Pressable>
       </View>
 
@@ -164,10 +195,16 @@ function PostImage({ uri }: { uri: string }) {
                 <Text style={{ color: '#64748b' }}>• {dayjs(item.createdAt).fromNow?.() || ''}</Text>
               </View>
 
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Text style={{ fontSize: 12, backgroundColor: '#e2e8f0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, textTransform: 'capitalize' }}>
-                  {item.category}
-                </Text>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, minWidth: 74, alignItems: 'center' }}>
+                  <Text
+                    style={{ fontSize: 12, fontWeight: '600', color: '#0f172a', textTransform: 'capitalize', letterSpacing: 0.2 }}
+                    numberOfLines={1}
+                    allowFontScaling={false}
+                  >
+                    {item.category === 'heatwave' ? 'Heat Wave' : item.category}
+                  </Text>
+                </View>
 
                 {item.resolved && (
                   <Text style={{ fontSize: 12, backgroundColor: '#fee2e2', color: '#b91c1c', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>

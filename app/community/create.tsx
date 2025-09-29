@@ -8,6 +8,32 @@ import { Api, Category } from '@/services/api';
 import { CURRENT_USER } from '@/constants/user';
 import { emitPostCreated } from '@/utils/eventBus';
 
+const categories: Category[] = ['general', 'flood', 'heatwave', 'earthquake'];
+const CategoryChip = ({ value, active, onPress }: { value: Category; active: boolean; onPress: () => void }) => (
+  <Pressable
+    onPress={onPress}
+    style={{
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 22,
+      backgroundColor: active ? '#0284c7' : '#e2e8f0',
+      marginRight: 8,
+      marginBottom: 8,
+      minWidth: 78,
+      alignItems: 'center'
+    }}
+    hitSlop={6}
+  >
+    <Text
+      style={{ color: active ? '#fff' : '#334155', fontWeight: '600', fontSize: 13, textTransform: 'capitalize', letterSpacing: 0.2 }}
+      numberOfLines={1}
+      allowFontScaling={false}
+    >
+      {value === 'heatwave' ? 'Heat Wave' : value}
+    </Text>
+  </Pressable>
+);
+
 export default function CreatePost() {
   const [category, setCategory] = useState<Category>('general');
   const [text, setText] = useState('');
@@ -60,22 +86,9 @@ export default function CreatePost() {
     <View style={{ flex: 1, backgroundColor: '#fff', padding: 16, gap: 12 }}>
       <Text style={{ fontSize: 18, fontWeight: '700' }}>Create Post</Text>
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {(['general', 'flood', 'heatwave', 'earthquake'] as Category[]).map((c) => (
-          <Pressable
-            key={c}
-            onPress={() => setCategory(c)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 16,
-              backgroundColor: category === c ? '#0284c7' : '#e2e8f0',
-            }}
-          >
-            <Text style={{ color: category === c ? '#fff' : '#334155', textTransform: 'capitalize' }}>
-              {c}
-            </Text>
-          </Pressable>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {categories.map(c => (
+          <CategoryChip key={c} value={c} active={category === c} onPress={() => setCategory(c)} />
         ))}
       </View>
 
