@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Api, Category } from '@/services/api';
-import { CURRENT_USER } from '@/constants/user';
+import { useActiveUser } from '@/utils/activeUser';
 import { emitPostCreated } from '@/utils/eventBus';
 
 const categories: Category[] = ['general', 'flood', 'heatwave', 'earthquake'];
@@ -35,6 +35,7 @@ const CategoryChip = ({ value, active, onPress }: { value: Category; active: boo
 );
 
 export default function CreatePost() {
+  const { id: activeUserId, username: activeUsername } = useActiveUser();
   const [category, setCategory] = useState<Category>('general');
   const [text, setText] = useState('');
   const [image, setImage] = useState<any>(null);
@@ -60,9 +61,12 @@ export default function CreatePost() {
   const submit = async () => {
     if (!text.trim()) return Alert.alert('Say something about your issue');
 
+    if (!activeUserId) {
+      return Alert.alert('You must be logged in to post.');
+    }
     const payload = {
-      userId: CURRENT_USER.id,
-      username: CURRENT_USER.username,
+      userId: activeUserId,
+      username: activeUsername,
       category: category === 'all' ? 'general' : category,
       text,
       // If we fall back to base64 (e.g., web where file object may fail) add it

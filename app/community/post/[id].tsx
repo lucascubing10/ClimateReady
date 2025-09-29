@@ -5,10 +5,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Api } from '@/services/api';
 import { API_BASE } from '@/constants/env';
-import { CURRENT_USER } from '@/constants/user';
+import { useActiveUser } from '@/utils/activeUser';
 import { emitPostUpdated, emitPostDeleted } from '@/utils/eventBus';
 
 export default function PostDetail() {
+  const { id: activeUserId, username: activeUsername } = useActiveUser();
   const { id } = useLocalSearchParams();
   const r = useRouter();
 
@@ -42,7 +43,7 @@ export default function PostDetail() {
 
   const { post, comments = [] } = data;
 
-  const isOwner = String(post?.userId || '') === CURRENT_USER.id;
+  const isOwner = !!activeUserId && String(post?.userId || '') === activeUserId;
 
   const pickReplacement = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, base64: true });
@@ -54,7 +55,8 @@ export default function PostDetail() {
 
   const saveEdit = async () => {
     try {
-      const result = await Api.updatePost(post._id, { userId: CURRENT_USER.id, text: editText, category: editCategory }, newImage);
+  if (!activeUserId) return Alert.alert('You must be logged in.');
+  const result = await Api.updatePost(post._id, { userId: activeUserId, text: editText, category: editCategory }, newImage);
       if (result.moderation) {
         Alert.alert('Moderation', result.moderation.reason || 'Reviewed');
       }
@@ -78,7 +80,8 @@ export default function PostDetail() {
     try {
       setDeleting(true);
       console.log('[UI] performDelete -> calling Api.deletePost');
-      const res = await Api.deletePost(post._id, CURRENT_USER.id);
+  if (!activeUserId) return Alert.alert('Not authorized');
+  const res = await Api.deletePost(post._id, activeUserId);
       console.log('[UI] delete result', res);
       if (res?.ok) {
         emitPostDeleted(post._id);
@@ -252,7 +255,7 @@ export default function PostDetail() {
             <Text>❤️ {post.upvotes}</Text>
           </Pressable>
 
-          {post.userId === CURRENT_USER.id && !post.resolved && (
+          {post.userId === activeUserId && !post.resolved && (
             <Pressable
               onPress={async () => {
                 await Api.resolvePost(post._id);
@@ -297,9 +300,10 @@ export default function PostDetail() {
           <Pressable
             onPress={async () => {
               if (!comment.trim()) return;
+              if (!activeUserId) return Alert.alert('Login required');
               await Api.addComment(post._id, {
-                userId: CURRENT_USER.id,
-                username: CURRENT_USER.username,
+                userId: activeUserId,
+                username: activeUsername,
                 text: comment,
               });
               setComment('');

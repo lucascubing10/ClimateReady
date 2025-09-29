@@ -78,7 +78,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     console.log('File received:', !!fileRef, 'imageUrl decided:', imageUrl);
 
     const post = await Post.create({
-      userId,
+      userId: String(userId),
       username,
       text,
       category: category && ['general','flood','heatwave','earthquake'].includes(category) ? category : 'general',
@@ -111,7 +111,8 @@ router.get('/', async (req, res) => {
     const mineFlag = mine === 'true' || mine === '1';
 
     if (mineFlag && userId) {
-      query.userId = userId;
+      // userId stored as plain string (Firebase UID)
+      query.userId = String(userId);
     } else {
       // public feed: only approved & not blocked
       query.status = 'approved';
@@ -159,7 +160,7 @@ router.post('/:id/comments', async (req, res) => {
       return res.status(400).json({ error: 'Comment rejected by moderation', moderation: mod });
     }
 
-    const comment = await Comment.create({ postId: post._id, userId, username, text });
+  const comment = await Comment.create({ postId: post._id, userId: String(userId), username, text });
     await Post.findByIdAndUpdate(post._id, { $inc: { commentsCount: 1 } });
     res.json({ comment });
   } catch (err) {
@@ -207,7 +208,7 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
     if (!userId) return res.status(422).json({ error: 'userId required' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (String(post.userId) !== String(userId)) return res.status(403).json({ error: 'Not owner' });
+  if (String(post.userId) !== String(userId)) return res.status(403).json({ error: 'Not owner' });
 
     let updates = {};
     if (text) updates.text = text;
@@ -270,7 +271,7 @@ router.delete('/:id', async (req, res) => {
     if (!owner) return res.status(422).json({ error: 'userId required' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (String(post.userId) !== String(owner)) return res.status(403).json({ error: 'Not owner' });
+  if (String(post.userId) !== String(owner)) return res.status(403).json({ error: 'Not owner' });
 
     // remove image file
     const imgPath = localFile(post.imageUrl);
@@ -292,7 +293,7 @@ router.post('/:id/delete', async (req, res) => {
     if (!owner) return res.status(422).json({ error: 'userId required' });
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (String(post.userId) !== String(owner)) return res.status(403).json({ error: 'Not owner' });
+  if (String(post.userId) !== String(owner)) return res.status(403).json({ error: 'Not owner' });
     const imgPath = localFile(post.imageUrl);
     if (imgPath) fs.unlink(imgPath, () => {});
     await Comment.deleteMany({ postId: post._id });

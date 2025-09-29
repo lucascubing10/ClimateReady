@@ -11,10 +11,11 @@ import {
 import { io } from 'socket.io-client';
 
 import { API_BASE } from '@/constants/env';
-import { CURRENT_USER } from '@/constants/user';
+import { useActiveUser } from '@/utils/activeUser';
 import { Api } from '@/services/api';
 
 export default function Chat() {
+  const { id: activeUserId, username: activeUsername } = useActiveUser();
   const [socket, setSocket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
@@ -37,9 +38,10 @@ export default function Chat() {
 
   const send = () => {
     if (!text.trim() || !socket) return;
+    if (!activeUserId) return; // optionally show toast/alert
     socket.emit('chat:send', {
-      userId: CURRENT_USER.id,
-      username: CURRENT_USER.username,
+      userId: activeUserId,
+      username: activeUsername,
       text,
     });
     setText('');

@@ -8,7 +8,7 @@ dayjs.extend(relativeTime);
 
 import { Api, Category } from '@/services/api';
 import { API_BASE } from '@/constants/env';
-import { CURRENT_USER } from '@/constants/user';
+import { useActiveUser } from '@/utils/activeUser';
 import { onPostCreated, onPostDeleted, onPostUpdated } from '@/utils/eventBus';
 
 const filters: { label: string; value: Category }[] = [
@@ -52,6 +52,7 @@ const FilterChip = ({ label, active, onPress, activeColor }: ChipProps) => (
 );
 
 export default function CommunityList() {
+  const { id: activeUserId } = useActiveUser();
   const [items, setItems] = useState<any[]>([]);
   const [cat, setCat] = useState<Category>('all');
   const [mine, setMine] = useState(false);
@@ -97,7 +98,7 @@ function PostImage({ uri }: { uri: string }) {
   const load = async () => {
     setLoading(true);
     setError(null);
-    const data = await Api.listPosts(cat, mine, CURRENT_USER.id);
+  const data = await Api.listPosts(cat, mine, activeUserId || '');
     if (Array.isArray(data)) {
       setItems(data);
     } else {
@@ -120,7 +121,7 @@ function PostImage({ uri }: { uri: string }) {
   // Optimistic create/update/delete sync using cross-platform event bus
   useEffect(() => {
     const unsubCreate = onPostCreated(newPost => {
-      if (mine && String(newPost.userId) !== CURRENT_USER.id) return;
+      if (mine && activeUserId && String(newPost.userId) !== activeUserId) return;
       if (cat !== 'all' && newPost.category !== cat) return;
       setItems(prev => prev.find(p => p._id === newPost._id) ? prev : [newPost, ...prev]);
     });
