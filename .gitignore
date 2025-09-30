@@ -39,3 +39,7 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+
+#web app for tracking
+sos-live-tracker-map/
