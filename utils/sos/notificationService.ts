@@ -23,6 +23,17 @@ Notifications.setNotificationHandler({
 // Register for push notifications and get token
 export async function registerForPushNotifications() {
   try {
+    // Check if we're running in Expo Go with SDK 53+
+    const isExpoGo = Constants.executionEnvironment === 'standalone' || 
+                     Constants.executionEnvironment === 'storeClient';
+    
+    // In Expo Go with SDK 53+, push notifications aren't supported
+    if (isExpoGo) {
+      console.log('Push notifications are not supported in Expo Go with SDK 53+');
+      console.log('Use a development build for push notification functionality');
+      return null;
+    }
+    
     // Check permission status
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -40,12 +51,14 @@ export async function registerForPushNotifications() {
     }
     
     // Get token
-    const token = (await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.expoProjectId , // Uses value from environment
-    })).data;
-    
-    // Store token locally
-    await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
+    try {
+      const tokenResponse = await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.expoProjectId || process.env.EXPO_PROJECT_ID, // Uses value from environment
+      });
+      const token = tokenResponse.data;
+      
+      // Store token locally
+      await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
     
     // Configure for Android
     if (Platform.OS === 'android') {
@@ -70,7 +83,11 @@ export async function registerForPushNotifications() {
       });
     }
     
-    return token;
+      return token;
+    } catch (tokenError) {
+      console.error('Error getting push token:', tokenError);
+      return null;
+    }
   } catch (error) {
     console.error('Error registering for push notifications:', error);
     return null;
