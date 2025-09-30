@@ -33,7 +33,11 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+# Existing ignores...
+.env
+server/.env
+server/.env.local
+server/.env.*
 
 # typescript
 *.tsbuildinfo
