@@ -1,51 +1,69 @@
 import React, { useEffect, useState, useCallback, JSX } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, AppState, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  ActivityIndicator,
+  Dimensions,
+  StyleSheet
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { Card } from '../components/Toolkit/Card';
-import { Badge } from '../components/Toolkit/Badge';
-import ProgressScoring from '../components/Toolkit/ProgressScoring';
-import { getUserProgress } from '../utils/storage';
-import { getEarnedBadges } from '../utils/badges';
+import Animated, { 
+  FadeInUp, 
+  FadeInRight,
+  SlideInDown,
+  ZoomIn
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
-const PRIMARY = '#5ba24f';
-const YELLOW = '#fac609';
-const ORANGE = '#e5793a';
-const BG = '#dcefdd';
+const { width } = Dimensions.get('window');
 
-// Replace with your OpenWeatherMap API key
-const OPENWEATHER_API_KEY = Constants.expoConfig?.extra?.openWeatherApiKey; // Get from https://openweathermap.org/api
+// Color palette
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'];
+const YELLOW = '#fac609';
+const YELLOW_GRADIENT = ['#fac609', '#e6b408'];
+const ORANGE = '#e5793a';
+const ORANGE_GRADIENT = ['#e5793a', '#d4692a'];
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
 
 const quickActions: {
   title: string;
   subtitle: string;
   icon: JSX.Element;
   bgColor: string;
+  gradient: string[];
   screen: 'safe-zone' | 'toolkit' | 'community';
 }[] = [
   {
     title: 'Safe Zones',
     subtitle: 'Find nearby shelters',
     icon: <Ionicons name="map" size={24} color="#fff" />,
-    bgColor: '#5ba24f',
+    bgColor: PRIMARY,
+    gradient: PRIMARY_GRADIENT,
     screen: 'safe-zone',
   },
   {
     title: 'Toolkit',
     subtitle: 'Emergency checklists',
     icon: <Feather name="package" size={24} color="#fff" />,
-    bgColor: '#fac609',
+    bgColor: YELLOW,
+    gradient: YELLOW_GRADIENT,
     screen: 'toolkit',
   },
   {
     title: 'Community',
     subtitle: 'Connect & share',
     icon: <Ionicons name="people" size={24} color="#fff" />,
-    bgColor: '#e5793a',
+    bgColor: ORANGE,
+    gradient: ORANGE_GRADIENT,
     screen: 'community',
   },
 ];
@@ -58,6 +76,7 @@ const mockAlerts = [
     description: 'Excessive heat expected. Temperatures may reach 40°C.',
     severity: 'high',
     timestamp: '2 hours ago',
+    icon: '🔥',
   },
   {
     id: '2',
@@ -66,6 +85,7 @@ const mockAlerts = [
     description: 'Unhealthy air quality due to wildfire smoke.',
     severity: 'medium',
     timestamp: '5 hours ago',
+    icon: '💨',
   },
 ];
 
@@ -78,6 +98,71 @@ interface WeatherData {
   humidity: number;
   windSpeed: number;
 }
+
+// Reusable Card Component
+const Card = ({ children, style, gradient, onPress }: any) => {
+  const content = (
+    <View style={[styles.card, style]}>
+      {children}
+    </View>
+  );
+
+  if (gradient) {
+    return (
+      <LinearGradient colors={gradient as [ColorValue, ColorValue, ...ColorValue[]]} style={[styles.card, style]}>
+        {children}
+      </LinearGradient>
+    );
+  }
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} style={[styles.card, style]}>
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
+};
+
+// Badge Component
+const Badge = ({ count, style }: any) => (
+  <View style={[styles.badge, style]}>
+    <Text style={styles.badgeText}>{count}</Text>
+  </View>
+);
+
+// Progress Component
+const ProgressRing = ({ progress, size = 60, strokeWidth = 6 }: any) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <View style={[styles.progressRingContainer, { width: size, height: size }]}>
+      <View style={styles.progressRingBackground} />
+      <Animated.View
+        style={[
+          styles.progressRingFill,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderColor: PRIMARY,
+            borderTopColor: 'transparent',
+            borderRightColor: 'transparent',
+            transform: [{ rotate: '-45deg' }],
+          },
+        ]}
+      />
+      <View style={styles.progressRingText}>
+        <Text style={styles.progressRingPercent}>{Math.round(progress)}%</Text>
+      </View>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const [greeting, setGreeting] = useState('');
@@ -103,29 +188,22 @@ export default function HomeScreen() {
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
     try {
       setIsLoadingWeather(true);
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${OPENWEATHER_API_KEY}`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Weather data fetch failed');
-      }
-      
-      const data = await response.json();
-      
-      setWeather({
-        temperature: Math.round(data.main.temp),
-        condition: data.weather[0].main,
-        description: data.weather[0].description,
-        location: data.name,
-        icon: data.weather[0].icon,
-        humidity: data.main.humidity,
-        windSpeed: data.wind.speed
-      });
+      // Using mock weather data for demo
+      setTimeout(() => {
+        setWeather({
+          temperature: 22,
+          condition: 'Clear',
+          description: 'clear sky',
+          location: 'San Francisco',
+          icon: '01d',
+          humidity: 65,
+          windSpeed: 3.6
+        });
+        setIsLoadingWeather(false);
+      }, 1500);
     } catch (error) {
       console.error('Error fetching weather:', error);
       setLocationError('Unable to fetch weather data');
-    } finally {
       setIsLoadingWeather(false);
     }
   }, []);
@@ -136,23 +214,8 @@ export default function HomeScreen() {
       setIsLoadingWeather(true);
       setLocationError(null);
       
-      // Request location permissions
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationError('Location permission denied');
-        setIsLoadingWeather(false);
-        return;
-      }
-
-      // Get current location
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High
-      });
-
-      const { latitude, longitude } = location.coords;
-      
-      // Fetch weather data
-      await fetchWeatherData(latitude, longitude);
+      // Mock location for demo
+      await fetchWeatherData(37.7749, -122.4194);
       
     } catch (error) {
       console.error('Error getting location:', error);
@@ -163,20 +226,21 @@ export default function HomeScreen() {
 
   // Fetch progress and badges
   const refreshProgress = useCallback(async () => {
-    const userProgress = await getUserProgress();
-    setProgress(userProgress);
-    // Extract only the required properties for getEarnedBadges
-    setBadges(getEarnedBadges({
-      completedItems: userProgress.completedItems, // Use the correct property name
-      totalPoints: userProgress.points // Use the correct property name
-    }));
+    // Mock progress data
+    setProgress({
+      points: 450,
+      percent: 65,
+      completedItems: 26,
+      totalItems: 40
+    });
+    setBadges(['first_aid', 'water_supply', 'emergency_kit']);
   }, []);
-
 
   // Only get weather/location on mount
   useEffect(() => {
     getLocationAndWeather();
-  }, [getLocationAndWeather]);
+    refreshProgress();
+  }, [getLocationAndWeather, refreshProgress]);
 
   // Only refresh progress when navigating back to home
   useFocusEffect(
@@ -218,136 +282,629 @@ export default function HomeScreen() {
     }
   };
 
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'high': return ORANGE_GRADIENT;
+      case 'medium': return YELLOW_GRADIENT;
+      default: return PRIMARY_GRADIENT;
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: BG, paddingTop: insets.top }}>
-      {/* Header */}
-      <View style={{ backgroundColor: '#fff', padding: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: PRIMARY }}>{greeting}</Text>
-            <Text style={{ color: '#666', fontSize: 14 }}>Your ClimateReady App</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity style={{ marginRight: 12 }}>
-              <Ionicons name="notifications" size={24} color={alerts.length ? ORANGE : '#888'} />
-              {alerts.length > 0 && (
-                <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, backgroundColor: ORANGE, borderRadius: 4 }} />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/settings')}>
-              <Ionicons name="settings" size={24} color="#888" />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Weather Card */}
-        <Card style={{ marginTop: 16, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', padding: 16 }}>
-          {isLoadingWeather ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <ActivityIndicator color="#fff" />
-              <Text style={{ color: '#fff', marginLeft: 12 }}>Getting weather...</Text>
-            </View>
-          ) : locationError ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <MaterialCommunityIcons name="weather-cloudy-alert" size={32} color="#fff" />
-              <View style={{ marginLeft: 16 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Weather Unavailable</Text>
-                <Text style={{ color: '#e0ffe0', fontSize: 13 }}>{locationError}</Text>
-              </View>
-            </View>
-          ) : weather ? (
-            <>
-              <MaterialCommunityIcons 
-                name={getWeatherIcon(weather.condition)} 
-                size={32} 
-                color="#fff" 
-              />
-              <View style={{ marginLeft: 16, flex: 1 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>
-                  {weather.temperature}°C - {weather.condition}
-                </Text>
-                <Text style={{ color: '#e0ffe0', fontSize: 13 }}>
-                  {weather.location} • {weather.description}
-                </Text>
-                <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                  <Text style={{ color: '#e0ffe0', fontSize: 12, marginRight: 12 }}>
-                    💧 {weather.humidity}%
-                  </Text>
-                  <Text style={{ color: '#e0ffe0', fontSize: 12 }}>
-                    💨 {weather.windSpeed} m/s
-                  </Text>
-                </View>
-              </View>
-            </>
-          ) : null}
-        </Card>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Background Elements */}
+      <View style={styles.backgroundElements}>
+        <View style={[styles.bgCircle, styles.bgCircle1]} />
+        <View style={[styles.bgCircle, styles.bgCircle2]} />
+        <View style={[styles.bgCircle, styles.bgCircle3]} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <Animated.View entering={FadeInUp.duration(500)}>
-            <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginBottom: 8 }}>Active Alerts</Text>
-            {alerts.map((alert) => (
-              <Card key={alert.id} style={{
-                borderLeftWidth: 4,
-                borderLeftColor: alert.severity === 'high' ? ORANGE : alert.severity === 'medium' ? YELLOW : PRIMARY,
-                marginBottom: 8,
-                backgroundColor: '#fff'
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
-                  <Feather name={alert.type === 'warning' ? 'alert-triangle' : 'cloud'} size={20} color={alert.severity === 'high' ? ORANGE : alert.severity === 'medium' ? YELLOW : PRIMARY} />
-                  <View style={{ marginLeft: 12, flex: 1 }}>
-                    <Text style={{ fontWeight: 'bold', color: '#333' }}>{alert.title}</Text>
-                    <Text style={{ color: '#666', fontSize: 13 }}>{alert.description}</Text>
-                    <Text style={{ color: '#aaa', fontSize: 12 }}>{alert.timestamp}</Text>
+      <Animated.View 
+        style={styles.content}
+        entering={SlideInDown.duration(800)}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.subtitle}>Stay prepared, stay safe</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.iconButton}>
+                <Ionicons name="notifications" size={24} color="#1f2937" />
+                {alerts.length > 0 && (
+                  <Badge count={alerts.length} style={styles.notificationBadge} />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={() => router.push('/settings')}
+              >
+                <Ionicons name="settings" size={24} color="#1f2937" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Weather Card */}
+          <Animated.View entering={FadeInUp.duration(600)}>
+            <Card gradient={PRIMARY_GRADIENT} style={styles.weatherCard}>
+              {isLoadingWeather ? (
+                <View style={styles.weatherLoading}>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={styles.weatherLoadingText}>Getting weather data...</Text>
+                </View>
+              ) : locationError ? (
+                <View style={styles.weatherContent}>
+                  <MaterialCommunityIcons name="weather-cloudy-alert" size={32} color="#fff" />
+                  <View style={styles.weatherText}>
+                    <Text style={styles.weatherTitle}>Weather Unavailable</Text>
+                    <Text style={styles.weatherDescription}>{locationError}</Text>
                   </View>
                 </View>
-              </Card>
-            ))}
+              ) : weather ? (
+                <View style={styles.weatherContent}>
+                  <MaterialCommunityIcons 
+                    name={getWeatherIcon(weather.condition)} 
+                    size={36} 
+                    color="#fff" 
+                  />
+                  <View style={styles.weatherText}>
+                    <Text style={styles.weatherTitle}>
+                      {weather.temperature}°C • {weather.condition}
+                    </Text>
+                    <Text style={styles.weatherDescription}>
+                      {weather.location} • {weather.description}
+                    </Text>
+                    <View style={styles.weatherDetails}>
+                      <Text style={styles.weatherDetail}>💧 {weather.humidity}%</Text>
+                      <Text style={styles.weatherDetail}>💨 {weather.windSpeed} m/s</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+            </Card>
           </Animated.View>
-        )}
+        </View>
 
-        {/* Quick Actions */}
-        <Animated.View entering={FadeInUp.delay(100).duration(500)}>
-          <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginVertical: 12 }}>Quick Actions</Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.title}
-                style={{ flex: 1, marginHorizontal: 4 }}
-                onPress={() => navigateToScreen(action.screen)}
-              >
-                <Card style={{ alignItems: 'center', padding: 16, backgroundColor: action.bgColor }}>
-                  {action.icon}
-                  <Text style={{ color: '#fff', fontWeight: 'bold', marginTop: 8 }}>{action.title}</Text>
-                  <Text style={{ color: '#fff', fontSize: 12 }}>{action.subtitle}</Text>
-                </Card>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Alerts Section */}
+          {alerts.length > 0 && (
+            <Animated.View entering={FadeInUp.duration(500)}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Active Alerts</Text>
+                <Badge count={alerts.length} />
+              </View>
+              <View style={styles.alertsContainer}>
+                {alerts.map((alert, index) => (
+                  <Animated.View
+                    key={alert.id}
+                    entering={FadeInRight.delay(index * 100).duration(500)}
+                  >
+                    <Card style={styles.alertCard}>
+                      <LinearGradient
+                        colors={getSeverityColor(alert.severity) as [ColorValue, ColorValue, ...ColorValue[]]}
+                        style={styles.alertGradient}
+                      >
+                        <View style={styles.alertIcon}>
+                          <Text style={styles.alertEmoji}>{alert.icon}</Text>
+                        </View>
+                        <View style={styles.alertContent}>
+                          <Text style={styles.alertTitle}>{alert.title}</Text>
+                          <Text style={styles.alertDescription}>{alert.description}</Text>
+                          <Text style={styles.alertTimestamp}>{alert.timestamp}</Text>
+                        </View>
+                        <View style={styles.alertSeverity}>
+                          <View style={[
+                            styles.severityDot,
+                            { backgroundColor: alert.severity === 'high' ? '#fff' : alert.severity === 'medium' ? '#fff' : '#fff' }
+                          ]} />
+                        </View>
+                      </LinearGradient>
+                    </Card>
+                  </Animated.View>
+                ))}
+              </View>
+            </Animated.View>
+          )}
 
-        {/* Progress & Badges */}
-        <Animated.View entering={FadeInUp.delay(200).duration(500)}>
-          <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginVertical: 12 }}>Your Progress</Text>
-          <ProgressScoring 
-            score={progress?.points || 0}
-            progressPercentage={progress?.percent || 0}
-            progress={progress}
-          />
-        </Animated.View>
-
-        {/* Hero Image */}
-        <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-          <Card style={{ marginTop: 20, overflow: 'hidden', borderRadius: 16, padding: 0 }}>
-            <View style={{ width: '100%', height: 120, backgroundColor: PRIMARY, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="shield" size={32} color="#fff" />
-              <Text style={{ color: '#fff', fontWeight: 'bold', marginTop: 4 }}>Stay Prepared, Stay Safe</Text>
+          {/* Quick Actions */}
+          <Animated.View entering={FadeInUp.delay(100).duration(500)}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Quick Actions</Text>
             </View>
-          </Card>
-        </Animated.View>
-      </ScrollView>
+            <View style={styles.quickActions}>
+              {quickActions.map((action, index) => (
+                <Animated.View
+                  key={action.title}
+                  entering={ZoomIn.delay(200 + index * 100).duration(500)}
+                  style={styles.quickActionContainer}
+                >
+                  <TouchableOpacity
+                    onPress={() => navigateToScreen(action.screen)}
+                    style={styles.quickActionTouchable}
+                  >
+                    <LinearGradient
+                      colors={action.gradient as [ColorValue, ColorValue, ...ColorValue[]]}
+                      style={styles.quickActionCard}
+                    >
+                      <View style={styles.quickActionIcon}>
+                        {action.icon}
+                      </View>
+                      <Text style={styles.quickActionTitle}>{action.title}</Text>
+                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* Progress Section */}
+          <Animated.View entering={FadeInUp.delay(200).duration(500)}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Your Preparedness</Text>
+            </View>
+            <Card style={styles.progressCard}>
+              <LinearGradient colors={['#fff', '#f8fafc']} style={styles.progressContent}>
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Emergency Readiness</Text>
+                    <Text style={styles.progressSubtitle}>
+                      {progress?.completedItems || 0} of {progress?.totalItems || 0} tasks completed
+                    </Text>
+                  </View>
+                  <ProgressRing progress={progress?.percent || 0} />
+                </View>
+                
+                <View style={styles.progressStats}>
+                  <View style={styles.statItem}>
+                    <Ionicons name="checkmark-done" size={20} color={PRIMARY} />
+                    <Text style={styles.statNumber}>{progress?.completedItems || 0}</Text>
+                    <Text style={styles.statLabel}>Completed</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Ionicons name="flash" size={20} color={YELLOW} />
+                    <Text style={styles.statNumber}>{progress?.points || 0}</Text>
+                    <Text style={styles.statLabel}>Points</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Ionicons name="trophy" size={20} color={ORANGE} />
+                    <Text style={styles.statNumber}>{badges.length}</Text>
+                    <Text style={styles.statLabel}>Badges</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </Card>
+          </Animated.View>
+
+          {/* Hero Section */}
+          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+            <Card style={styles.heroCard}>
+              <LinearGradient colors={PRIMARY_GRADIENT as [ColorValue, ColorValue, ...ColorValue[]]} style={styles.heroGradient}>
+                <View style={styles.heroContent}>
+                  <View style={styles.heroIcon}>
+                    <Feather name="shield" size={32} color="#fff" />
+                  </View>
+                  <View style={styles.heroText}>
+                    <Text style={styles.heroTitle}>Stay Prepared, Stay Safe</Text>
+                    <Text style={styles.heroSubtitle}>
+                      Your comprehensive emergency preparedness companion
+                    </Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </Card>
+          </Animated.View>
+        </ScrollView>
+      </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: BG,
+  },
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
+  },
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
+  },
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
+  },
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
+  },
+  content: {
+    flex: 1,
+    zIndex: 1,
+  },
+  header: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1f2937',
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    marginLeft: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: ORANGE,
+  },
+  weatherCard: {
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  weatherLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  weatherLoadingText: {
+    color: '#fff',
+    marginLeft: 12,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  weatherContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weatherText: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  weatherTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  weatherDescription: {
+    color: '#e0ffe0',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  weatherDetails: {
+    flexDirection: 'row',
+  },
+  weatherDetail: {
+    color: '#e0ffe0',
+    fontSize: 12,
+    marginRight: 16,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  badge: {
+    backgroundColor: ORANGE,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  alertsContainer: {
+    gap: 12,
+  },
+  alertCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  alertGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+  },
+  alertIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  alertEmoji: {
+    fontSize: 18,
+  },
+  alertContent: {
+    flex: 1,
+  },
+  alertTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    marginBottom: 2,
+  },
+  alertDescription: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  alertTimestamp: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+  },
+  alertSeverity: {
+    marginLeft: 8,
+  },
+  severityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  quickActionContainer: {
+    flex: 1,
+    marginHorizontal: 6,
+  },
+  quickActionTouchable: {
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  quickActionCard: {
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 20,
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  quickActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickActionTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  quickActionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  progressCard: {
+    borderRadius: 24,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  progressContent: {
+    padding: 24,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  progressSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  progressRingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressRingBackground: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    backgroundColor: '#f1f5f9',
+  },
+  progressRingFill: {
+    position: 'absolute',
+  },
+  progressRingText: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressRingPercent: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY,
+  },
+  progressStats: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 8,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 8,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  heroCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  heroGradient: {
+    padding: 24,
+  },
+  heroContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  heroText: {
+    flex: 1,
+  },
+  heroTitle: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 20,
+    marginBottom: 4,
+  },
+  heroSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+});
