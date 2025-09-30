@@ -39,7 +39,7 @@ export const DEFAULT_SOS_SETTINGS = {
   shareMedicalConditions: true,
   shareMedications: true,
   shareNotes: false,
-  shareAge: false,
+  shareAge: true,
 };
 
 // Interface for SOS Settings

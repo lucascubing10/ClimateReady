@@ -203,7 +203,7 @@ export default function SOSSettingsScreen() {
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Age</Text>
               <Text style={styles.settingDescription}>
-                {userProfile?.birthday ? 'Birthday set' : 'Not set'}
+                {userProfile?.birthday ? `Age: ${calculateAge(userProfile.birthday)}` : 'Not set'}
               </Text>
             </View>
             <Switch

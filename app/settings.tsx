@@ -118,20 +118,13 @@ export default function SettingsScreen() {
         {/* Account Settings */}
         <SettingsSection title="Account" icon="person" color={PRIMARY}>
           <SettingsItem 
-            label="Profile" 
-            value={`${userProfile?.firstName} ${userProfile?.lastName}`}
-            onPress={() => router.push('/tabs/edit-profile' as any)}
-          />
-          <SettingsItem 
-            label="Email" 
-            value={userProfile?.email || 'Not set'}
-          />
-          <SettingsItem 
-            label="Phone" 
-            value={userProfile?.phoneNumber || 'Not set'}
+            label="View & Edit Profile"
+            icon="person-circle"
+            onPress={() => router.push('/tabs/profile' as any)}
           />
           <SettingsItem
             label="Change Password"
+            icon="key"
             onPress={() => router.push('/auth/forgot-password' as any)}
           />
         </SettingsSection>
