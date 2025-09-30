@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Card } from '../components/Toolkit/Card';
 import { Badge } from '../components/Toolkit/Badge';
-import { ProgressBar } from '../components/Toolkit/ProgressBar';
+import ProgressScoring from '../components/Toolkit/ProgressScoring';
 import { getUserProgress } from '../utils/storage';
 import { getEarnedBadges } from '../utils/badges';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -165,25 +165,25 @@ export default function HomeScreen() {
   const refreshProgress = useCallback(async () => {
     const userProgress = await getUserProgress();
     setProgress(userProgress);
-    setBadges(getEarnedBadges(userProgress));
+    // Extract only the required properties for getEarnedBadges
+    setBadges(getEarnedBadges({
+      completedItems: userProgress.completedItems, // Use the correct property name
+      totalPoints: userProgress.points // Use the correct property name
+    }));
   }, []);
 
+
+  // Only get weather/location on mount
+  useEffect(() => {
+    getLocationAndWeather();
+  }, [getLocationAndWeather]);
+
+  // Only refresh progress when navigating back to home
   useFocusEffect(
     useCallback(() => {
       refreshProgress();
-      getLocationAndWeather();
-    }, [refreshProgress, getLocationAndWeather])
+    }, [refreshProgress])
   );
-
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        refreshProgress();
-        getLocationAndWeather();
-      }
-    });
-    return () => sub.remove();
-  }, [refreshProgress, getLocationAndWeather]);
 
   const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
     const routeMap: Record<typeof screen, string> = {
@@ -331,24 +331,11 @@ export default function HomeScreen() {
         {/* Progress & Badges */}
         <Animated.View entering={FadeInUp.delay(200).duration(500)}>
           <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333', marginVertical: 12 }}>Your Progress</Text>
-          <Card style={{ backgroundColor: '#fff', padding: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <View style={{ backgroundColor: PRIMARY, borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
-                <Feather name="award" size={22} color="#fff" />
-              </View>
-              <View style={{ marginLeft: 12 }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: PRIMARY }}>Level {progress?.level || 1}</Text>
-                <Text style={{ color: '#666', fontSize: 13 }}>{progress?.points || 0} points</Text>
-              </View>
-            </View>
-            <ProgressBar progress={progress?.percent || 0} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              {badges.map((badge, i) => (
-                <Badge key={i} icon={badge.icon} label={badge.label} />
-              ))}
-              <Text style={{ color: '#666', fontSize: 13, marginLeft: 8 }}>{badges.length} badges earned</Text>
-            </View>
-          </Card>
+          <ProgressScoring 
+            score={progress?.points || 0}
+            progressPercentage={progress?.percent || 0}
+            progress={progress}
+          />
         </Animated.View>
 
         {/* Hero Image */}

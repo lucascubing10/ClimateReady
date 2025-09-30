@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
 import { simulations, Simulation, getSimulationProgress } from '@/utils/simulationsData';
+import { router } from 'expo-router';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -125,10 +126,10 @@ export default function SimulationsScreen() {
   if (isPlaying && selectedSimulation) {
     return (
       <View style={styles.simulationContainer}>
-        <Animated.View style={[styles.simulationContent, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.simulationContent, { opacity: fadeAnim }]}> 
           {/* Simulation Header */}
           <View style={styles.simulationHeader}>
-            <TouchableOpacity onPress={endSimulation} style={styles.backButton}>
+            <TouchableOpacity onPress={() => router.replace('/toolKit')} style={styles.backButton}>
               <Text style={styles.backButtonText}>← Back</Text>
             </TouchableOpacity>
             <Text style={styles.simulationTitle}>{selectedSimulation.title}</Text>
@@ -197,7 +198,6 @@ export default function SimulationsScreen() {
         <Text style={styles.subtitle}>
           Practice emergency procedures through interactive scenarios
         </Text>
-        
         <View style={styles.stats}>
           <View style={styles.stat}>
             <Text style={styles.statNumber}>
@@ -215,7 +215,6 @@ export default function SimulationsScreen() {
           </View>
         </View>
       </View>
-
       {/* Type Filter */}
       <ScrollView 
         horizontal 
@@ -232,20 +231,15 @@ export default function SimulationsScreen() {
             onPress={() => setSelectedType(type.id)}
           >
             <Text style={styles.typeIconTextStyle}>{type.icon}</Text>
-            <Text style={[
-              styles.typeText,
-              selectedType === type.id && styles.typeTextSelected
-            ]}>
+            <Text style={[styles.typeText, selectedType === type.id && styles.typeTextSelected]}>
               {type.name}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
-
       {/* Simulations List */}
       <ScrollView style={styles.simulationsList}>
         {filteredSimulations.map(renderSimulationCard)}
-        
         {/* Coming Soon */}
         <View style={styles.comingSoonSection}>
           <Text style={styles.comingSoonTitle}>Coming Soon</Text>
@@ -265,6 +259,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    minHeight: '100%',
+  },
+  backButtonNav: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+    marginTop: 4,
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: '#e8f5e8',
+  },
+  backButtonTextNav: {
+    color: '#2e7d32',
+    fontWeight: '600',
+    fontSize: 16,
   },
   header: {
     backgroundColor: 'white',
