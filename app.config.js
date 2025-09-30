@@ -8,12 +8,6 @@ export default {
     scheme: 'climateready',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
-    extra: {
-      eas: {
-        projectId: 'a8133ab9-acac-46b1-8177-e5f4d7082b87'
-      },
-      expoProjectId: 'a8133ab9-acac-46b1-8177-e5f4d7082b87'
-    },
     ios: {
       supportsTablet: true,
       infoPlist: {
