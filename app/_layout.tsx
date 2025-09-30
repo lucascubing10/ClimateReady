@@ -52,4 +52,6 @@ function RootLayoutNav() {
   
   // Return a slot to enable child routes to be rendered
   return <Slot />;
+  
+  // Note: Settings page is accessible from both tabs and directly
 }

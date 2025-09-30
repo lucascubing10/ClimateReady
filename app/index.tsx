@@ -234,7 +234,7 @@ export default function HomeScreen() {
                 <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, backgroundColor: ORANGE, borderRadius: 4 }} />
               )}
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/settings')}>
               <Ionicons name="settings" size={24} color="#888" />
             </TouchableOpacity>
           </View>
