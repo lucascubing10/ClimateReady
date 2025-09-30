@@ -3,38 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons         <TouchableOpacity
-          style={[
-            styles.sosButton,
-            isSOSActive ? styles.sosActiveButton : {}
-          ]}
-          onPress={handleSOSPress}
-          disabled={loading}
-        >
-          <Text style={styles.sosButtonText}>
-            {isSOSActive ? 'STOP SOS' : 'SOS'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={goToSettings}
-            disabled={loading}
-          >
-            <Ionicons name="settings-outline" size={22} color="#0284c7" />
-            <Text style={styles.actionButtonText}>Settings</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('/tabs/sos-history')}
-            disabled={loading}
-          >
-            <Ionicons name="time-outline" size={22} color="#0284c7" />
-            <Text style={styles.actionButtonText}>History</Text>
-          </TouchableOpacity>
-        </View>o/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as SMS from 'expo-sms';
 import { useAuth } from '../../context/AuthContext';
@@ -318,6 +287,11 @@ export default function SOSScreen() {
   const goToSettings = () => {
     router.push('/tabs/sos-settings');
   };
+  
+  // Navigate to SOS history
+  const goToHistory = () => {
+    router.push('/tabs/sos-history');
+  };
 
   if (loading) {
     return (
@@ -383,6 +357,26 @@ export default function SOSScreen() {
             {isSOSActive ? 'CANCEL SOS' : 'SOS'}
           </Text>
         </TouchableOpacity>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={goToSettings}
+            disabled={loading}
+          >
+            <Ionicons name="settings-outline" size={22} color="#0284c7" />
+            <Text style={styles.actionButtonText}>Settings</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={goToHistory}
+            disabled={loading}
+          >
+            <Ionicons name="time-outline" size={22} color="#0284c7" />
+            <Text style={styles.actionButtonText}>History</Text>
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.warningSection}>
           <Ionicons name="information-circle-outline" size={20} color="#6b7280" />
@@ -499,6 +493,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+  },
+  actionButton: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: 10,
+  },
+  actionButtonText: {
+    color: '#0284c7',
+    marginTop: 5,
+    fontSize: 14,
   },
   warningSection: {
     flexDirection: 'row',
