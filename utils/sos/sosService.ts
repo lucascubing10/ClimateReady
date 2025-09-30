@@ -2,6 +2,7 @@ import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp, Timestamp 
 import { db } from '../../firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import Constants from 'expo-constants';
 
 // SOS Session interface
 export interface SOSSession {
@@ -270,6 +271,8 @@ export async function createSOSTrackingLink(sessionId: string): Promise<string> 
   // Generate secure token for this session
   const accessToken = await generateSecureToken(sessionId);
   
-  // In a production environment, this would be the actual deployed URL of your web app
-  return `https://sosapp.web.app/session/${sessionId}?token=${accessToken}`;
+  // Get the SOS web app URL from environment variables, or use a default
+  const sosWebAppUrl = Constants.expoConfig?.extra?.sosWebAppUrl ;
+  
+  return `${sosWebAppUrl}/session/${sessionId}?token=${accessToken}`;
 }
