@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import ProfileCompletionReminder from '../../components/ProfileCompletionReminder';
-import { checkActiveSOSSession } from '../../utils/sos/sosService';
+import { checkActiveSOSSession, getSOSSettings } from '../../utils/sos/sosService';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TabsLayout() {
   const router = useRouter();
+  const { userProfile } = useAuth();
   // Check if SOS is active
   const [isSOSActive, setIsSOSActive] = useState(false);
   
@@ -22,6 +24,49 @@ export default function TabsLayout() {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Handle SOS button press
+  const handleSOSButtonPress = async () => {
+    if (isSOSActive) {
+      // If SOS is already active, go to the SOS screen to manage it
+      router.push('/tabs/sos');
+      return;
+    }
+
+    // Check if user has completed required profile sections
+    if (!userProfile?.emergencyContacts || userProfile.emergencyContacts.length === 0) {
+      Alert.alert(
+        'Emergency Contacts Required',
+        'You need to add at least one emergency contact before using the SOS feature.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Add Contacts', 
+            onPress: () => router.push('/tabs/profile-edit/emergency-contacts') 
+          }
+        ]
+      );
+      return;
+    }
+
+    // Show confirmation alert with quick action
+    Alert.alert(
+      'Activate SOS Emergency?',
+      'This will share your location with your emergency contacts.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Activate SOS', 
+          style: 'destructive',
+          onPress: () => router.push('/tabs/sos') 
+        },
+        { 
+          text: 'SOS Settings', 
+          onPress: () => router.push('/tabs/sos-settings') 
+        }
+      ]
+    );
+  };
 
   return (
     <>
@@ -41,6 +86,14 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="safeZones"
+          options={{
+            title: 'Safe Zones',
+            headerShown: false,
+            tabBarIcon: ({ color, size }) => <Ionicons name="shield-checkmark" color={color} size={size ?? 24} />,
+          }}
+        />
+        <Tabs.Screen
           name="sos"
           options={{
             title: 'SOS',
@@ -50,13 +103,7 @@ export default function TabsLayout() {
                   styles.sosButton,
                   isSOSActive ? styles.sosActive : {}
                 ]}
-                onPress={() => {
-                  if (isSOSActive) {
-                    router.push('/tabs/sos');
-                  } else {
-                    router.push('/tabs/sos');
-                  }
-                }}
+                onPress={handleSOSButtonPress}
               >
                 <View style={styles.sosIconContainer}>
                   <Ionicons
@@ -99,6 +146,12 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="sos-settings"
+          options={{
+            href: null, // Hide this tab from the bottom tab bar
+          }}
+        />
+        <Tabs.Screen
+          name="sos-history"
           options={{
             href: null, // Hide this tab from the bottom tab bar
           }}

@@ -15,6 +15,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } from '../../utils/sos/sosService';
 
+// Helper function to calculate age from birthday
+const calculateAge = (birthday: string): number => {
+  const birthdate = new Date(birthday);
+  const today = new Date();
+  let age = today.getFullYear() - birthdate.getFullYear();
+  const monthDiff = today.getMonth() - birthdate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 export default function SOSSettingsScreen() {
   const router = useRouter();
   const { userProfile } = useAuth();
@@ -80,6 +92,25 @@ export default function SOSSettingsScreen() {
           Configure what information is shared with your emergency contacts when you activate SOS.
           Your name and location will always be shared.
         </Text>
+        
+        <View style={styles.messagePreviewContainer}>
+          <Text style={styles.previewTitle}>Emergency Message Preview</Text>
+          <View style={styles.messagePreview}>
+            <Text style={styles.messageText}>
+              EMERGENCY SOS ALERT from {userProfile?.firstName} {userProfile?.lastName}. I need help. Track my live location: [Link]
+              {'\n\n'}
+              {settings.shareAge && userProfile?.birthday ? `Age: ${calculateAge(userProfile.birthday)}\n` : ''}
+              {settings.shareBloodType && userProfile?.medicalInfo?.bloodType ? `Blood Type: ${userProfile.medicalInfo.bloodType}\n` : ''}
+              {settings.shareMedicalConditions && userProfile?.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0 ? 
+                `Medical Conditions: ${userProfile.medicalInfo.conditions.join(', ')}\n` : ''}
+              {settings.shareAllergies && userProfile?.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0 ? 
+                `Allergies: ${userProfile.medicalInfo.allergies.join(', ')}\n` : ''}
+              {settings.shareMedications && userProfile?.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0 ? 
+                `Medications: ${userProfile.medicalInfo.medications.join(', ')}\n` : ''}
+              {settings.shareNotes && userProfile?.medicalInfo?.notes ? `Notes: ${userProfile.medicalInfo.notes}` : ''}
+            </Text>
+          </View>
+        </View>
         
         <View style={styles.settingsContainer}>
           <View style={styles.settingRow}>
@@ -328,5 +359,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     flex: 1,
+  },
+  messagePreviewContainer: {
+    marginBottom: 24,
+    width: '100%',
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  messagePreview: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
   },
 });

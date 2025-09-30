@@ -3,7 +3,38 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Lin
 import { useRouter } from 'expo-router';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons         <TouchableOpacity
+          style={[
+            styles.sosButton,
+            isSOSActive ? styles.sosActiveButton : {}
+          ]}
+          onPress={handleSOSPress}
+          disabled={loading}
+        >
+          <Text style={styles.sosButtonText}>
+            {isSOSActive ? 'STOP SOS' : 'SOS'}
+          </Text>
+        </TouchableOpacity>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={goToSettings}
+            disabled={loading}
+          >
+            <Ionicons name="settings-outline" size={22} color="#0284c7" />
+            <Text style={styles.actionButtonText}>Settings</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push('/tabs/sos-history')}
+            disabled={loading}
+          >
+            <Ionicons name="time-outline" size={22} color="#0284c7" />
+            <Text style={styles.actionButtonText}>History</Text>
+          </TouchableOpacity>
+        </View>o/vector-icons';
 import * as Location from 'expo-location';
 import * as SMS from 'expo-sms';
 import { useAuth } from '../../context/AuthContext';
