@@ -203,34 +203,47 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           {/* Logout Button in Header */}
-          <TouchableOpacity 
-            style={styles.headerLogoutButton}
-            onPress={() => {
-              setIsLoggingOut(true);
-              try {
-                logout()
-                  .then(() => {
-                    router.replace('/auth/login');
-                  })
-                  .catch(e => {
-                    Alert.alert('Error', 'Failed to log out. Please try again.');
-                  })
-                  .finally(() => {
-                    setIsLoggingOut(false);
-                  });
-              } catch (error) {
-                setIsLoggingOut(false);
-              }
-            }}
-            disabled={isLoggingOut}
-            activeOpacity={0.7}
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Ionicons name="log-out-outline" size={24} color="#fff" />
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerButtonsContainer}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => {
+                console.log("Navigating to settings page");
+                router.push('/settings' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="settings-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => {
+                setIsLoggingOut(true);
+                try {
+                  logout()
+                    .then(() => {
+                      router.replace('/auth/login');
+                    })
+                    .catch(e => {
+                      Alert.alert('Error', 'Failed to log out. Please try again.');
+                    })
+                    .finally(() => {
+                      setIsLoggingOut(false);
+                    });
+                } catch (error) {
+                  setIsLoggingOut(false);
+                }
+              }}
+              disabled={isLoggingOut}
+              activeOpacity={0.7}
+            >
+              {isLoggingOut ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Ionicons name="log-out-outline" size={24} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
           
           <View style={styles.profileImageContainer}>
             <Text style={styles.profileInitials}>
@@ -507,17 +520,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
   },
-  headerLogoutButton: {
+  headerButtonsContainer: {
     position: 'absolute',
     top: 10,
     right: 15,
+    flexDirection: 'row',
+    zIndex: 10,
+  },
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    zIndex: 10,
+    marginLeft: 8,
   },
   errorText: {
     marginTop: 16,

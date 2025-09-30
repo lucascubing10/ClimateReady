@@ -151,6 +151,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="settings"
+          options={{
+            href: null, // Hide this tab from the bottom tab bar
+          }}
+        />
+        <Tabs.Screen
           name="sos-history"
           options={{
             href: null, // Hide this tab from the bottom tab bar
