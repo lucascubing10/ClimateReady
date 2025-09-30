@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
-import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileCompletionReminder from '../../components/ProfileCompletionReminder';
 import { checkActiveSOSSession, getSOSSettings } from '../../utils/sos/sosService';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function TabsLayout() {
   const router = useRouter();
   const { userProfile } = useAuth();
+  const insets = useSafeAreaInsets();
   // Check if SOS is active
   const [isSOSActive, setIsSOSActive] = useState(false);
   
@@ -73,7 +75,12 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: '#0284c7',
-          tabBarStyle: { borderTopLeftRadius: 18, borderTopRightRadius: 18, height: 62, paddingBottom: 8 },
+          tabBarStyle: { 
+            borderTopLeftRadius: 18, 
+            borderTopRightRadius: 18, 
+            height: 62 + (Platform.OS === 'android' ? insets.bottom : 0), 
+            paddingBottom: 8 + (Platform.OS === 'android' ? insets.bottom : 0)
+          },
           headerShown: false,
         }}
       >
