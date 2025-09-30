@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { auth, db } from '../../firebaseConfig';
 import { doc, setDoc, getDoc, arrayUnion, updateDoc } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 // Keys for AsyncStorage
 const PUSH_TOKEN_KEY = 'push_notification_token';
@@ -40,7 +41,7 @@ export async function registerForPushNotifications() {
     
     // Get token
     const token = (await Notifications.getExpoPushTokenAsync({
-      projectId: 'your-expo-project-id', // Replace with your Expo project ID
+      projectId: Constants.expoConfig?.extra?.expoProjectId , // Uses value from environment
     })).data;
     
     // Store token locally

@@ -60,7 +60,9 @@ export default {
       typedRoutes: true
     },
     extra: {
-      openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '74b1abc58a408ca6b11c27b8292797cb'
+      openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
+      sosWebAppUrl: process.env.SOS_WEB_APP_URL,
+      expoProjectId: process.env.EXPO_PROJECT_ID
     }
   }
 };

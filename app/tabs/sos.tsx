@@ -188,14 +188,17 @@ export default function SOSScreen() {
             onPress: async () => {
               try {
                 setLoading(true);
+                console.log('Starting SOS session...');
                 
                 // Start SOS session
                 const newSessionId = await startSOSSession(user?.uid || 'anonymous', userProfile);
                 
                 if (!newSessionId) {
+                  console.error('Failed to get session ID from startSOSSession');
                   throw new Error('Could not start SOS session');
                 }
                 
+                console.log('SOS session started with ID:', newSessionId);
                 setSessionId(newSessionId);
                 setIsSOSActive(true);
                 
@@ -220,7 +223,11 @@ export default function SOSScreen() {
                 setLoading(false);
               } catch (error) {
                 console.error('Error starting SOS:', error);
-                Alert.alert('SOS Error', 'Could not start SOS. Please try again.');
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                Alert.alert(
+                  'SOS Error', 
+                  `Could not start SOS: ${errorMessage}. Please check your connection and try again.`
+                );
                 setLoading(false);
               }
             }
