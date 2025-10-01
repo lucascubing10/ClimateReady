@@ -21,6 +21,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import { getUserProfile } from '@/utils/userProfile';
+import { getPersonalizedToolkit } from '@/utils/gemini';
+import { getEducationalProgress } from '@/utils/educationalData';
+import { GameStorage } from '@/utils/gameStorage';
+import { getEarnedBadges } from '@/utils/badges';
 
 const { width } = Dimensions.get('window');
 
@@ -172,6 +177,11 @@ export default function HomeScreen() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+  const [prepProgress, setPrepProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [learningProgress, setLearningProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [gameStats, setGameStats] = useState({ bestScore: 0, totalGames: 0, victories: 0 });
+  const [badgesCount, setBadgesCount] = useState(0);
+  const [aiTip, setAiTip] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -235,6 +245,56 @@ export default function HomeScreen() {
     });
     setBadges(['first_aid', 'water_supply', 'emergency_kit']);
   }, []);
+
+  // Fetch all progress data on focus
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        // 1. Preparedness Progress (from toolkit)
+        // Replace with your actual storage/context logic
+        const toolkit = await import('@/utils/storage');
+        const userProgress = await toolkit.getUserProgress();
+        setPrepProgress({
+          completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
+          total: userProgress.totalItems ?? 0,
+          percent: userProgress.percent ?? 0
+        });
+
+        // 2. Learning Progress
+        const completedContent = userProgress.completedLearning || [];
+        const eduProgress = getEducationalProgress(completedContent);
+        setLearningProgress({
+          completed: eduProgress.completed,
+          total: eduProgress.total,
+          percent: eduProgress.percentage
+        });
+
+        // 3. Game Stats
+        const stats = await GameStorage.getStats();
+        setGameStats({
+          bestScore: stats.bestScore,
+          totalGames: stats.totalGames,
+          victories: stats.victories
+        });
+
+        // 4. Badges
+        const earned = getEarnedBadges({
+          completedItems: userProgress.completedItems,
+          totalPoints: userProgress.points
+        });
+        setBadgesCount(earned.length);
+
+        // 5. Gemini AI Tip (optional)
+        try {
+          const profile = await getUserProfile();
+          const kit = await getPersonalizedToolkit(userProgress);
+          setAiTip(`AI recommends: ${kit.slice(0, 2).join(', ')}...`);
+        } catch {
+          setAiTip(null);
+        }
+      })();
+    }, [])
+  );
 
   // Only get weather/location on mount
   useEffect(() => {
@@ -447,39 +507,56 @@ export default function HomeScreen() {
           {/* Progress Section */}
           <Animated.View entering={FadeInUp.delay(200).duration(500)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Preparedness</Text>
+              <Text style={styles.sectionTitle}>Your Progress</Text>
             </View>
             <Card style={styles.progressCard}>
               <LinearGradient colors={['#fff', '#f8fafc']} style={styles.progressContent}>
+                {/* Preparedness */}
                 <View style={styles.progressHeader}>
                   <View>
-                    <Text style={styles.progressTitle}>Emergency Readiness</Text>
+                    <Text style={styles.progressTitle}>Preparedness</Text>
                     <Text style={styles.progressSubtitle}>
-                      {progress?.completedItems || 0} of {progress?.totalItems || 0} tasks completed
+                      {prepProgress.completed} of {prepProgress.total} tasks completed
                     </Text>
                   </View>
-                  <ProgressRing progress={progress?.percent || 0} />
+                  <ProgressRing progress={prepProgress.percent} />
                 </View>
-                
-                <View style={styles.progressStats}>
-                  <View style={styles.statItem}>
-                    <Ionicons name="checkmark-done" size={20} color={PRIMARY} />
-                    <Text style={styles.statNumber}>{progress?.completedItems || 0}</Text>
-                    <Text style={styles.statLabel}>Completed</Text>
+                {/* Learning */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Learning</Text>
+                    <Text style={styles.progressSubtitle}>
+                      {learningProgress.completed} of {learningProgress.total} modules
+                    </Text>
                   </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Ionicons name="flash" size={20} color={YELLOW} />
-                    <Text style={styles.statNumber}>{progress?.points || 0}</Text>
-                    <Text style={styles.statLabel}>Points</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Ionicons name="trophy" size={20} color={ORANGE} />
-                    <Text style={styles.statNumber}>{badges.length}</Text>
-                    <Text style={styles.statLabel}>Badges</Text>
-                  </View>
+                  <ProgressRing progress={learningProgress.percent} />
                 </View>
+                {/* Game */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Training Game</Text>
+                    <Text style={styles.progressSubtitle}>
+                      Best Score: {gameStats.bestScore} | Games: {gameStats.totalGames} | Wins: {gameStats.victories}
+                    </Text>
+                  </View>
+                  <Ionicons name="game-controller" size={32} color={PRIMARY} />
+                </View>
+                {/* Badges */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Badges</Text>
+                    <Text style={styles.progressSubtitle}>
+                      {badgesCount} earned
+                    </Text>
+                  </View>
+                  <Ionicons name="trophy" size={32} color={ORANGE} />
+                </View>
+                {/* AI Tip */}
+                {aiTip && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={{ color: PRIMARY, fontWeight: '600' }}>{aiTip}</Text>
+                  </View>
+                )}
               </LinearGradient>
             </Card>
           </Animated.View>
