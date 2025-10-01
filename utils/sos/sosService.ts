@@ -56,35 +56,49 @@ export interface SOSSettings {
 // Create a new SOS session
 export async function startSOSSession(userId: string, userProfile: any): Promise<string | null> {
   try {
-    console.log('Starting SOS session for user', userId);
+    console.log('[SOS Service] Starting SOS session for user', userId);
+    
+    // Verify user profile exists
+    if (!userProfile) {
+      console.error('[SOS Service] Cannot start SOS session: User profile is missing');
+      return null;
+    }
     
     // Get SOS settings
     const settingsStr = await AsyncStorage.getItem(SOS_SETTINGS_KEY);
     const settings: SOSSettings = settingsStr ? JSON.parse(settingsStr) : DEFAULT_SOS_SETTINGS;
+    console.log('[SOS Service] Using SOS settings:', settings);
     
     // Create user info based on settings
     const userInfo: any = {
       name: `${userProfile.firstName || ''} ${userProfile.lastName || ''}`,
     };
+    console.log('[SOS Service] User name for SOS:', userInfo.name);
     
+    // Add medical info based on settings
     if (settings.shareBloodType && userProfile.medicalInfo?.bloodType) {
       userInfo.bloodType = userProfile.medicalInfo.bloodType;
+      console.log('[SOS Service] Including blood type:', userInfo.bloodType);
     }
     
     if (settings.shareAllergies && userProfile.medicalInfo?.allergies) {
       userInfo.allergies = userProfile.medicalInfo.allergies;
+      console.log('[SOS Service] Including allergies:', userInfo.allergies.length, 'entries');
     }
     
     if (settings.shareMedicalConditions && userProfile.medicalInfo?.conditions) {
       userInfo.medicalConditions = userProfile.medicalInfo.conditions;
+      console.log('[SOS Service] Including medical conditions:', userInfo.medicalConditions.length, 'entries');
     }
     
     if (settings.shareMedications && userProfile.medicalInfo?.medications) {
       userInfo.medications = userProfile.medicalInfo.medications;
+      console.log('[SOS Service] Including medications:', userInfo.medications.length, 'entries');
     }
     
     if (settings.shareNotes && userProfile.medicalInfo?.notes) {
       userInfo.notes = userProfile.medicalInfo.notes;
+      console.log('[SOS Service] Including notes:', userInfo.notes ? 'Yes' : 'No');
     }
     
     if (settings.shareAge && userProfile.birthday) {
@@ -96,11 +110,17 @@ export async function startSOSSession(userId: string, userProfile: any): Promise
         age--;
       }
       userInfo.age = age;
+      console.log('[SOS Service] Including age:', userInfo.age);
     }
     
-    // Generate a random initial token
-    const initialToken = Math.random().toString(36).substring(2, 10) +
-                       Math.random().toString(36).substring(2, 10);
+    // Generate a stronger initial token - 16 chars, alphanumeric
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let initialToken = '';
+    for (let i = 0; i < 16; i++) {
+      initialToken += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    
+    console.log('[SOS Service] Generated initial access token:', initialToken);
     
     // Create the session document
     const session: Partial<SOSSession> = {
@@ -112,15 +132,32 @@ export async function startSOSSession(userId: string, userProfile: any): Promise
       tokenCreatedAt: Timestamp.now(),
     };
     
+    console.log('[SOS Service] Creating new session document in Firestore');
     const docRef = await addDoc(collection(db, 'sos_sessions'), session);
     const sessionId = docRef.id;
+    console.log('[SOS Service] SOS session created with ID:', sessionId);
+    
+    // Verify the document was created successfully
+    const sessionDoc = await getDoc(docRef);
+    if (!sessionDoc.exists()) {
+      console.error('[SOS Service] Failed to create SOS session document');
+      return null;
+    }
+    
+    // Double-check that the access token was properly saved
+    const sessionData = sessionDoc.data();
+    console.log('[SOS Service] Verifying token was saved:', 
+      sessionData.accessToken ? 'Success' : 'Failed',
+      'Token:', sessionData.accessToken?.substring(0, 5) + '...'
+    );
     
     // Store the active session ID in AsyncStorage
     await AsyncStorage.setItem(SOS_ACTIVE_KEY, sessionId);
+    console.log('[SOS Service] Session ID stored in AsyncStorage');
     
     return sessionId;
   } catch (error) {
-    console.error('Error starting SOS session:', error);
+    console.error('[SOS Service] Error starting SOS session:', error);
     return null;
   }
 }
@@ -245,6 +282,8 @@ export async function getSOSSettings(): Promise<SOSSettings> {
 // Generate a secure access token
 export async function generateSecureToken(sessionId: string): Promise<string> {
   try {
+    console.log('[SOS Service] Generating secure access token for session:', sessionId);
+    
     // Create a unique token based on session ID and current timestamp
     const tokenBase = sessionId + Date.now().toString();
     
@@ -254,27 +293,42 @@ export async function generateSecureToken(sessionId: string): Promise<string> {
       tokenBase
     );
     
+    // Take first 16 chars for a shorter URL-friendly token
+    const shortenedToken = token.substring(0, 16);
+    console.log('[SOS Service] Generated token:', shortenedToken);
+    
     // Update the session with the token
     const sessionRef = doc(db, 'sos_sessions', sessionId);
     await updateDoc(sessionRef, {
-      accessToken: token.substring(0, 16), // Use first 16 chars for shorter URL
+      accessToken: shortenedToken,
       tokenCreatedAt: Timestamp.now(),
     });
     
-    return token.substring(0, 16);
+    console.log('[SOS Service] Token saved to session document');
+    return shortenedToken;
   } catch (error) {
-    console.error('Error generating secure token:', error);
-    return sessionId; // Fallback to using session ID if token generation fails
+    console.error('[SOS Service] Error generating secure token:', error);
+    throw error; // Don't silently fail, propagate the error
   }
 }
 
 // Create SOS tracking link with secure token
 export async function createSOSTrackingLink(sessionId: string): Promise<string> {
-  // Generate secure token for this session
-  const accessToken = await generateSecureToken(sessionId);
+  console.log('[SOS Service] Creating SOS tracking link for session:', sessionId);
   
-  // Get the SOS web app URL from environment variables, or use a default
-  const sosWebAppUrl = Constants.expoConfig?.extra?.sosWebAppUrl ;
-  
-  return `${sosWebAppUrl}/session/${sessionId}?token=${accessToken}`;
+  try {
+    // Generate secure token for this session
+    const accessToken = await generateSecureToken(sessionId);
+    
+    // Get the SOS web app URL from environment variables
+    const sosWebAppUrl = Constants.expoConfig?.extra?.sosWebAppUrl || 'https://sos-live-tracker-map.vercel.app';
+    
+    const trackingLink = `${sosWebAppUrl}/session/${sessionId}?token=${accessToken}`;
+    console.log('[SOS Service] Created tracking link:', trackingLink);
+    
+    return trackingLink;
+  } catch (error) {
+    console.error('[SOS Service] Error creating tracking link:', error);
+    throw error;
+  }
 }
