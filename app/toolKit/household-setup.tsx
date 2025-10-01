@@ -1,7 +1,9 @@
 // app/(tabs)/toolkit/household-setup.tsx
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import * as Location from 'expo-location';
+import { Picker } from '@react-native-picker/picker';
 
 export default function HouseholdSetupScreen() {
   const [household, setHousehold] = useState({
@@ -16,6 +18,16 @@ export default function HouseholdSetupScreen() {
 
   const specialNeedsOptions = ['mobility', 'visual', 'hearing', 'cognitive', 'medical', 'dietary'];
   const riskProfileOptions = ['earthquake', 'flood', 'hurricane', 'tornado', 'wildfire'];
+  const regionOptions = [
+    'North America',
+    'South America',
+    'Europe',
+    'Asia',
+    'Africa',
+    'Australia',
+    'Antarctica',
+    // Add more specific regions as needed
+  ];
 
   const toggleSpecialNeed = (need: string) => {
     setHousehold(prev => ({
@@ -38,6 +50,56 @@ export default function HouseholdSetupScreen() {
   const saveProfile = () => {
     console.log('Saving household profile:', household);
     router.back();
+  };
+
+  const [regionPickerVisible, setRegionPickerVisible] = useState(false);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI'; // Replace with your API key
+
+  const getRegionFromCoords = async (latitude: number, longitude: number) => {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`
+      );
+      const data = await response.json();
+      if (data.status === 'OK' && data.results.length > 0) {
+        // Try to extract region, fallback to country
+        const address = data.results[0].address_components;
+        const regionObj = address.find((c: any) =>
+          c.types.includes('administrative_area_level_1')
+        );
+        const countryObj = address.find((c: any) =>
+          c.types.includes('country')
+        );
+        return regionObj?.long_name || countryObj?.long_name || '';
+      }
+    } catch (e) {
+      console.warn('Failed to reverse geocode:', e);
+    }
+    return '';
+  };
+
+  const handleUseGPS = async () => {
+    setLoadingLocation(true);
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission denied', 'Location permission is required to detect your region.');
+        setLoadingLocation(false);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      const region = await getRegionFromCoords(location.coords.latitude, location.coords.longitude);
+      if (region) {
+        setHousehold(prev => ({ ...prev, region }));
+      } else {
+        Alert.alert('Location Error', 'Could not determine your region.');
+      }
+    } catch (error) {
+      Alert.alert('Location Error', 'Failed to get location.');
+    }
+    setLoadingLocation(false);
   };
 
   return (
@@ -111,11 +173,49 @@ export default function HouseholdSetupScreen() {
         <Text style={styles.sectionTitle}>Location & Risks</Text>
         
         <Text style={styles.label}>Your Region</Text>
-        <TouchableOpacity style={styles.input}>
-          <Text style={styles.inputText}>
-            {household.region || 'Select your region'}
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={[styles.input, { flex: 1 }]}
+            onPress={() => setRegionPickerVisible(true)}
+          >
+            <Text style={styles.inputText}>
+              {household.region || 'Select your region'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#e8f5e8',
+              borderRadius: 8,
+              padding: 10,
+              marginLeft: 8,
+              borderWidth: 1,
+              borderColor: '#2e7d32',
+            }}
+            onPress={handleUseGPS}
+            disabled={loadingLocation}
+          >
+            {loadingLocation ? (
+              <ActivityIndicator color="#2e7d32" />
+            ) : (
+              <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Use GPS</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        {regionPickerVisible && (
+          <Picker
+            selectedValue={household.region}
+            onValueChange={(itemValue) => {
+              setHousehold(prev => ({ ...prev, region: itemValue }));
+              setRegionPickerVisible(false);
+            }}
+            style={{ backgroundColor: '#fff', marginVertical: 8 }}
+          >
+            <Picker.Item label="Select your region" value="" />
+            {regionOptions.map(region => (
+              <Picker.Item key={region} label={region} value={region} />
+            ))}
+          </Picker>
+        )}
 
         <Text style={styles.label}>Potential Risks in Your Area</Text>
         <View style={styles.chipContainer}>

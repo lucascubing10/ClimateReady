@@ -182,6 +182,7 @@ export default function HomeScreen() {
   const [gameStats, setGameStats] = useState({ bestScore: 0, totalGames: 0, victories: 0 });
   const [badgesCount, setBadgesCount] = useState(0);
   const [aiTip, setAiTip] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -194,23 +195,54 @@ export default function HomeScreen() {
     setAlerts(mockAlerts);
   }, []);
 
+  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI'; // Replace with your Google API key
+  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb'; // Replace with your OpenWeatherMap API key
+
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
     try {
       setIsLoadingWeather(true);
-      // Using mock weather data for demo
-      setTimeout(() => {
-        setWeather({
-          temperature: 22,
-          condition: 'Clear',
-          description: 'clear sky',
-          location: 'San Francisco',
-          icon: '01d',
-          humidity: 65,
-          windSpeed: 3.6
-        });
-        setIsLoadingWeather(false);
-      }, 1500);
+
+      // 1. Get city/region name from Google Geocoding API
+      let locationName = '';
+      try {
+        const geoRes = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`
+        );
+        const geoData = await geoRes.json();
+        if (geoData.status === 'OK' && geoData.results.length > 0) {
+          const address = geoData.results[0].address_components;
+          const cityObj = address.find((c: any) =>
+            c.types.includes('locality')
+          );
+          const regionObj = address.find((c: any) =>
+            c.types.includes('administrative_area_level_1')
+          );
+          const countryObj = address.find((c: any) =>
+            c.types.includes('country')
+          );
+          locationName = cityObj?.long_name || regionObj?.long_name || countryObj?.long_name || '';
+        }
+      } catch (e) {
+        locationName = '';
+      }
+
+      // 2. Fetch weather from OpenWeatherMap API
+      const weatherRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`
+      );
+      const weatherData = await weatherRes.json();
+
+      setWeather({
+        temperature: Math.round(weatherData.main.temp),
+        condition: weatherData.weather[0].main,
+        description: weatherData.weather[0].description,
+        location: locationName,
+        icon: weatherData.weather[0].icon,
+        humidity: weatherData.main.humidity,
+        windSpeed: weatherData.wind.speed,
+      });
+      setIsLoadingWeather(false);
     } catch (error) {
       console.error('Error fetching weather:', error);
       setLocationError('Unable to fetch weather data');
@@ -223,10 +255,23 @@ export default function HomeScreen() {
     try {
       setIsLoadingWeather(true);
       setLocationError(null);
-      
-      // Mock location for demo
-      await fetchWeatherData(37.7749, -122.4194);
-      
+
+      // Request permission and get current location
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Permission to access location was denied');
+        setIsLoadingWeather(false);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      // Use real coordinates for weather
+      await fetchWeatherData(location.coords.latitude, location.coords.longitude);
+
     } catch (error) {
       console.error('Error getting location:', error);
       setLocationError('Unable to get location');
