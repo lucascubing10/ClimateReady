@@ -289,6 +289,11 @@ export default function SOSScreen() {
         medicalInfo.push(`Medications: ${userProfile.medicalInfo.medications.join(', ')}`);
       }
       
+      // Add medical notes if enabled and available
+      if (settings.shareNotes && userProfile.medicalInfo?.notes && userProfile.medicalInfo.notes.trim()) {
+        medicalInfo.push(`Notes: ${userProfile.medicalInfo.notes}`);
+      }
+      
       if (settings.shareAge && userProfile.birthday) {
         const birthdate = new Date(userProfile.birthday);
         const today = new Date();
