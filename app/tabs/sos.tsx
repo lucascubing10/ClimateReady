@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -27,6 +27,8 @@ import {
 export default function SOSScreen() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const autoActivate = params.autoActivate === 'true';
   const [isSOSActive, setIsSOSActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -43,6 +45,10 @@ export default function SOSScreen() {
         setSessionId(activeSession);
         setIsSOSActive(true);
         startLocationTracking();
+      } else if (autoActivate) {
+        // If no active session but autoActivate is true, start SOS immediately
+        startEmergencySOS();
+        return; // Skip setting loading to false as handleSOSPress will handle it
       }
       
       setLoading(false);
@@ -56,7 +62,7 @@ export default function SOSScreen() {
         locationSubscription.current.remove();
       }
     };
-  }, []);
+  }, [autoActivate]); // Add autoActivate as a dependency
 
   // Start location tracking
   const startLocationTracking = async () => {
@@ -100,37 +106,34 @@ export default function SOSScreen() {
       const backgroundAvailable = await isBackgroundLocationAvailable();
       
       if (backgroundAvailable) {
-        // Ask for background permissions and start background updates
-        const backgroundStarted = await startBackgroundLocationUpdates();
-        
-        if (backgroundStarted) {
+        try {
+          await startBackgroundLocationUpdates();
           console.log('Background location tracking started');
-        } else {
-          console.log('Could not start background tracking, using foreground only');
+        } catch (error) {
+          console.error('Could not start background location tracking:', error);
         }
-      } else {
-        Alert.alert(
-          'Limited Tracking',
-          'Background location tracking is not available on this device. Location will only update when the app is open.',
-          [{ text: 'OK' }]
-        );
       }
+      
     } catch (error) {
-      console.error('Error tracking location:', error);
-      Alert.alert('Location Error', 'Could not track your location. Please try again.');
+      console.error('Error starting location tracking:', error);
+      Alert.alert('Location Error', 'Could not track your location. Please try again or check app permissions.');
     }
   };
 
   // Stop location tracking
   const stopLocationTracking = async () => {
-    // Stop foreground tracking
-    if (locationSubscription.current) {
-      locationSubscription.current.remove();
-      locationSubscription.current = null;
+    try {
+      // Stop watchPosition
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+      
+      // Stop background tracking
+      await stopBackgroundLocationUpdates();
+      
+    } catch (error) {
+      console.error('Error stopping location tracking:', error);
     }
-    
-    // Stop background tracking
-    await stopBackgroundLocationUpdates();
   };
 
   // Handle SOS button press
@@ -176,64 +179,72 @@ export default function SOSScreen() {
         return;
       }
       
-      // Confirm SOS activation
-      Alert.alert(
-        'Confirm SOS Alert',
-        'This will send an emergency alert with your location to all your emergency contacts. Continue?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Send Alert',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                setLoading(true);
-                console.log('Starting SOS session...');
-                
-                // Start SOS session
-                const newSessionId = await startSOSSession(user?.uid || 'anonymous', userProfile);
-                
-                if (!newSessionId) {
-                  console.error('Failed to get session ID from startSOSSession');
-                  throw new Error('Could not start SOS session');
-                }
-                
-                console.log('SOS session started with ID:', newSessionId);
-                setSessionId(newSessionId);
-                setIsSOSActive(true);
-                
-                // Start location tracking
-                await startLocationTracking();
-                
-                // Generate tracking link
-                const trackingLink = await createSOSTrackingLink(newSessionId);
-                
-                // Send SMS to emergency contacts
-                await sendSOSSMS(trackingLink);
-
-                // Send local notification to keep the user informed
-                await sendLocalNotification(
-                  'SOS Activated', 
-                  'Your location is being shared with emergency contacts. Tap to return to the app.'
-                );
-
-                // Send push notifications to emergency contacts if available
-                await notifyEmergencyResponders(newSessionId, userProfile);
-                
-                setLoading(false);
-              } catch (error) {
-                console.error('Error starting SOS:', error);
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                Alert.alert(
-                  'SOS Error', 
-                  `Could not start SOS: ${errorMessage}. Please check your connection and try again.`
-                );
-                setLoading(false);
-              }
+      // If auto-activate parameter is true, skip confirmation and start immediately
+      if (autoActivate) {
+        startEmergencySOS();
+      } else {
+        // Show confirmation dialog
+        Alert.alert(
+          'Confirm SOS Alert',
+          'This will send an emergency alert with your location to all your emergency contacts. Continue?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Send Alert',
+              style: 'destructive',
+              onPress: startEmergencySOS
             }
-          }
-        ]
+          ]
+        );
+      }
+    }
+  };
+  
+  // Function that actually starts the SOS process
+  const startEmergencySOS = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting SOS session...');
+      
+      // Start SOS session
+      const newSessionId = await startSOSSession(user?.uid || 'anonymous', userProfile);
+      
+      if (!newSessionId) {
+        console.error('Failed to get session ID from startSOSSession');
+        throw new Error('Could not start SOS session');
+      }
+      
+      console.log('SOS session started with ID:', newSessionId);
+      setSessionId(newSessionId);
+      setIsSOSActive(true);
+      
+      // Start location tracking
+      await startLocationTracking();
+      
+      // Generate tracking link
+      const trackingLink = await createSOSTrackingLink(newSessionId);
+      
+      // Send SMS to emergency contacts
+      await sendSOSSMS(trackingLink);
+
+      // Send local notification to keep the user informed
+      await sendLocalNotification(
+        'SOS Activated', 
+        'Your location is being shared with emergency contacts. Tap to return to the app.'
       );
+
+      // Send push notifications to emergency contacts if available
+      await notifyEmergencyResponders(newSessionId, userProfile);
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error starting SOS:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert(
+        'SOS Error', 
+        `Could not start SOS: ${errorMessage}. Please check your connection and try again.`
+      );
+      setLoading(false);
     }
   };
 
@@ -352,45 +363,49 @@ export default function SOSScreen() {
           )}
         </View>
         
-        <TouchableOpacity
-          style={[
-            styles.sosButton,
-            isSOSActive ? styles.sosActiveButton : {}
-          ]}
-          onPress={handleSOSPress}
-          disabled={loading}
-        >
-          <Text style={styles.sosButtonText}>
-            {isSOSActive ? 'CANCEL SOS' : 'SOS'}
-          </Text>
-        </TouchableOpacity>
-        
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={goToSettings}
-            disabled={loading}
+          <TouchableOpacity 
+            style={[
+              styles.sosButton,
+              isSOSActive ? styles.sosActiveButton : {}
+            ]}
+            onPress={handleSOSPress}
           >
-            <Ionicons name="settings-outline" size={22} color="#0284c7" />
-            <Text style={styles.actionButtonText}>Settings</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={goToHistory}
-            disabled={loading}
-          >
-            <Ionicons name="time-outline" size={22} color="#0284c7" />
-            <Text style={styles.actionButtonText}>History</Text>
+            <View style={styles.buttonInner}>
+              <Ionicons
+                name={isSOSActive ? "alert-circle" : "alert-circle-outline"}
+                size={50}
+                color="#fff"
+              />
+              <Text style={styles.buttonText}>
+                {isSOSActive ? 'END SOS' : 'SOS'}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
         
-        <View style={styles.warningSection}>
-          <Ionicons name="information-circle-outline" size={20} color="#6b7280" />
-          <Text style={styles.warningText}>
-            {isSOSActive
-              ? 'Your battery may drain faster while SOS is active due to continuous location tracking.'
-              : 'Please only use SOS in genuine emergency situations. Your emergency contacts will be alerted immediately.'}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={goToSettings}
+          >
+            <Ionicons name="settings-outline" size={24} color="#0284c7" />
+            <Text style={styles.actionText}>SOS Settings</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={goToHistory}
+          >
+            <Ionicons name="time-outline" size={24} color="#0284c7" />
+            <Text style={styles.actionText}>SOS History</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle-outline" size={24} color="#6b7280" />
+          <Text style={styles.infoBoxText}>
+            In case of emergency, press the SOS button to alert your emergency contacts. They will receive your location and be able to track you.
           </Text>
         </View>
       </View>
@@ -401,12 +416,12 @@ export default function SOSScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f9fafb',
   },
   content: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -419,113 +434,121 @@ const styles = StyleSheet.create({
     color: '#4b5563',
   },
   infoSection: {
-    flex: 1,
-    justifyContent: 'center',
+    marginBottom: 32,
     alignItems: 'center',
-    marginBottom: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 16,
-    textAlign: 'center',
+    color: '#111827',
+    marginBottom: 8,
   },
   description: {
     fontSize: 16,
-    textAlign: 'center',
     color: '#4b5563',
-    marginBottom: 32,
+    textAlign: 'center',
+    marginBottom: 16,
   },
   statusContainer: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
   statusText: {
     fontSize: 14,
-    color: '#4b5563',
-    marginBottom: 16,
+    color: '#6b7280',
+    marginBottom: 12,
   },
   indicator: {
-    width: 80,
-    height: 80,
+    width: 30,
+    height: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
   pulse: {
     position: 'absolute',
-    backgroundColor: 'rgba(220, 38, 38, 0.2)', // Red with opacity
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#dc2626',
+    opacity: 0.3,
   },
   pulse1: {
     transform: [{ scale: 1 }],
-    opacity: 0.5,
-  },
-  pulse2: {
-    transform: [{ scale: 1.2 }],
     opacity: 0.3,
   },
+  pulse2: {
+    transform: [{ scale: 1.5 }],
+    opacity: 0.2,
+  },
   pulse3: {
-    transform: [{ scale: 1.4 }],
+    transform: [{ scale: 2 }],
     opacity: 0.1,
   },
   indicatorDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#dc2626', // Red
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#dc2626',
+  },
+  buttonContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
   },
   sosButton: {
-    backgroundColor: '#dc2626', // Red color for emergency
-    borderRadius: 30,
-    height: 60,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#dc2626',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   sosActiveButton: {
-    backgroundColor: '#9c1111', // Darker red
+    backgroundColor: '#991b1b',
   },
-  sosButtonText: {
-    color: '#fff',
+  buttonInner: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  buttonText: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: 'white',
+    marginTop: 8,
   },
-  buttonContainer: {
+  actionsSection: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 20,
+    marginBottom: 20,
   },
   actionButton: {
-    flexDirection: 'column',
     alignItems: 'center',
-    padding: 10,
+    padding: 12,
   },
-  actionButtonText: {
-    color: '#0284c7',
-    marginTop: 5,
+  actionText: {
     fontSize: 14,
+    color: '#0284c7',
+    marginTop: 4,
   },
-  warningSection: {
+  infoBox: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 20,
-    paddingHorizontal: 10,
   },
-  warningText: {
-    marginLeft: 8,
-    fontSize: 13,
-    color: '#6b7280',
+  infoBoxText: {
     flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
   },
 });

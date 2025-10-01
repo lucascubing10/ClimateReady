@@ -56,13 +56,15 @@ export interface SOSSettings {
 // Create a new SOS session
 export async function startSOSSession(userId: string, userProfile: any): Promise<string | null> {
   try {
+    console.log('Starting SOS session for user', userId);
+    
     // Get SOS settings
     const settingsStr = await AsyncStorage.getItem(SOS_SETTINGS_KEY);
     const settings: SOSSettings = settingsStr ? JSON.parse(settingsStr) : DEFAULT_SOS_SETTINGS;
     
     // Create user info based on settings
     const userInfo: any = {
-      name: `${userProfile.firstName} ${userProfile.lastName}`,
+      name: `${userProfile.firstName || ''} ${userProfile.lastName || ''}`,
     };
     
     if (settings.shareBloodType && userProfile.medicalInfo?.bloodType) {
