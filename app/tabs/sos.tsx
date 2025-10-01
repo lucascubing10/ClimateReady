@@ -12,7 +12,8 @@ import {
   updateSOSLocation,
   endSOSSession,
   checkActiveSOSSession,
-  createSOSTrackingLink
+  createSOSTrackingLink,
+  getSOSSettings
 } from '../../utils/sos/sosService';
 import {
   startBackgroundLocationUpdates,
@@ -262,9 +263,47 @@ export default function SOSScreen() {
         throw new Error('SMS is not available on this device');
       }
       
-      // Construct message
+      // Get SOS settings to know what medical info to include
+      const settings = await getSOSSettings();
+      
+      // Construct base message
       const name = `${userProfile.firstName} ${userProfile.lastName}`;
-      const message = `EMERGENCY SOS ALERT from ${name}. I need help. Track my live location: ${trackingLink}`;
+      let message = `EMERGENCY SOS ALERT from ${name}. I need help. Track my live location: ${trackingLink}`;
+      
+      // Add medical information based on settings
+      const medicalInfo = [];
+      
+      if (settings.shareBloodType && userProfile.medicalInfo?.bloodType) {
+        medicalInfo.push(`Blood Type: ${userProfile.medicalInfo.bloodType}`);
+      }
+      
+      if (settings.shareAllergies && userProfile.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0) {
+        medicalInfo.push(`Allergies: ${userProfile.medicalInfo.allergies.join(', ')}`);
+      }
+      
+      if (settings.shareMedicalConditions && userProfile.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0) {
+        medicalInfo.push(`Medical Conditions: ${userProfile.medicalInfo.conditions.join(', ')}`);
+      }
+      
+      if (settings.shareMedications && userProfile.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0) {
+        medicalInfo.push(`Medications: ${userProfile.medicalInfo.medications.join(', ')}`);
+      }
+      
+      if (settings.shareAge && userProfile.birthday) {
+        const birthdate = new Date(userProfile.birthday);
+        const today = new Date();
+        let age = today.getFullYear() - birthdate.getFullYear();
+        const monthDiff = today.getMonth() - birthdate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthdate.getDate())) {
+          age--;
+        }
+        medicalInfo.push(`Age: ${age}`);
+      }
+      
+      // Add medical info to message if available
+      if (medicalInfo.length > 0) {
+        message += `\n\nMEDICAL INFO:\n${medicalInfo.join('\n')}`;
+      }
       
       // Get phone numbers
       const phoneNumbers = userProfile.emergencyContacts.map(contact => contact.phoneNumber);
