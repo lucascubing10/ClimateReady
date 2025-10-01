@@ -1,12 +1,16 @@
 // app/(tabs)/toolkit/household-setup.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
+import { UserProfile } from '../../utils/userDataModel';
+import { getUserDocument } from '../../firebaseConfig';
+import { useAuth } from '../../context/AuthContext'; // If you have an auth context
 
 export default function HouseholdSetupScreen() {
   const [household, setHousehold] = useState({
+    householdType: '',
     adults: 2,
     children: 0,
     elderly: 0,
@@ -15,6 +19,38 @@ export default function HouseholdSetupScreen() {
     region: '',
     riskProfile: [] as string[],
   });
+
+  const { user } = useAuth ? useAuth() : { user: null }; // fallback if no context
+
+  // Fetch householdType from Firestore on mount
+  useEffect(() => {
+    const fetchHouseholdType = async () => {
+      if (!user?.uid) return;
+      try {
+        const docSnapshot = await getUserDocument(user.uid);
+        if (docSnapshot.exists()) {
+          const profile = docSnapshot.data() as UserProfile;
+          if (profile.householdType) {
+            setHousehold(prev => ({
+              ...prev,
+              householdType: profile.householdType ?? ''
+            }));
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to fetch household type:', error);
+      }
+    };
+    fetchHouseholdType();
+  }, [user?.uid]);
+
+  const householdTypeOptions = [
+    'House',
+    'Apartment',
+    'Mobile Home',
+    'Shared Accommodation',
+    'Retirement Community',
+  ];
 
   const specialNeedsOptions = ['mobility', 'visual', 'hearing', 'cognitive', 'medical', 'dietary'];
   const riskProfileOptions = ['earthquake', 'flood', 'hurricane', 'tornado', 'wildfire'];
@@ -26,7 +62,6 @@ export default function HouseholdSetupScreen() {
     'Africa',
     'Australia',
     'Antarctica',
-    // Add more specific regions as needed
   ];
 
   const toggleSpecialNeed = (need: string) => {
@@ -55,7 +90,7 @@ export default function HouseholdSetupScreen() {
   const [regionPickerVisible, setRegionPickerVisible] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
 
-  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI'; // Replace with your API key
+  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
 
   const getRegionFromCoords = async (latitude: number, longitude: number) => {
     try {
@@ -64,7 +99,6 @@ export default function HouseholdSetupScreen() {
       );
       const data = await response.json();
       if (data.status === 'OK' && data.results.length > 0) {
-        // Try to extract region, fallback to country
         const address = data.results[0].address_components;
         const regionObj = address.find((c: any) =>
           c.types.includes('administrative_area_level_1')
@@ -107,15 +141,35 @@ export default function HouseholdSetupScreen() {
       <Text style={styles.title}>Household Profile</Text>
       <Text style={styles.subtitle}>Customize your preparedness plan</Text>
 
+      {/* Household Type */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Household Type</Text>
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={household.householdType}
+            onValueChange={(itemValue) =>
+              setHousehold(prev => ({ ...prev, householdType: itemValue }))
+            }
+            style={styles.picker}
+            dropdownIconColor="#2e7d32"
+          >
+            <Picker.Item label="Select household type" value="" />
+            {householdTypeOptions.map(type => (
+              <Picker.Item key={type} label={type} value={type} />
+            ))}
+          </Picker>
+        </View>
+      </View>
+
       {/* Family Members */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Family Members</Text>
-        
         {['adults', 'children', 'elderly', 'pets'].map((type) => (
           <View key={type} style={styles.counterRow}>
             <Text style={styles.counterLabel}>
               {type.charAt(0).toUpperCase() + type.slice(1)}
-              {type === 'elderly' && ' (65+)'}
+              {type === 'elderly' && ' (65+)'
+}
             </Text>
             <View style={styles.counter}>
               <TouchableOpacity 
@@ -146,7 +200,6 @@ export default function HouseholdSetupScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Special Needs</Text>
         <Text style={styles.sectionDescription}>Select any special needs in your household</Text>
-        
         <View style={styles.chipContainer}>
           {specialNeedsOptions.map(need => (
             <TouchableOpacity
@@ -171,7 +224,6 @@ export default function HouseholdSetupScreen() {
       {/* Location & Risks */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Location & Risks</Text>
-        
         <Text style={styles.label}>Your Region</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
@@ -202,19 +254,22 @@ export default function HouseholdSetupScreen() {
           </TouchableOpacity>
         </View>
         {regionPickerVisible && (
-          <Picker
-            selectedValue={household.region}
-            onValueChange={(itemValue) => {
-              setHousehold(prev => ({ ...prev, region: itemValue }));
-              setRegionPickerVisible(false);
-            }}
-            style={{ backgroundColor: '#fff', marginVertical: 8 }}
-          >
-            <Picker.Item label="Select your region" value="" />
-            {regionOptions.map(region => (
-              <Picker.Item key={region} label={region} value={region} />
-            ))}
-          </Picker>
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={household.region}
+              onValueChange={(itemValue) => {
+                setHousehold(prev => ({ ...prev, region: itemValue }));
+                setRegionPickerVisible(false);
+              }}
+              style={styles.picker}
+              dropdownIconColor="#2e7d32"
+            >
+              <Picker.Item label="Select your region" value="" />
+              {regionOptions.map(region => (
+                <Picker.Item key={region} label={region} value={region} />
+              ))}
+            </Picker>
+          </View>
         )}
 
         <Text style={styles.label}>Potential Risks in Your Area</Text>
@@ -287,6 +342,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 12,
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f8f9fa',
+    marginVertical: 8,
+  },
+  picker: {
+    height: 48,
+    width: '100%',
+    color: '#333',
+    backgroundColor: '#f8f9fa',
   },
   counterRow: {
     flexDirection: 'row',
