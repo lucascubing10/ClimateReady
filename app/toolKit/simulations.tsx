@@ -1,191 +1,195 @@
 // app/(tabs)/toolkit/simulations.tsx
-import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
-import { simulations, Simulation, getSimulationProgress } from '@/utils/simulationsData';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Dimensions, 
+  Alert,
+  Modal,
+  Animated
+} from 'react-native';
+import { EnhancedDisasterGame } from '@/components/game/EnhancedDisasterGame';
+import { GameStorage, GameResult } from '@/utils/gameStorage';
 import { router } from 'expo-router';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+
+type GameMode = 'menu' | 'ai-game' | 'traditional' | 'results';
+type ScenarioType = 'earthquake' | 'fire' | 'flood' | 'hurricane' | 'medical' | 'tsunami';
 
 export default function SimulationsScreen() {
-  const [selectedType, setSelectedType] = useState('all');
-  const [completedSimulations, setCompletedSimulations] = useState<string[]>(['sim-1']);
-  const [selectedSimulation, setSelectedSimulation] = useState<Simulation | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [gameMode, setGameMode] = useState<GameMode>('menu');
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioType>('earthquake');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<number>(3);
+  const [gameStats, setGameStats] = useState({
+    totalGames: 0,
+    victories: 0,
+    averageScore: 0,
+    bestScore: 0
+  });
+  const [recentGames, setRecentGames] = useState<GameResult[]>([]);
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false);
 
-  const types = [
-    { id: 'all', name: 'All', icon: '🎮' },
-    { id: 'earthquake', name: 'Earthquake', icon: '⚡' },
-    { id: 'flood', name: 'Flood', icon: '🌊' },
-    { id: 'fire', name: 'Fire', icon: '🔥' },
-    { id: 'hurricane', name: 'Hurricane', icon: '🌀' },
-    { id: 'first-aid', name: 'First Aid', icon: '🏥' }
+  useEffect(() => {
+    loadGameStats();
+  }, []);
+
+  const loadGameStats = async () => {
+    const stats = await GameStorage.getStats();
+    const recent = await GameStorage.getGameResults();
+    setGameStats(stats);
+    setRecentGames(recent.slice(0, 3));
+  };
+
+  const startAIGame = (scenario: ScenarioType) => {
+    setSelectedScenario(scenario);
+    setShowDifficultyModal(true);
+  };
+
+  const confirmAIGame = () => {
+    setShowDifficultyModal(false);
+    setGameMode('ai-game');
+  };
+
+  const handleGameEnd = () => {
+    loadGameStats(); // Refresh stats after game ends
+    setGameMode('results');
+  };
+
+  const getScenarioIcon = (type: ScenarioType) => {
+    const icons = {
+      earthquake: '⚡',
+      fire: '🔥',
+      flood: '🌊',
+      hurricane: '🌀',
+      medical: '🏥',
+      tsunami: '🌊'
+    };
+    return icons[type];
+  };
+
+  const getScenarioColor = (type: ScenarioType) => {
+    const colors = {
+      earthquake: '#8B4513',
+      fire: '#FF6B35',
+      flood: '#3498db',
+      hurricane: '#2980b9',
+      medical: '#e74c3c',
+      tsunami: '#1abc9c'
+    };
+    return colors[type];
+  };
+
+  const getDifficultyStars = (difficulty: number) => {
+    return '⭐'.repeat(difficulty) + '⚪'.repeat(5 - difficulty);
+  };
+
+  // AI Game Scenarios
+  const aiScenarios: { type: ScenarioType; title: string; description: string; color: string }[] = [
+    {
+      type: 'earthquake',
+      title: 'Earthquake Response',
+      description: 'Office building survival with realistic aftershocks and structural hazards',
+      color: '#8B4513'
+    },
+    {
+      type: 'fire',
+      title: 'Fire Escape',
+      description: 'Apartment fire evacuation with smoke and heat simulation',
+      color: '#FF6B35'
+    },
+    {
+      type: 'flood',
+      title: 'Flash Flood',
+      description: 'Rising water survival with current and debris hazards',
+      color: '#3498db'
+    },
+    {
+      type: 'hurricane',
+      title: 'Hurricane Preparedness',
+      description: 'Storm survival with wind, rain, and flooding challenges',
+      color: '#2980b9'
+    },
+    {
+      type: 'medical',
+      title: 'Emergency First Aid',
+      description: 'Medical emergency response with triage decisions',
+      color: '#e74c3c'
+    },
+    {
+      type: 'tsunami',
+      title: 'Tsunami Evacuation',
+      description: 'Coastal evacuation with wave timing and route planning',
+      color: '#1abc9c'
+    }
   ];
 
-  const progress = getSimulationProgress(completedSimulations);
-
-  const filteredSimulations = selectedType === 'all' 
-    ? simulations 
-    : simulations.filter(sim => sim.type === selectedType);
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return '#4CAF50';
-      case 'intermediate': return '#FF9800';
-      case 'advanced': return '#F44336';
-      default: return '#666';
-    }
-  };
-
-  const startSimulation = (simulation: Simulation) => {
-    setSelectedSimulation(simulation);
-    setCurrentStep(0);
-    setIsPlaying(true);
-    
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const nextStep = () => {
-    if (selectedSimulation && currentStep < selectedSimulation.steps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    } else {
-      completeSimulation();
-    }
-  };
-
-  const completeSimulation = () => {
-    if (selectedSimulation) {
-      setCompletedSimulations(prev => {
-        if (!prev.includes(selectedSimulation.id)) {
-          return [...prev, selectedSimulation.id];
-        }
-        return prev;
-      });
-    }
-    endSimulation();
-  };
-
-  const endSimulation = () => {
-    setIsPlaying(false);
-    setSelectedSimulation(null);
-    setCurrentStep(0);
-    fadeAnim.setValue(0);
-  };
-
-  const renderSimulationCard = (simulation: Simulation) => (
-    <TouchableOpacity
-      key={simulation.id}
-      style={[
-        styles.simulationCard,
-        simulation.completed && styles.simulationCardCompleted
-      ]}
-      onPress={() => startSimulation(simulation)}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.typeIcon}>
-          <Text style={styles.typeIconText}>
-            {simulation.type === 'earthquake' ? '⚡' :
-             simulation.type === 'flood' ? '🌊' :
-             simulation.type === 'fire' ? '🔥' :
-             simulation.type === 'hurricane' ? '🌀' : '🏥'}
-          </Text>
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardTitle}>{simulation.title}</Text>
-          <Text style={styles.cardDescription}>{simulation.description}</Text>
-        </View>
-        {simulation.completed && (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedText}>✓</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.cardFooter}>
-        <View style={styles.metaInfo}>
-          <View style={[styles.difficulty, { backgroundColor: getDifficultyColor(simulation.difficulty) }]}>
-            <Text style={styles.difficultyText}>{simulation.difficulty}</Text>
-          </View>
-          <Text style={styles.metaText}>⏱️ {simulation.duration}m</Text>
-          <Text style={styles.metaText}>⭐ {simulation.points}pts</Text>
-        </View>
-        <TouchableOpacity style={styles.startButton}>
-          <Text style={styles.startButtonText}>
-            {simulation.completed ? 'Play Again' : 'Start'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-
-  if (isPlaying && selectedSimulation) {
+  if (gameMode === 'ai-game') {
     return (
-      <View style={styles.simulationContainer}>
-        <Animated.View style={[styles.simulationContent, { opacity: fadeAnim }]}> 
-          {/* Simulation Header */}
-          <View style={styles.simulationHeader}>
-            <TouchableOpacity onPress={() => router.replace('/toolKit')} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.simulationTitle}>{selectedSimulation.title}</Text>
-            <View style={styles.progress}>
-              <Text style={styles.progressText}>
-                Step {currentStep + 1} of {selectedSimulation.steps.length}
-              </Text>
-            </View>
-          </View>
+      <EnhancedDisasterGame
+        scenarioType={selectedScenario}
+        difficulty={selectedDifficulty}
+        onGameEnd={handleGameEnd}
+        onExit={() => setGameMode('menu')}
+      />
+    );
+  }
 
-          {/* Progress Bar */}
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill,
-                { width: `${((currentStep + 1) / selectedSimulation.steps.length) * 100}%` }
-              ]} 
-            />
-          </View>
-
-          {/* Scenario */}
-          <View style={styles.scenarioSection}>
-            <Text style={styles.scenarioTitle}>Scenario</Text>
-            <Text style={styles.scenarioText}>{selectedSimulation.scenario}</Text>
-          </View>
-
-          {/* Current Step */}
-          <View style={styles.stepSection}>
-            <Text style={styles.stepTitle}>Current Step</Text>
-            <View style={styles.stepCard}>
-              <Text style={styles.stepNumber}>Step {currentStep + 1}</Text>
-              <Text style={styles.stepInstruction}>
-                {selectedSimulation.steps[currentStep]}
-              </Text>
-            </View>
-          </View>
-
-          {/* AR/VR Simulation Area - Mock */}
-          <View style={styles.arContainer}>
-            <Text style={styles.arPlaceholder}>🎮 AR/VR Simulation Active</Text>
-            <Text style={styles.arDescription}>
-              {selectedSimulation.steps[currentStep]}
-            </Text>
-            <View style={styles.arVisual}>
-              <Text style={styles.arVisualText}>3D Environment</Text>
-              <Text style={styles.arVisualSubtext}>Interactive simulation running...</Text>
-            </View>
-          </View>
-
-          {/* Action Button */}
-          <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
-            <Text style={styles.nextButtonText}>
-              {currentStep < selectedSimulation.steps.length - 1 ? 'Next Step' : 'Complete Simulation'}
-            </Text>
+  if (gameMode === 'results') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => setGameMode('menu')}>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-        </Animated.View>
+          <Text style={styles.title}>Training Complete</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <ScrollView style={styles.resultsContent}>
+          <View style={styles.statsCard}>
+            <Text style={styles.statsTitle}>Latest Performance</Text>
+            {recentGames.length > 0 ? (
+              <View style={styles.latestResult}>
+                <Text style={styles.latestScenario}>
+                  {getScenarioIcon(recentGames[0].scenarioType as ScenarioType)} {recentGames[0].scenarioTitle}
+                </Text>
+                <Text style={styles.latestScore}>Score: {recentGames[0].score}</Text>
+                <Text style={[
+                  styles.latestOutcome,
+                  { color: recentGames[0].victory ? '#4CAF50' : '#F44336' }
+                ]}>
+                  {recentGames[0].victory ? '🎉 Victory!' : '💀 Defeated'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.noResults}>No recent games</Text>
+            )}
+          </View>
+
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => setGameMode('menu')}
+            >
+              <Text style={styles.actionIcon}>🎮</Text>
+              <Text style={styles.actionTitle}>New Training</Text>
+              <Text style={styles.actionDesc}>Start another scenario</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('../tabs/toolKit/game-results')}
+            >
+              <Text style={styles.actionIcon}>📊</Text>
+              <Text style={styles.actionTitle}>View Results</Text>
+              <Text style={styles.actionDesc}>See all statistics</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -194,63 +198,159 @@ export default function SimulationsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Disaster Simulations</Text>
+        <Text style={styles.title}>Disaster Training Simulator</Text>
         <Text style={styles.subtitle}>
-          Practice emergency procedures through interactive scenarios
+          AI-powered emergency response training with realistic scenarios
         </Text>
-        <View style={styles.stats}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>
-              {progress.completed}/{progress.total}
-            </Text>
-            <Text style={styles.statLabel}>Completed</Text>
+        
+        {/* Quick Stats */}
+        <View style={styles.quickStats}>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatNumber}>{gameStats.totalGames}</Text>
+            <Text style={styles.quickStatLabel}>Games</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{progress.points}</Text>
-            <Text style={styles.statLabel}>Points</Text>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatNumber}>{gameStats.victories}</Text>
+            <Text style={styles.quickStatLabel}>Wins</Text>
           </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{Math.round(progress.percentage)}%</Text>
-            <Text style={styles.statLabel}>Progress</Text>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickStatNumber}>{gameStats.bestScore}</Text>
+            <Text style={styles.quickStatLabel}>Best</Text>
           </View>
         </View>
       </View>
-      {/* Type Filter */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.typeContainer}
-      >
-        {types.map(type => (
-          <TouchableOpacity
-            key={type.id}
-            style={[
-              styles.typeButton,
-              selectedType === type.id && styles.typeButtonSelected
-            ]}
-            onPress={() => setSelectedType(type.id)}
-          >
-            <Text style={styles.typeIconTextStyle}>{type.icon}</Text>
-            <Text style={[styles.typeText, selectedType === type.id && styles.typeTextSelected]}>
-              {type.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-      {/* Simulations List */}
-      <ScrollView style={styles.simulationsList}>
-        {filteredSimulations.map(renderSimulationCard)}
-        {/* Coming Soon */}
-        <View style={styles.comingSoonSection}>
-          <Text style={styles.comingSoonTitle}>Coming Soon</Text>
-          <View style={styles.comingSoonCard}>
-            <Text style={styles.comingSoonIcon}>🚧</Text>
-            <Text style={styles.comingSoonText}>
-              More simulations including tsunami, tornado, and pandemic scenarios are in development
-            </Text>
+
+      {/* AI Game Section */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🤖 AI-Powered Training</Text>
+          <Text style={styles.sectionDescription}>
+            Dynamic scenarios generated by AI with realistic consequences and adaptive difficulty
+          </Text>
+          
+          <View style={styles.scenariosGrid}>
+            {aiScenarios.map((scenario) => (
+              <TouchableOpacity
+                key={scenario.type}
+                style={[
+                  styles.scenarioCard,
+                  { borderLeftColor: scenario.color }
+                ]}
+                onPress={() => startAIGame(scenario.type)}
+              >
+                <View style={styles.scenarioHeader}>
+                  <Text style={styles.scenarioIcon}>{getScenarioIcon(scenario.type)}</Text>
+                  <View style={styles.scenarioInfo}>
+                    <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                    <Text style={styles.scenarioDesc}>{scenario.description}</Text>
+                  </View>
+                </View>
+                <View style={styles.scenarioFooter}>
+                  <Text style={styles.startTrainingText}>Start Training →</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        {recentGames.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>📈 Recent Activity</Text>
+            <View style={styles.recentGames}>
+              {recentGames.map((game, index) => (
+                <View key={game.id} style={styles.recentGameCard}>
+                  <Text style={styles.recentGameScenario}>
+                    {getScenarioIcon(game.scenarioType as ScenarioType)} {game.scenarioTitle}
+                  </Text>
+                  <View style={styles.recentGameStats}>
+                    <Text style={styles.recentGameScore}>{game.score} pts</Text>
+                    <Text style={[
+                      styles.recentGameOutcome,
+                      { color: game.victory ? '#4CAF50' : '#F44336' }
+                    ]}>
+                      {game.victory ? 'Won' : 'Lost'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => router.push('../tabs/toolKit/game-results')}
+            >
+              <Text style={styles.viewAllText}>View All Results →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Training Tips */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💡 Training Tips</Text>
+          <View style={styles.tipsCard}>
+            <Text style={styles.tip}>• Assess the situation before acting</Text>
+            <Text style={styles.tip}>• Prioritize life safety over property</Text>
+            <Text style={styles.tip}>• Use available resources wisely</Text>
+            <Text style={styles.tip}>• Stay calm and make deliberate decisions</Text>
+            <Text style={styles.tip}>• Practice different scenarios regularly</Text>
           </View>
         </View>
       </ScrollView>
+
+      {/* Difficulty Selection Modal */}
+      <Modal
+        visible={showDifficultyModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDifficultyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Difficulty</Text>
+            <Text style={styles.modalSubtitle}>
+              Choose how challenging you want the scenario to be
+            </Text>
+
+            {[1, 2, 3, 4, 5].map((level) => (
+              <TouchableOpacity
+                key={level}
+                style={[
+                  styles.difficultyOption,
+                  selectedDifficulty === level && styles.difficultyOptionSelected
+                ]}
+                onPress={() => setSelectedDifficulty(level)}
+              >
+                <Text style={styles.difficultyStars}>
+                  {getDifficultyStars(level)}
+                </Text>
+                <Text style={styles.difficultyLabel}>
+                  {level === 1 && 'Beginner'}
+                  {level === 2 && 'Easy'}
+                  {level === 3 && 'Medium'}
+                  {level === 4 && 'Hard'}
+                  {level === 5 && 'Expert'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity 
+                style={styles.modalCancel}
+                onPress={() => setShowDifficultyModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalConfirm}
+                onPress={confirmAIGame}
+              >
+                <Text style={styles.modalConfirmText}>Start Training</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -259,22 +359,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    minHeight: '100%',
-  },
-  backButtonNav: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    marginTop: 4,
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#e8f5e8',
-  },
-  backButtonTextNav: {
-    color: '#2e7d32',
-    fontWeight: '600',
-    fontSize: 16,
   },
   header: {
     backgroundColor: 'white',
@@ -285,7 +369,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#2e7d32',
     marginBottom: 4,
   },
@@ -295,171 +379,190 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 22,
   },
-  stats: {
+  quickStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
-  stat: {
+  quickStat: {
     alignItems: 'center',
   },
-  statNumber: {
+  quickStatNumber: {
     fontSize: 24,
     fontWeight: '700',
     color: '#2e7d32',
   },
-  statLabel: {
-    fontSize: 14,
+  quickStatLabel: {
+    fontSize: 12,
     color: '#666',
     marginTop: 4,
   },
-  typeContainer: {
-    backgroundColor: 'white',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  content: {
+    flex: 1,
+  },
+  section: {
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  typeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    gap: 6,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 8,
   },
-  typeButtonSelected: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#2e7d32',
-    borderWidth: 1,
-  },
-  typeIconTextStyle: {
-    fontSize: 16,
-  },
-  typeText: {
+  sectionDescription: {
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    color: '#7f8c8d',
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  typeTextSelected: {
-    color: '#2e7d32',
-    fontWeight: '600',
+  scenariosGrid: {
+    gap: 12,
   },
-  simulationsList: {
-    flex: 1,
-    padding: 16,
-  },
-  simulationCard: {
+  scenarioCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    borderLeftWidth: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  simulationCardCompleted: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  cardHeader: {
+  scenarioHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  typeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e8f5e8',
-    justifyContent: 'center',
-    alignItems: 'center',
+  scenarioIcon: {
+    fontSize: 24,
     marginRight: 12,
   },
-  typeIconText: {
-    fontSize: 18,
-  },
-  cardInfo: {
+  scenarioInfo: {
     flex: 1,
   },
-  cardTitle: {
+  scenarioTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#2c3e50',
     marginBottom: 4,
   },
-  cardDescription: {
+  scenarioDesc: {
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
     lineHeight: 18,
   },
-  completedBadge: {
-    backgroundColor: '#4CAF50',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+  scenarioFooter: {
+    alignItems: 'flex-end',
   },
-  completedText: {
-    color: 'white',
+  startTrainingText: {
+    color: '#2e7d32',
+    fontWeight: '600',
     fontSize: 14,
-    fontWeight: 'bold',
   },
-  cardFooter: {
+  recentGames: {
+    gap: 8,
+  },
+  recentGameCard: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  metaInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  difficulty: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  difficultyText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#888',
-  },
-  startButton: {
-    backgroundColor: '#2e7d32',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  startButtonText: {
-    color: 'white',
+  recentGameScenario: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#2c3e50',
   },
-  comingSoonSection: {
-    marginTop: 20,
+  recentGameStats: {
+    alignItems: 'flex-end',
   },
-  comingSoonTitle: {
+  recentGameScore: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2e7d32',
+  },
+  recentGameOutcome: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewAllButton: {
+    marginTop: 12,
+    alignItems: 'center',
+    padding: 8,
+  },
+  viewAllText: {
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  tipsCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+  },
+  tip: {
+    fontSize: 14,
+    color: '#2c3e50',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  resultsContent: {
+    flex: 1,
+    padding: 20,
+  },
+  statsCard: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-    marginLeft: 8,
+    color: '#2c3e50',
+    marginBottom: 16,
   },
-  comingSoonCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+  latestResult: {
+    alignItems: 'center',
+  },
+  latestScenario: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  latestScore: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2e7d32',
+    marginBottom: 8,
+  },
+  latestOutcome: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  noResults: {
+    textAlign: 'center',
+    color: '#7f8c8d',
+    fontSize: 16,
+  },
+  actionsGrid: {
     flexDirection: 'row',
+    gap: 12,
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -467,152 +570,109 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  comingSoonIcon: {
-    fontSize: 24,
-    marginRight: 12,
+  actionIcon: {
+    fontSize: 32,
+    marginBottom: 8,
   },
-  comingSoonText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
   },
-  // Simulation Play Styles
-  simulationContainer: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  simulationContent: {
-    flex: 1,
-    padding: 16,
-  },
-  simulationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+  actionDesc: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    textAlign: 'center',
   },
   backButton: {
     padding: 8,
   },
-  backButtonText: {
-    color: '#4CAF50',
-    fontSize: 16,
+  backText: {
+    color: '#2e7d32',
     fontWeight: '600',
   },
-  simulationTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: 'white',
-    textAlign: 'center',
+  headerSpacer: {
+    width: 60,
+  },
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
-  },
-  progress: {
-    width: 80,
-    alignItems: 'flex-end',
-  },
-  progressText: {
-    color: 'white',
-    fontSize: 12,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#333',
-    borderRadius: 2,
-    marginBottom: 24,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 2,
-  },
-  scenarioSection: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  scenarioTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4CAF50',
-    marginBottom: 8,
-  },
-  scenarioText: {
-    fontSize: 14,
-    color: 'white',
-    lineHeight: 20,
-  },
-  stepSection: {
-    marginBottom: 16,
-  },
-  stepTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 8,
-  },
-  stepCard: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 16,
-  },
-  stepNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4CAF50',
-    marginBottom: 8,
-  },
-  stepInstruction: {
-    fontSize: 16,
-    color: 'white',
-    lineHeight: 22,
-  },
-  arContainer: {
-    flex: 1,
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
     padding: 20,
   },
-  arPlaceholder: {
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
     fontSize: 24,
-    color: 'white',
+    fontWeight: '700',
+    color: '#2c3e50',
     marginBottom: 8,
-  },
-  arDescription: {
-    fontSize: 16,
-    color: '#888',
     textAlign: 'center',
-    marginBottom: 16,
   },
-  arVisual: {
-    backgroundColor: '#333',
-    padding: 20,
-    borderRadius: 8,
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  difficultyOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  arVisualText: {
-    fontSize: 18,
-    color: 'white',
-    marginBottom: 4,
-  },
-  arVisualSubtext: {
-    fontSize: 12,
-    color: '#888',
-  },
-  nextButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
     padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  difficultyOptionSelected: {
+    borderColor: '#2e7d32',
+    backgroundColor: '#e8f5e8',
+  },
+  difficultyStars: {
+    fontSize: 18,
+  },
+  difficultyLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  modalCancel: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
     alignItems: 'center',
   },
-  nextButtonText: {
-    color: 'white',
-    fontSize: 18,
+  modalCancelText: {
+    color: '#666',
     fontWeight: '600',
+    fontSize: 16,
+  },
+  modalConfirm: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#2e7d32',
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
