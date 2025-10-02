@@ -90,8 +90,8 @@ export default function SOSScreen() {
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          distanceInterval: 10, // Update every 10 meters
-          timeInterval: 5000 // Update every 5 seconds
+          distanceInterval: 5, // Update every 5 meters (changed from 10)
+          timeInterval: 1000 // Update every 1 second (changed from 5 seconds)
         },
         (location) => {
           updateSOSLocation({
