@@ -98,11 +98,11 @@ export async function startBackgroundLocationUpdates(): Promise<boolean> {
     
     // Start the background location updates
     await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-      accuracy: Location.Accuracy.High, // Changed from Balanced to High for better precision
-      timeInterval: 1000, // 1 second (changed from 5 seconds)
-      distanceInterval: 5, // 5 meters (changed from 10 meters)
-      deferredUpdatesInterval: 10000, // 10 seconds (changed from 60 seconds)
-      deferredUpdatesDistance: 10, // 10 meters (changed from 20 meters)
+      accuracy: Location.Accuracy.High, // Keep high accuracy for emergency situations
+      timeInterval: 3000, // 3 seconds (balanced for data usage and responsiveness)
+      distanceInterval: 7, // 7 meters (balanced threshold)
+      deferredUpdatesInterval: 15000, // 15 seconds for batch updates
+      deferredUpdatesDistance: 15, // 15 meters for batch threshold
       foregroundService: {
         notificationTitle: "SOS Location Tracking Active",
         notificationBody: "Your location is being shared with your emergency contacts",
