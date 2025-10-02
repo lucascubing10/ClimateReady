@@ -62,7 +62,8 @@ export default {
     extra: {
       openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
       sosWebAppUrl: process.env.SOS_WEB_APP_URL,
-      expoProjectId: process.env.EXPO_PROJECT_ID
+      expoProjectId: process.env.EXPO_PROJECT_ID,
+      GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY
     }
   }
 };

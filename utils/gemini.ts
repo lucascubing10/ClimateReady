@@ -107,3 +107,5 @@ Return ONLY a JSON object with this structure:
     return null;
   }
 }
+
+// Removed duplicate getPersonalizedToolkit function to resolve redeclaration error.

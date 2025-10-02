@@ -187,8 +187,12 @@ export default function ToolkitScreen() {
     loadProgress();
     (async () => {
       setAiLoading(true);
-      const userProfile = await getUserProfile();
-      setProfile(userProfile);
+
+      // Load profile from AsyncStorage
+      let userProfile = await AsyncStorage.getItem('householdProfile');
+      let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
+      setProfile(parsedProfile);
+
       // Simulate AI loading
       setTimeout(() => {
         setPersonalizedToolkit([
@@ -470,91 +474,114 @@ export default function ToolkitScreen() {
           </View>
 
           {/* AI Recommended Section */}
-          <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
-            {/* Progress Bar */}
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '700', marginBottom: 4 }}>
-                {aiCompleted.length} of {aiToolkitIds.length} items complete ({Math.round(aiProgress)}%)
-              </Text>
-              <View style={{ height: 8, backgroundColor: '#ede9fe', borderRadius: 4, overflow: 'hidden' }}>
-                <View style={{
-                  width: `${aiProgress}%`,
-                  height: '100%',
-                  backgroundColor: '#7c3aed',
-                  borderRadius: 4
-                }} />
+          {profile?.householdCompleted ? (
+            <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
+              {/* Progress Bar */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '700', marginBottom: 4 }}>
+                  {aiCompleted.length} of {aiToolkitIds.length} items complete ({Math.round(aiProgress)}%)
+                </Text>
+                <View style={{ height: 8, backgroundColor: '#ede9fe', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{
+                    width: `${aiProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#7c3aed',
+                    borderRadius: 4
+                  }} />
+                </View>
               </View>
-            </View>
-            <Text style={styles.aiSubtitle}>Personalized for your household and location</Text>
-            {aiLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#7c3aed" />
-                <Text style={styles.loadingText}>Analyzing your profile for recommendations...</Text>
-              </View>
-            ) : (
-              <View style={styles.checklistItems}>
-                {personalizedToolkit?.map((item, idx) => {
-                  // Try to find in main checklist, else treat as AI-only
-                  const found = checklistItems.find(i => i.title === item);
-                  const id = found ? found.id : `ai-${item.replace(/\s+/g, '-').toLowerCase()}`;
-                  const isCompleted = completedItems.includes(id);
+              <Text style={styles.aiSubtitle}>Personalized for your household and location</Text>
+              {aiLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#7c3aed" />
+                  <Text style={styles.loadingText}>Analyzing your profile for recommendations...</Text>
+                </View>
+              ) : (
+                <View style={styles.checklistItems}>
+                  {personalizedToolkit?.map((item, idx) => {
+                    // Try to find in main checklist, else treat as AI-only
+                    const found = checklistItems.find(i => i.title === item);
+                    const id = found ? found.id : `ai-${item.replace(/\s+/g, '-').toLowerCase()}`;
+                    const isCompleted = completedItems.includes(id);
 
-                  return (
-                    <Animated.View
-                      key={id}
-                      style={[
-                        styles.itemCard,
-                        isCompleted && styles.itemCardCompleted,
-                        { opacity: 1, transform: [{ translateY: 0 }] }
-                      ]}
-                    >
-                      <TouchableOpacity
-                        onPress={async () => {
-                          let updatedCompleted = [...completedItems];
-                          if (isCompleted) {
-                            updatedCompleted = updatedCompleted.filter(cid => cid !== id);
-                          } else {
-                            updatedCompleted.push(id);
-                          }
-                          setCompletedItems(updatedCompleted);
-                          await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
-                        }}
-                        activeOpacity={0.7}
-                        style={styles.itemTouchable}
+                    return (
+                      <Animated.View
+                        key={id}
+                        style={[
+                          styles.itemCard,
+                          isCompleted && styles.itemCardCompleted,
+                          { opacity: 1, transform: [{ translateY: 0 }] }
+                        ]}
                       >
-                        <LinearGradient
-                          colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
-                          style={styles.itemGradient}
+                        <TouchableOpacity
+                          onPress={async () => {
+                            let updatedCompleted = [...completedItems];
+                            if (isCompleted) {
+                              updatedCompleted = updatedCompleted.filter(cid => cid !== id);
+                            } else {
+                              updatedCompleted.push(id);
+                            }
+                            setCompletedItems(updatedCompleted);
+                            await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
+                          }}
+                          activeOpacity={0.7}
+                          style={styles.itemTouchable}
                         >
-                          <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
-                            {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
-                          </View>
-                          <View style={styles.itemContent}>
-                            <View style={styles.itemHeader}>
-                              <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
-                                {item}
+                          <LinearGradient
+                            colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
+                            style={styles.itemGradient}
+                          >
+                            <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
+                              {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
+                            </View>
+                            <View style={styles.itemContent}>
+                              <View style={styles.itemHeader}>
+                                <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
+                                  {item}
+                                </Text>
+                              </View>
+                              <Text style={styles.itemDescription}>
+                                {found ? found.description : "AI suggested item"}
                               </Text>
                             </View>
-                            <Text style={styles.itemDescription}>
-                              {found ? found.description : "AI suggested item"}
-                            </Text>
-                          </View>
-                          {isCompleted && (
-                            <LinearGradient colors={['#10b981', '#059669']} style={styles.completedRibbon}>
-                              <Ionicons name="trophy" size={12} color="#fff" />
-                              <Text style={styles.completedText}>
-                                {found ? `+${found.points}pts` : ''}
-                              </Text>
-                            </LinearGradient>
-                          )}
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </Animated.View>
-                  );
-                })}
+                            {isCompleted && (
+                              <LinearGradient colors={['#10b981', '#059669']} style={styles.completedRibbon}>
+                                <Ionicons name="trophy" size={12} color="#fff" />
+                                <Text style={styles.completedText}>
+                                  {found ? `+${found.points}pts` : ''}
+                                </Text>
+                              </LinearGradient>
+                            )}
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              )}
+            </ExpandableCard>
+          ) : (
+            <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
+              <View style={{ alignItems: 'center', padding: 16 }}>
+                <Ionicons name="information-circle" size={32} color="#7c3aed" style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 15, color: '#7c3aed', fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
+                  Complete your household profile to unlock personalized AI recommendations!
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#7c3aed',
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    marginTop: 8
+                  }}
+                  onPress={() => router.push('/toolKit/household-setup')}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Complete Profile</Text>
+                </TouchableOpacity>
               </View>
-            )}
-          </ExpandableCard>
+            </ExpandableCard>
+          )}
 
           {/* User Custom Checklist Section */}
           {customItems.length > 0 && (
