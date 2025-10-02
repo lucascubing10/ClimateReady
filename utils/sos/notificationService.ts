@@ -178,51 +178,28 @@ export async function notifyEmergencyResponders(sosSessionId: string, userProfil
       return false;
     }
     
-    // For each emergency contact that has a push token registered
+    // For each emergency contact, generate tracking URL
     for (const contact of userProfile.emergencyContacts) {
       try {
         console.log(`[SOS Notification] Processing contact: ${contact.name} (${contact.phoneNumber})`);
         
-        // Check if this contact is registered as an emergency responder
-        const responderRef = doc(db, 'emergency_responders', contact.phoneNumber);
-        const responderDoc = await getDoc(responderRef);
+        // Generate the tracking URL with access token
+        const accessToken = await generateAccessTokenIfNeeded(sosSessionId);
+        const trackingUrl = `https://sos-live-tracker-map.vercel.app/session/${sosSessionId}?token=${accessToken}`;
         
-        if (responderDoc.exists()) {
-          const pushToken = responderDoc.data().pushToken;
-          if (pushToken) {
-            console.log(`[SOS Notification] Found push token for ${contact.phoneNumber}`);
-            
-            // Generate the tracking URL with access token
-            const accessToken = await generateAccessTokenIfNeeded(sosSessionId);
-            const trackingUrl = `https://sos-live-tracker-map.vercel.app/session/${sosSessionId}?token=${accessToken}`;
-            
-            console.log(`[SOS Notification] Generated tracking URL with token: ${trackingUrl.substring(0, 60)}...`);
-            
-            // Add to the notifications collection to be sent by the server
-            const notificationRef = doc(db, 'push_notifications', `${sosSessionId}_${contact.phoneNumber}`);
-            await setDoc(notificationRef, {
-              to: pushToken,
-              title: `SOS EMERGENCY: ${userProfile.firstName} ${userProfile.lastName}`,
-              body: 'Needs your help! Tap to view their live location.',
-              data: {
-                url: trackingUrl,
-                sosSessionId,
-                accessToken, // Include token in notification data
-                type: 'sos_alert',
-                timestamp: new Date(),
-                senderName: `${userProfile.firstName} ${userProfile.lastName}`,
-              },
-              sendAt: new Date(),
-              sent: false,
-            });
-            
-            console.log(`[SOS Notification] Created notification for ${contact.phoneNumber}`);
-          } else {
-            console.warn(`[SOS Notification] No push token found for ${contact.phoneNumber}`);
-          }
-        } else {
-          console.warn(`[SOS Notification] Contact ${contact.phoneNumber} not registered as responder`);
-        }
+        console.log(`[SOS Notification] Generated tracking URL with token: ${trackingUrl.substring(0, 60)}...`);
+        
+        // We're using SMS notifications instead of push notifications
+        // This would typically call a server function or API to send the SMS
+        // For now we're just logging the info
+        
+        // Create message content (this would be sent via SMS)
+        const messageTitle = `SOS EMERGENCY: ${userProfile.firstName || ''} ${userProfile.lastName || ''}`;
+        const messageBody = 'Needs your help! View their live location at: ' + trackingUrl;
+        
+        console.log(`[SOS Notification] Would send SMS to ${contact.phoneNumber}:`);
+        console.log(`[SOS Notification] Title: ${messageTitle}`);
+        console.log(`[SOS Notification] Body: ${messageBody}`);
       } catch (contactError) {
         console.error(`[SOS Notification] Error notifying responder ${contact.phoneNumber}:`, contactError);
         // Continue with next contact
