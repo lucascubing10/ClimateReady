@@ -19,7 +19,7 @@ import { useAuth } from '../../../context/AuthContext';
 
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 
-// Tag component for allergies, conditions, medications
+// Visual chip used to display each allergy/condition/medication entry with a remove button.
 const Tag = ({ text, onDelete }: { text: string; onDelete: () => void }) => (
   <View style={styles.tag}>
     <Text style={styles.tagText}>{text}</Text>
@@ -29,7 +29,7 @@ const Tag = ({ text, onDelete }: { text: string; onDelete: () => void }) => (
   </View>
 );
 
-// Input field with tags
+// Compound input that lets users add multiple free-form strings and manage them as tags.
 const TagInput = ({ 
   value, 
   onAddTag, 
@@ -83,7 +83,7 @@ export default function EditMedicalInfoScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
-  // Initialize with existing medical info or empty arrays
+  // Initialise with existing medical info or empty arrays for each category.
   const [formData, setFormData] = useState({
     allergies: userProfile?.medicalInfo?.allergies || [],
     conditions: userProfile?.medicalInfo?.conditions || [],
@@ -92,6 +92,7 @@ export default function EditMedicalInfoScreen() {
     notes: userProfile?.medicalInfo?.notes || '',
   });
   
+  // Push a new item into the relevant tag list.
   const handleAddTag = (field: 'allergies' | 'conditions' | 'medications', tag: string) => {
     setFormData(prev => ({
       ...prev,
@@ -99,6 +100,7 @@ export default function EditMedicalInfoScreen() {
     }));
   };
 
+  // Remove an entry from one of the tag arrays.
   const handleDeleteTag = (field: 'allergies' | 'conditions' | 'medications', index: number) => {
     setFormData(prev => ({
       ...prev,
@@ -120,6 +122,7 @@ export default function EditMedicalInfoScreen() {
     }));
   };
   
+  // Store medical details in Firestore and mark the profile as having provided medical info.
   const handleSave = async () => {
     try {
       setIsLoading(true);
@@ -148,6 +151,7 @@ export default function EditMedicalInfoScreen() {
           title: 'Edit Medical Information',
           headerShown: true,
           headerTitleAlign: 'center',
+          // Align back navigation with other profile-edit screens.
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.push('/tabs/profile' as any)}
@@ -171,6 +175,7 @@ export default function EditMedicalInfoScreen() {
             <Text style={styles.sectionTitle}>Medical Information</Text>
             
             <Text style={styles.fieldLabel}>Allergies</Text>
+            {/* Each section reuses TagInput for consistent UX */}
             <TagInput 
               value={formData.allergies}
               onAddTag={(tag) => handleAddTag('allergies', tag)}

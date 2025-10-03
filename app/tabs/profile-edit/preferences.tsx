@@ -17,6 +17,7 @@ import { Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
 import { householdTypes, languageOptions } from '../../../utils/userDataModel';
 
+// Screen: edits user preferences that tailor recommendations (language + household type).
 export default function EditPreferencesScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function EditPreferencesScreen() {
     householdType: userProfile?.householdType || '',
   });
   
+  // Persist preference changes and return to the profile overview.
   const handleSave = async () => {
     try {
       setIsLoading(true);
@@ -56,6 +58,7 @@ export default function EditPreferencesScreen() {
           title: 'Edit Preferences',
           headerShown: true,
           headerTitleAlign: 'center',
+          // Consistent back button treatment across the edit flow.
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.push('/tabs/profile' as any)}
@@ -79,6 +82,7 @@ export default function EditPreferencesScreen() {
             <Text style={styles.sectionTitle}>Preferences</Text>
             
             <Text style={styles.fieldLabel}>Preferred Language</Text>
+            {/* Language options displayed as selectable chips */}
             <View style={styles.optionsContainer}>
               {languageOptions.map((language) => (
                 <TouchableOpacity
@@ -102,6 +106,7 @@ export default function EditPreferencesScreen() {
             </View>
             
             <Text style={styles.fieldLabel}>Household Type</Text>
+            {/* Household composition controls preparedness tips */}
             <View style={styles.optionsContainer}>
               {householdTypes.map((type) => (
                 <TouchableOpacity

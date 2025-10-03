@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { InputField, Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
 
+// Screen: edits the core identity information (name + contact number).
 export default function EditBasicInfoScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -34,6 +35,7 @@ export default function EditBasicInfoScreen() {
     phoneNumber: '',
   });
   
+  // Keep form state and field-level errors aligned with the latest user input.
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field as keyof typeof errors]) {
@@ -41,6 +43,8 @@ export default function EditBasicInfoScreen() {
     }
   };
   
+  // Minimal validation: ensure names are present and the optional phone number
+  // follows our loose E.164 pattern.
   const validateForm = () => {
     const newErrors = { ...errors };
     let isValid = true;
@@ -65,6 +69,7 @@ export default function EditBasicInfoScreen() {
     return isValid;
   };
   
+  // Save the updates through AuthContext and return to the main profile view.
   const handleSave = async () => {
     if (!validateForm()) return;
     
@@ -96,6 +101,7 @@ export default function EditBasicInfoScreen() {
           title: 'Edit Basic Information',
           headerShown: true,
           headerTitleAlign: 'center',
+          // Provide a consistent back affordance across edit screens.
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.push('/tabs/profile' as any)}
@@ -118,6 +124,7 @@ export default function EditBasicInfoScreen() {
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Basic Information</Text>
             
+            {/* First/last name grouped together */}
             <View style={styles.nameRow}>
               <InputField
                 label="First Name"

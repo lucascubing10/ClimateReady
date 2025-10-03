@@ -25,6 +25,7 @@ import {
   sendLocalNotification
 } from '../../utils/sos/notificationService';
 
+// Screen: orchestrates activating, tracking, and cancelling SOS alerts.
 export default function SOSScreen() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
@@ -66,6 +67,7 @@ export default function SOSScreen() {
   }, [autoActivate]); // Add autoActivate as a dependency
 
   // Start location tracking
+  // Begin foreground + background location updates for the active SOS session.
   const startLocationTracking = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -122,6 +124,7 @@ export default function SOSScreen() {
   };
 
   // Stop location tracking
+  // Tear down foreground/background tracking when SOS ends.
   const stopLocationTracking = async () => {
     try {
       // Stop watchPosition
@@ -138,6 +141,7 @@ export default function SOSScreen() {
   };
 
   // Handle SOS button press
+  // Toggle SOS: either end an active session or prompt to start one.
   const handleSOSPress = async () => {
     if (isSOSActive) {
       // If SOS is already active, confirm cancellation
@@ -202,6 +206,7 @@ export default function SOSScreen() {
   };
   
   // Function that actually starts the SOS process
+  // Kick off a new SOS workflow: create session, track location, notify contacts.
   const startEmergencySOS = async () => {
     try {
       setLoading(true);
@@ -250,6 +255,7 @@ export default function SOSScreen() {
   };
 
   // Send SOS SMS to emergency contacts
+  // Compose and send the emergency SMS with optional medical info.
   const sendSOSSMS = async (trackingLink: string) => {
     if (!userProfile?.emergencyContacts || userProfile.emergencyContacts.length === 0) {
       return;
