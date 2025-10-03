@@ -7,6 +7,7 @@ import ProfileCompletionReminder from '../../components/ProfileCompletionReminde
 import { checkActiveSOSSession, getSOSSettings } from '../../utils/sos/sosService';
 import { useAuth } from '../../context/AuthContext';
 
+// Layout: provides the bottom tab navigator and custom SOS FAB-style button.
 export default function TabsLayout() {
   const router = useRouter();
   const { userProfile } = useAuth();
@@ -92,6 +93,7 @@ export default function TabsLayout() {
           name="sos"
           options={{
             title: 'SOS',
+            // Replace default tab item with a prominent panic button.
             tabBarButton: () => (
               <TouchableOpacity
                 style={[

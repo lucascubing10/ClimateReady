@@ -1,3 +1,6 @@
+// Screen: Allows the user to configure what medical details are shared with emergency
+// contacts when they trigger the SOS flow. The toggles write to local storage via
+// `saveSOSSettings`, while the preview helps users understand exactly what will be sent.
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -34,6 +37,9 @@ export default function SOSSettingsScreen() {
   const [settings, setSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
 
   // Load settings on mount
+  // On mount we hydrate the screen with the most recent settings from
+  // persistent storage. These settings live locally because they only
+  // inform what the device shares during SOS.
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
@@ -46,6 +52,7 @@ export default function SOSSettingsScreen() {
   }, []);
 
   // Toggle a setting
+  // Generic toggle handler so each Switch can flip its respective field.
   const toggleSetting = (key: keyof SOSSettings) => {
     setSettings(prev => ({
       ...prev,
@@ -54,6 +61,7 @@ export default function SOSSettingsScreen() {
   };
 
   // Save settings
+  // Persist the user choices and provide feedback before returning to SOS.
   const handleSaveSettings = async () => {
     setLoading(true);
     const success = await saveSOSSettings(settings);
@@ -80,6 +88,7 @@ export default function SOSSettingsScreen() {
     );
   }
 
+  // We only show certain toggles when the profile has corresponding data.
   const hasMedicalInfo = !!userProfile?.medicalInfo;
 
   return (
