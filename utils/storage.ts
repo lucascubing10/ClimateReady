@@ -3,7 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'user_preparedness_progress';
 
 export interface UserProgress {
-  completedItems: string[] | undefined;
+  totalItems: number;
+  completedLearning: never[];
+  completedItems: string[];
   level: number;
   points: number;
   percent: number;
@@ -24,6 +26,8 @@ export const defaultUserProgress: UserProgress = {
   checklists: {},
   completedCategories: 0,
   lastUpdated: new Date().toISOString(),
+  completedLearning: [],
+  totalItems: 0
 };
 
 export const getUserProgress = async (): Promise<UserProgress> => {
@@ -35,6 +39,11 @@ export const getUserProgress = async (): Promise<UserProgress> => {
     } else {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUserProgress));
       progress = { ...defaultUserProgress };
+    }
+
+    // Ensure completedItems is always an array
+    if (!Array.isArray(progress.completedItems)) {
+      progress.completedItems = [];
     }
 
     // Recalculate percent and points based on all checklistItems
@@ -53,7 +62,7 @@ export const getUserProgress = async (): Promise<UserProgress> => {
     return progress;
   } catch (error) {
     console.error('Error getting user progress:', error);
-    return defaultUserProgress;
+    return { ...defaultUserProgress, completedItems: [] };
   }
 };
 

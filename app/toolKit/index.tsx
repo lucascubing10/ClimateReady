@@ -10,7 +10,11 @@ import {
   Animated,
   Easing,
   Alert,
-  Dimensions
+  Dimensions,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +24,7 @@ import { getUserProgress, updateChecklistItem } from '@/utils/storage';
 import { getUserProfile } from '../../utils/profile';
 import { getPersonalizedToolkit } from '../../utils/gemini';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -34,17 +39,18 @@ type ExpandableCardProps = {
 
 const ExpandableCard = ({ title, icon, color, children, defaultExpanded = false }: ExpandableCardProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const rotateAnim = useState(new Animated.Value(0))[0];
+  const rotateAnim = useState(new Animated.Value(defaultExpanded ? 1 : 0))[0];
 
-  const toggleExpand = () => {
+  useEffect(() => {
     Animated.timing(rotateAnim, {
-      toValue: expanded ? 0 : 1,
+      toValue: expanded ? 1 : 0,
       duration: 300,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: true
     }).start();
-    setExpanded(!expanded);
-  };
+  }, [expanded]);
+
+  const toggleExpand = () => setExpanded(e => !e);
 
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -66,24 +72,10 @@ const ExpandableCard = ({ title, icon, color, children, defaultExpanded = false 
           <Ionicons name="chevron-down" size={22} color={color} />
         </Animated.View>
       </TouchableOpacity>
-      
       {expanded && (
-        <Animated.View 
-          style={[
-            styles.expandableContent,
-            {
-              opacity: rotateAnim,
-              transform: [{
-                translateY: rotateAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [-10, 0]
-                })
-              }]
-            }
-          ]}
-        >
+        <View style={styles.expandableContent}>
           {children}
-        </Animated.View>
+        </View>
       )}
     </View>
   );
@@ -126,6 +118,10 @@ export default function ToolkitScreen() {
   const [personalizedToolkit, setPersonalizedToolkit] = useState<string[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [activeDisaster, setActiveDisaster] = useState<string | null>('hurricane');
+  const [customItems, setCustomItems] = useState<any[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
 
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -143,9 +139,10 @@ export default function ToolkitScreen() {
   ];
 
   // Filter items
-  const filteredItems = selectedCategory === 'all' 
-    ? checklistItems 
-    : checklistItems.filter(item => item.category === selectedCategory);
+  const allItems = [...checklistItems, ...customItems];
+  const filteredItems = selectedCategory === 'all'
+    ? allItems
+    : allItems.filter(item => item.category === selectedCategory);
 
   // Progress
   const progress = (completedItems.length / checklistItems.length) * 100;
@@ -190,8 +187,12 @@ export default function ToolkitScreen() {
     loadProgress();
     (async () => {
       setAiLoading(true);
-      const userProfile = await getUserProfile();
-      setProfile(userProfile);
+
+      // Load profile from AsyncStorage
+      let userProfile = await AsyncStorage.getItem('householdProfile');
+      let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
+      setProfile(parsedProfile);
+
       // Simulate AI loading
       setTimeout(() => {
         setPersonalizedToolkit([
@@ -254,8 +255,66 @@ export default function ToolkitScreen() {
 
   const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
 
+  // Load custom items from storage
+  useEffect(() => {
+    (async () => {
+      const stored = await AsyncStorage.getItem('customChecklistItems');
+      if (stored) setCustomItems(JSON.parse(stored));
+    })();
+  }, []);
+
+  // Save custom items to storage
+  const saveCustomItems = async (items: any[]) => {
+    setCustomItems(items);
+    await AsyncStorage.setItem('customChecklistItems', JSON.stringify(items));
+  };
+
+  // Add new custom item
+  const addCustomItem = async () => {
+    if (!newTitle.trim()) return;
+    const newItem = {
+      id: `custom-${Date.now()}`,
+      title: newTitle,
+      description: newDesc,
+      category: selectedCategory === 'all' ? 'custom' : selectedCategory,
+      points: 5,
+      priority: 'low',
+      estimatedTime: 5,
+      custom: true
+    };
+    const updated = [...customItems, newItem];
+    await saveCustomItems(updated);
+    setNewTitle('');
+    setNewDesc('');
+    setShowModal(false);
+  };
+
+  // Delete custom item
+  const deleteCustomItem = async (id: string) => {
+    const updated = customItems.filter(item => item.id !== id);
+    await saveCustomItems(updated);
+  };
+
+  // AI Recommended Progress
+  const aiToolkitIds = (personalizedToolkit ?? []).map(item => {
+    const found = checklistItems.find(i => i.title === item);
+    return found ? found.id : `ai-${item.replace(/\s+/g, '-').toLowerCase()}`;
+  });
+  const aiCompleted = aiToolkitIds.filter(id => completedItems.includes(id));
+  const aiProgress = aiToolkitIds.length === 0 ? 0 : (aiCompleted.length / aiToolkitIds.length) * 100;
+
+  // Custom Checklist Progress
+  const customIds = customItems.map(item => item.id);
+  const customCompleted = customIds.filter(id => completedItems.includes(id));
+  const customProgress = customIds.length === 0 ? 0 : (customCompleted.length / customIds.length) * 100;
+
+  // Main Checklist Progress (excluding custom)
+  const mainIds = checklistItems.map(item => item.id);
+  const mainCompleted = mainIds.filter(id => completedItems.includes(id));
+  const mainProgress = mainIds.length === 0 ? 0 : (mainCompleted.length / mainIds.length) * 100;
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       {/* Background Elements */}
       <View style={styles.backgroundElements}>
         <View style={[styles.bgCircle, styles.bgCircle1]} />
@@ -328,23 +387,54 @@ export default function ToolkitScreen() {
                 </View>
               </View>
 
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <Ionicons name="checkmark-done" size={20} color="#10b981" />
-                  <Text style={styles.statNumber}>{completedCount}</Text>
-                  <Text style={styles.statLabel}>Completed</Text>
+              {/* Group Progress Summaries */}
+              <View style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Ionicons name="sparkles" size={16} color="#7c3aed" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '600', flex: 1 }}>AI Recommended</Text>
+                  <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '700' }}>
+                    {aiCompleted.length}/{aiToolkitIds.length} ({Math.round(aiProgress)}%)
+                  </Text>
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons name="flash" size={20} color="#f59e0b" />
-                  <Text style={styles.statNumber}>{userPoints}</Text>
-                  <Text style={styles.statLabel}>Points</Text>
+                <View style={{ height: 6, backgroundColor: '#ede9fe', borderRadius: 3, marginBottom: 8 }}>
+                  <View style={{
+                    width: `${aiProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#7c3aed',
+                    borderRadius: 3
+                  }} />
                 </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Ionicons name="trophy" size={20} color="#8b5cf6" />
-                  <Text style={styles.statNumber}>{earnedBadges.length}</Text>
-                  <Text style={styles.statLabel}>Badges</Text>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Ionicons name="create" size={16} color="#10b981" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '600', flex: 1 }}>Custom</Text>
+                  <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '700' }}>
+                    {customCompleted.length}/{customIds.length} ({Math.round(customProgress)}%)
+                  </Text>
+                </View>
+                <View style={{ height: 6, backgroundColor: '#d1fae5', borderRadius: 3, marginBottom: 8 }}>
+                  <View style={{
+                    width: `${customProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#10b981',
+                    borderRadius: 3
+                  }} />
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Ionicons name="list" size={16} color="#6366f1" style={{ marginRight: 6 }} />
+                  <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '600', flex: 1 }}>Preparedness</Text>
+                  <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '700' }}>
+                    {mainCompleted.length}/{mainIds.length} ({Math.round(mainProgress)}%)
+                  </Text>
+                </View>
+                <View style={{ height: 6, backgroundColor: '#e0e7ff', borderRadius: 3 }}>
+                  <View style={{
+                    width: `${mainProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#6366f1',
+                    borderRadius: 3
+                  }} />
                 </View>
               </View>
             </LinearGradient>
@@ -384,52 +474,211 @@ export default function ToolkitScreen() {
           </View>
 
           {/* AI Recommended Section */}
-          <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
-            <Text style={styles.aiSubtitle}>Personalized for your household and location</Text>
-            
-            {aiLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#7c3aed" />
-                <Text style={styles.loadingText}>Analyzing your profile for recommendations...</Text>
+          {profile?.householdCompleted ? (
+            <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
+              {/* Progress Bar */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, color: '#7c3aed', fontWeight: '700', marginBottom: 4 }}>
+                  {aiCompleted.length} of {aiToolkitIds.length} items complete ({Math.round(aiProgress)}%)
+                </Text>
+                <View style={{ height: 8, backgroundColor: '#ede9fe', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{
+                    width: `${aiProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#7c3aed',
+                    borderRadius: 4
+                  }} />
+                </View>
               </View>
-            ) : (
-              <View style={styles.aiChecklistItems}>
-                {personalizedToolkit?.map((item, idx) => {
-                  const found = checklistItems.find(i => i.title === item);
-                  const isCompleted = found ? completedItems.includes(found.id) : false;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={item+idx}
-                      style={[styles.aiChecklistItem, isCompleted && styles.aiChecklistItemCompleted]}
-                      onPress={() => {
-                        if (found) toggleItemCompletion(found.id);
-                        else Alert.alert('Not in main checklist', 'This item is not part of your main checklist.');
-                      }}
-                    >
-                      <LinearGradient 
-                        colors={isCompleted ? ['#7c3aed', '#6d28d9'] : ['#f8fafc', '#f1f5f9']} 
-                        style={styles.aiChecklistGradient}
+              <Text style={styles.aiSubtitle}>Personalized for your household and location</Text>
+              {aiLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#7c3aed" />
+                  <Text style={styles.loadingText}>Analyzing your profile for recommendations...</Text>
+                </View>
+              ) : (
+                <View style={styles.checklistItems}>
+                  {personalizedToolkit?.map((item, idx) => {
+                    // Try to find in main checklist, else treat as AI-only
+                    const found = checklistItems.find(i => i.title === item);
+                    const id = found ? found.id : `ai-${item.replace(/\s+/g, '-').toLowerCase()}`;
+                    const isCompleted = completedItems.includes(id);
+
+                    return (
+                      <Animated.View
+                        key={id}
+                        style={[
+                          styles.itemCard,
+                          isCompleted && styles.itemCardCompleted,
+                          { opacity: 1, transform: [{ translateY: 0 }] }
+                        ]}
                       >
-                        <Ionicons 
-                          name={isCompleted ? "checkmark-circle" : "ellipse-outline"} 
-                          size={20} 
-                          color={isCompleted ? "#fff" : "#9ca3af"} 
-                        />
-                        <Text style={[styles.aiChecklistText, isCompleted && styles.aiChecklistTextCompleted]}>
-                          {item}
-                        </Text>
-                        {!found && <Ionicons name="sparkles" size={16} color="#7c3aed" />}
-                      </LinearGradient>
-                    </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={async () => {
+                            let updatedCompleted = [...completedItems];
+                            if (isCompleted) {
+                              updatedCompleted = updatedCompleted.filter(cid => cid !== id);
+                            } else {
+                              updatedCompleted.push(id);
+                            }
+                            setCompletedItems(updatedCompleted);
+                            await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
+                          }}
+                          activeOpacity={0.7}
+                          style={styles.itemTouchable}
+                        >
+                          <LinearGradient
+                            colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
+                            style={styles.itemGradient}
+                          >
+                            <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
+                              {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
+                            </View>
+                            <View style={styles.itemContent}>
+                              <View style={styles.itemHeader}>
+                                <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
+                                  {item}
+                                </Text>
+                              </View>
+                              <Text style={styles.itemDescription}>
+                                {found ? found.description : "AI suggested item"}
+                              </Text>
+                            </View>
+                            {isCompleted && (
+                              <LinearGradient colors={['#10b981', '#059669']} style={styles.completedRibbon}>
+                                <Ionicons name="trophy" size={12} color="#fff" />
+                                <Text style={styles.completedText}>
+                                  {found ? `+${found.points}pts` : ''}
+                                </Text>
+                              </LinearGradient>
+                            )}
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    );
+                  })}
+                </View>
+              )}
+            </ExpandableCard>
+          ) : (
+            <ExpandableCard title="AI Recommended Toolkit" icon="✨" color="#7c3aed" defaultExpanded>
+              <View style={{ alignItems: 'center', padding: 16 }}>
+                <Ionicons name="information-circle" size={32} color="#7c3aed" style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 15, color: '#7c3aed', fontWeight: '700', marginBottom: 8, textAlign: 'center' }}>
+                  Complete your household profile to unlock personalized AI recommendations!
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: '#7c3aed',
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    marginTop: 8
+                  }}
+                  onPress={() => router.push('/toolKit/household-setup')}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Complete Profile</Text>
+                </TouchableOpacity>
+              </View>
+            </ExpandableCard>
+          )}
+
+          {/* User Custom Checklist Section */}
+          {customItems.length > 0 && (
+            <ExpandableCard title="Your Custom Checklist" icon="📝" color="#10b981" defaultExpanded>
+              {/* Progress Bar */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 13, color: '#10b981', fontWeight: '700', marginBottom: 4 }}>
+                  {customCompleted.length} of {customIds.length} items complete ({Math.round(customProgress)}%)
+                </Text>
+                <View style={{ height: 8, backgroundColor: '#d1fae5', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{
+                    width: `${customProgress}%`,
+                    height: '100%',
+                    backgroundColor: '#10b981',
+                    borderRadius: 4
+                  }} />
+                </View>
+              </View>
+              <View style={styles.checklistItems}>
+                {customItems.map((item, index) => {
+                  const isCompleted = completedItems.includes(item.id);
+                  return (
+                    <Animated.View
+                      key={item.id}
+                      style={[
+                        styles.itemCard,
+                        isCompleted && styles.itemCardCompleted,
+                        {
+                          opacity: 1,
+                          transform: [{ translateY: 0 }]
+                        }
+                      ]}
+                    >
+                      <TouchableOpacity
+                        onPress={async () => {
+                          let updatedCompleted = [...completedItems];
+                          if (isCompleted) {
+                            updatedCompleted = updatedCompleted.filter(cid => cid !== item.id);
+                          } else {
+                            updatedCompleted.push(item.id);
+                          }
+                          setCompletedItems(updatedCompleted);
+                          await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
+                        }}
+                        onLongPress={() => {
+                          Alert.alert(
+                            'Delete Custom Item?',
+                            'Are you sure you want to delete this custom item?',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Delete', style: 'destructive', onPress: () => deleteCustomItem(item.id) }
+                            ]
+                          );
+                        }}
+                        activeOpacity={0.7}
+                        style={styles.itemTouchable}
+                      >
+                        <LinearGradient
+                          colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
+                          style={styles.itemGradient}
+                        >
+                          <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
+                            {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
+                          </View>
+                          <View style={styles.itemContent}>
+                            <View style={styles.itemHeader}>
+                              <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
+                                {item.title}
+                              </Text>
+                            </View>
+                            <Text style={styles.itemDescription}>{item.description}</Text>
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
                   );
                 })}
               </View>
-            )}
-          </ExpandableCard>
+            </ExpandableCard>
+          )}
 
           {/* Preparedness Checklist */}
           <ExpandableCard title="Complete Preparedness Checklist" icon="📋" color="#6366f1" defaultExpanded>
+            {/* Progress Bar */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, color: '#6366f1', fontWeight: '700', marginBottom: 4 }}>
+                {mainCompleted.length} of {mainIds.length} items complete ({Math.round(mainProgress)}%)
+              </Text>
+              <View style={{ height: 8, backgroundColor: '#e0e7ff', borderRadius: 4, overflow: 'hidden' }}>
+                <View style={{
+                  width: `${mainProgress}%`,
+                  height: '100%',
+                  backgroundColor: '#6366f1',
+                  borderRadius: 4
+                }} />
+              </View>
+            </View>
             {/* Category Filter */}
             <ScrollView 
               horizontal 
@@ -467,101 +716,138 @@ export default function ToolkitScreen() {
 
             {/* Checklist Items */}
             <View style={styles.checklistItems}>
-              {filteredItems.map((item, index) => {
-                const isCompleted = completedItems.includes(item.id);
-                
-                return (
-                  <Animated.View
-                    key={item.id}
-                    style={[
-                      styles.itemCard,
-                      isCompleted && styles.itemCardCompleted,
-                      {
-                        opacity: fadeAnim,
-                        transform: [{
-                          translateY: fadeAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [20 * (index + 1), 0]
-                          })
-                        }]
-                      }
-                    ]}
-                  >
-                    <TouchableOpacity 
-                      onPress={() => toggleItemCompletion(item.id)} 
-                      activeOpacity={0.7}
-                      style={styles.itemTouchable}
+              {filteredItems
+                .filter(item => !item.custom) // Only show main checklist here
+                .map((item, index) => {
+                  const isCompleted = completedItems.includes(item.id);
+                  return (
+                    <Animated.View
+                      key={item.id}
+                      style={[
+                        styles.itemCard,
+                        isCompleted && styles.itemCardCompleted,
+                        {
+                          opacity: 1,
+                          transform: [{ translateY: 0 }]
+                        }
+                      ]}
                     >
-                      <LinearGradient
-                        colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
-                        style={styles.itemGradient}
+                      <TouchableOpacity
+                        onPress={async () => {
+                          let updatedCompleted = [...completedItems];
+                          if (isCompleted) {
+                            updatedCompleted = updatedCompleted.filter(cid => cid !== item.id);
+                          } else {
+                            updatedCompleted.push(item.id);
+                          }
+                          setCompletedItems(updatedCompleted);
+                          await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
+                          // Optionally call toggleItemCompletion(item.id) if you want to keep points/badges logic
+                        }}
+                        activeOpacity={0.7}
+                        style={styles.itemTouchable}
                       >
-                        {/* Completion Indicator */}
-                        <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
-                          {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
-                        </View>
-
-                        <View style={styles.itemContent}>
-                          <View style={styles.itemHeader}>
-                            <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
-                              {item.title}
-                            </Text>
-                            <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
-                              <Text style={styles.priorityIcon}>{getPriorityIcon(item.priority)}</Text>
-                              <Text style={styles.priorityText}>{item.priority}</Text>
-                            </View>
+                        <LinearGradient
+                          colors={isCompleted ? ['#f0fdf4', '#dcfce7'] : ['#fff', '#f8fafc']}
+                          style={styles.itemGradient}
+                        >
+                          <View style={[styles.completionIndicator, isCompleted && styles.completionIndicatorCompleted]}>
+                            {isCompleted && <Ionicons name="checkmark" size={16} color="#fff" />}
                           </View>
-                          
-                          <Text style={styles.itemDescription}>{item.description}</Text>
-                          
-                          <View style={styles.itemFooter}>
-                            <View style={styles.itemMeta}>
-                              <View style={styles.metaItem}>
-                                <Ionicons name="time-outline" size={14} color="#6b7280" />
-                                <Text style={styles.metaText}>{item.estimatedTime}m</Text>
-                              </View>
-                              <View style={styles.metaItem}>
-                                <Ionicons name="star" size={14} color="#f59e0b" />
-                                <Text style={styles.metaText}>{item.points}pts</Text>
+                          <View style={styles.itemContent}>
+                            <View style={styles.itemHeader}>
+                              <Text style={[styles.itemTitle, isCompleted && styles.itemTitleCompleted]}>
+                                {item.title}
+                              </Text>
+                              <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
+                                <Text style={styles.priorityIcon}>{getPriorityIcon(item.priority)}</Text>
+                                <Text style={styles.priorityText}>{item.priority}</Text>
                               </View>
                             </View>
-                            
-                            <View style={styles.specialNeeds}>
-                              {item.customFields?.forElderly && (
-                                <View style={styles.specialNeedTag}><Text style={styles.specialNeedText}>👵 Elderly</Text></View>
-                              )}
-                              {item.customFields?.forChildren && (
-                                <View style={styles.specialNeedTag}><Text style={styles.specialNeedText}>👶 Children</Text></View>
-                              )}
-                              {item.customFields?.forPets && (
-                                <View style={styles.specialNeedTag}><Text style={styles.specialNeedText}>🐾 Pets</Text></View>
-                              )}
-                            </View>
+                            <Text style={styles.itemDescription}>{item.description}</Text>
                           </View>
-                        </View>
-
-                        {isCompleted && (
-                          <LinearGradient colors={['#10b981', '#059669']} style={styles.completedRibbon}>
-                            <Ionicons name="trophy" size={12} color="#fff" />
-                            <Text style={styles.completedText}>+{item.points}pts</Text>
-                          </LinearGradient>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </Animated.View>
-                );
-              })}
+                          {isCompleted && (
+                            <LinearGradient colors={['#10b981', '#059669']} style={styles.completedRibbon}>
+                              <Ionicons name="trophy" size={12} color="#fff" />
+                              <Text style={styles.completedText}>+{item.points}pts</Text>
+                            </LinearGradient>
+                          )}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  );
+                })}
             </View>
           </ExpandableCard>
         </ScrollView>
+        {/* Move FAB here, inside Animated.View but after ScrollView */}
+        <FloatingActionButton
+          onPress={() => setShowModal(true)}
+          icon="add"
+          color="#6366f1"
+        />
       </Animated.View>
 
-      {/* Floating Action Button */}
-      <FloatingActionButton 
-        onPress={() => Alert.alert('Quick Action', 'Add custom item')}
-        icon="add"
-        color="#6366f1"
-      />
+      {/* Add Custom Item Modal */}
+      <Modal visible={showModal} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0,0,0,0.3)'
+          }}
+        >
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            width: width * 0.85,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.15,
+            shadowRadius: 16,
+            elevation: 10
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Add Custom Checklist Item</Text>
+            <TextInput
+              placeholder="Title"
+              value={newTitle}
+              onChangeText={setNewTitle}
+              style={{
+                borderWidth: 1,
+                borderColor: '#e5e7eb',
+                borderRadius: 10,
+                padding: 10,
+                marginBottom: 12
+              }}
+            />
+            <TextInput
+              placeholder="Description"
+              value={newDesc}
+              onChangeText={setNewDesc}
+              style={{
+                borderWidth: 1,
+                borderColor: '#e5e7eb',
+                borderRadius: 10,
+                padding: 10,
+                marginBottom: 16,
+                minHeight: 40
+              }}
+              multiline
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <TouchableOpacity onPress={() => setShowModal(false)}>
+                <Text style={{ color: '#6b7280', fontWeight: '600', fontSize: 16 }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={addCustomItem}>
+                <Text style={{ color: '#6366f1', fontWeight: '700', fontSize: 16 }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -569,7 +855,8 @@ export default function ToolkitScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#f8fafc' 
+    backgroundColor: '#f8fafc',
+    position: 'relative' // <-- ensure relative positioning
   },
   backgroundElements: {
     position: 'absolute',
@@ -1088,6 +1375,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
-    elevation: 10
+    elevation: 20, // <-- increase elevation for Android
+    zIndex: 100,   // <-- add zIndex for iOS/web
   }
 });

@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { GeminiService, ScenarioResponse } from '../../utils/geminiService';
 import { GameStorage, GameResult } from '../../utils/gameStorage';
+import { getPersonalizedScenario } from '../../utils/gemini';
+import { getUserProfile } from '../../utils/profile'; // <-- Add this import
 
 const { width, height } = Dimensions.get('window');
 
@@ -141,8 +143,21 @@ export const EnhancedDisasterGame: React.FC<EnhancedDisasterGameProps> = ({
   const initializeGame = async () => {
     try {
       setGameState('loading');
-      
-      // Use fallback scenario for now to avoid API issues
+      // Get user profile (from AsyncStorage or context)
+      const userProfile = await getUserProfile(); // Now properly imported
+      // Call Gemini for a personalized scenario
+      const scenario = await getPersonalizedScenario(userProfile, scenarioType, difficulty);
+      if (scenario) {
+        setScenario(scenario);
+        setCurrentSituation(scenario.initialSituation);
+        setTimeRemaining(scenario.timePressure);
+        setObjectives(scenario.objectives || []);
+        setResources(scenario.availableResources || []);
+        setAvailableActions(scenario.actions?.map((a: any) => a.description) || []);
+        await animateIntro();
+        return;
+      }
+      // fallback if Gemini fails
       const fallbackScenario = fallbackScenarios[scenarioType as keyof typeof fallbackScenarios] || fallbackScenarios.earthquake;
       
       setScenario(fallbackScenario);

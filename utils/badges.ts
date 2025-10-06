@@ -79,3 +79,9 @@ export const getEarnedBadges = (userProgress: {
 
   return earned;
 };
+
+// Example usage:
+getEarnedBadges({
+  completedItems: ['water-1', 'water-2', 'safety-1', 'safety-2', 'special-1', 'special-2', 'special-3'],
+  totalPoints: 10
+});

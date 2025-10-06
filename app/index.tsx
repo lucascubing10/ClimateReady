@@ -21,6 +21,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+import { getUserProfile } from '@/utils/userProfile';
+import { getPersonalizedToolkit } from '@/utils/gemini';
+import { getEducationalProgress } from '@/utils/educationalData';
+import { GameStorage } from '@/utils/gameStorage';
+import { getEarnedBadges } from '@/utils/badges';
 
 const { width } = Dimensions.get('window');
 
@@ -172,6 +177,12 @@ export default function HomeScreen() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
+  const [prepProgress, setPrepProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [learningProgress, setLearningProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [gameStats, setGameStats] = useState({ bestScore: 0, totalGames: 0, victories: 0 });
+  const [badgesCount, setBadgesCount] = useState(0);
+  const [aiTip, setAiTip] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -184,23 +195,54 @@ export default function HomeScreen() {
     setAlerts(mockAlerts);
   }, []);
 
+  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI'; // Replace with your Google API key
+  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb'; // Replace with your OpenWeatherMap API key
+
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
     try {
       setIsLoadingWeather(true);
-      // Using mock weather data for demo
-      setTimeout(() => {
-        setWeather({
-          temperature: 22,
-          condition: 'Clear',
-          description: 'clear sky',
-          location: 'San Francisco',
-          icon: '01d',
-          humidity: 65,
-          windSpeed: 3.6
-        });
-        setIsLoadingWeather(false);
-      }, 1500);
+
+      // 1. Get city/region name from Google Geocoding API
+      let locationName = '';
+      try {
+        const geoRes = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_API_KEY}`
+        );
+        const geoData = await geoRes.json();
+        if (geoData.status === 'OK' && geoData.results.length > 0) {
+          const address = geoData.results[0].address_components;
+          const cityObj = address.find((c: any) =>
+            c.types.includes('locality')
+          );
+          const regionObj = address.find((c: any) =>
+            c.types.includes('administrative_area_level_1')
+          );
+          const countryObj = address.find((c: any) =>
+            c.types.includes('country')
+          );
+          locationName = cityObj?.long_name || regionObj?.long_name || countryObj?.long_name || '';
+        }
+      } catch (e) {
+        locationName = '';
+      }
+
+      // 2. Fetch weather from OpenWeatherMap API
+      const weatherRes = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`
+      );
+      const weatherData = await weatherRes.json();
+
+      setWeather({
+        temperature: Math.round(weatherData.main.temp),
+        condition: weatherData.weather[0].main,
+        description: weatherData.weather[0].description,
+        location: locationName,
+        icon: weatherData.weather[0].icon,
+        humidity: weatherData.main.humidity,
+        windSpeed: weatherData.wind.speed,
+      });
+      setIsLoadingWeather(false);
     } catch (error) {
       console.error('Error fetching weather:', error);
       setLocationError('Unable to fetch weather data');
@@ -213,10 +255,23 @@ export default function HomeScreen() {
     try {
       setIsLoadingWeather(true);
       setLocationError(null);
-      
-      // Mock location for demo
-      await fetchWeatherData(37.7749, -122.4194);
-      
+
+      // Request permission and get current location
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Permission to access location was denied');
+        setIsLoadingWeather(false);
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      // Use real coordinates for weather
+      await fetchWeatherData(location.coords.latitude, location.coords.longitude);
+
     } catch (error) {
       console.error('Error getting location:', error);
       setLocationError('Unable to get location');
@@ -235,6 +290,56 @@ export default function HomeScreen() {
     });
     setBadges(['first_aid', 'water_supply', 'emergency_kit']);
   }, []);
+
+  // Fetch all progress data on focus
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        // 1. Preparedness Progress (from toolkit)
+        // Replace with your actual storage/context logic
+        const toolkit = await import('@/utils/storage');
+        const userProgress = await toolkit.getUserProgress();
+        setPrepProgress({
+          completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
+          total: userProgress.totalItems ?? 0,
+          percent: userProgress.percent ?? 0
+        });
+
+        // 2. Learning Progress
+        const completedContent = userProgress.completedLearning || [];
+        const eduProgress = getEducationalProgress(completedContent);
+        setLearningProgress({
+          completed: eduProgress.completed,
+          total: eduProgress.total,
+          percent: eduProgress.percentage
+        });
+
+        // 3. Game Stats
+        const stats = await GameStorage.getStats();
+        setGameStats({
+          bestScore: stats.bestScore,
+          totalGames: stats.totalGames,
+          victories: stats.victories
+        });
+
+        // 4. Badges
+        const earned = getEarnedBadges({
+          completedItems: userProgress.completedItems,
+          totalPoints: userProgress.points
+        });
+        setBadgesCount(earned.length);
+
+        // 5. Gemini AI Tip (optional)
+        try {
+          const profile = await getUserProfile();
+          const kit = await getPersonalizedToolkit(userProgress);
+          setAiTip(`AI recommends: ${kit.slice(0, 2).join(', ')}...`);
+        } catch {
+          setAiTip(null);
+        }
+      })();
+    }, [])
+  );
 
   // Only get weather/location on mount
   useEffect(() => {
@@ -447,39 +552,56 @@ export default function HomeScreen() {
           {/* Progress Section */}
           <Animated.View entering={FadeInUp.delay(200).duration(500)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Preparedness</Text>
+              <Text style={styles.sectionTitle}>Your Progress</Text>
             </View>
             <Card style={styles.progressCard}>
               <LinearGradient colors={['#fff', '#f8fafc']} style={styles.progressContent}>
+                {/* Preparedness */}
                 <View style={styles.progressHeader}>
                   <View>
-                    <Text style={styles.progressTitle}>Emergency Readiness</Text>
+                    <Text style={styles.progressTitle}>Preparedness</Text>
                     <Text style={styles.progressSubtitle}>
-                      {progress?.completedItems || 0} of {progress?.totalItems || 0} tasks completed
+                      {prepProgress.completed} of {prepProgress.total} tasks completed
                     </Text>
                   </View>
-                  <ProgressRing progress={progress?.percent || 0} />
+                  <ProgressRing progress={prepProgress.percent} />
                 </View>
-                
-                <View style={styles.progressStats}>
-                  <View style={styles.statItem}>
-                    <Ionicons name="checkmark-done" size={20} color={PRIMARY} />
-                    <Text style={styles.statNumber}>{progress?.completedItems || 0}</Text>
-                    <Text style={styles.statLabel}>Completed</Text>
+                {/* Learning */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Learning</Text>
+                    <Text style={styles.progressSubtitle}>
+                      {learningProgress.completed} of {learningProgress.total} modules
+                    </Text>
                   </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Ionicons name="flash" size={20} color={YELLOW} />
-                    <Text style={styles.statNumber}>{progress?.points || 0}</Text>
-                    <Text style={styles.statLabel}>Points</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Ionicons name="trophy" size={20} color={ORANGE} />
-                    <Text style={styles.statNumber}>{badges.length}</Text>
-                    <Text style={styles.statLabel}>Badges</Text>
-                  </View>
+                  <ProgressRing progress={learningProgress.percent} />
                 </View>
+                {/* Game */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Training Game</Text>
+                    <Text style={styles.progressSubtitle}>
+                      Best Score: {gameStats.bestScore} | Games: {gameStats.totalGames} | Wins: {gameStats.victories}
+                    </Text>
+                  </View>
+                  <Ionicons name="game-controller" size={32} color={PRIMARY} />
+                </View>
+                {/* Badges */}
+                <View style={styles.progressHeader}>
+                  <View>
+                    <Text style={styles.progressTitle}>Badges</Text>
+                    <Text style={styles.progressSubtitle}>
+                      {badgesCount} earned
+                    </Text>
+                  </View>
+                  <Ionicons name="trophy" size={32} color={ORANGE} />
+                </View>
+                {/* AI Tip */}
+                {aiTip && (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={{ color: PRIMARY, fontWeight: '600' }}>{aiTip}</Text>
+                  </View>
+                )}
               </LinearGradient>
             </Card>
           </Animated.View>
