@@ -43,7 +43,7 @@ server/.env.*
 *.tsbuildinfo
 
 app-example
-
+Firestorerules.txt
 
 #web app for tracking
 sos-live-tracker-map/
