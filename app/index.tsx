@@ -9,9 +9,12 @@ import { Badge } from '../components/Toolkit/Badge';
 import { ProgressBar } from '../components/Toolkit/ProgressBar';
 import { getUserProgress } from '../utils/storage';
 import { getEarnedBadges } from '../utils/badges';
+
+//testing push notifications
+import { registerForPushNotificationsAsync } from '../utils/registerPushNotifications';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
-
+//test
 const PRIMARY = '#5ba24f';
 const YELLOW = '#fac609';
 const ORANGE = '#e5793a';
@@ -89,6 +92,17 @@ export default function HomeScreen() {
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // Push notification registration for testing
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        console.log('🔥 Got device token:', token);
+        // TODO: Persist token to backend so the user can receive targeted notifications.
+      }
+    });
+  }, []);
 
   // Greeting logic
   useEffect(() => {
