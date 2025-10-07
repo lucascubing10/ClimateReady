@@ -9,6 +9,7 @@ import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } fr
 const PRIMARY = '#5ba24f';
 const SECONDARY = '#0284c7';
 const DANGER = '#dc2626';
+const CARD_BG = '#ffffff';
 
 // Settings Section Component
 const SettingsSection = ({ 
@@ -223,49 +224,47 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#dcefdd', // match BG from home
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 24,
   },
   section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: CARD_BG,
+    borderRadius: 24,
+    marginBottom: 24,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2.5,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
     marginLeft: 12,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionContent: {
-    // Content styles
-  },
+  sectionContent: {},
   settingItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -274,15 +273,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   settingLabel: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#374151',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   settingValue: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6b7280',
     marginTop: 2,
   },
@@ -290,15 +289,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 30,
+    backgroundColor: CARD_BG,
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   signOutText: {
     color: DANGER,
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
+    fontWeight: '700',
+    fontSize: 18,
+    marginLeft: 12,
   },
 });

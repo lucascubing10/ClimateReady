@@ -1,55 +1,127 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
+import React, { useEffect, useState, useCallback, JSX } from 'react';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  Dimensions,
   StyleSheet,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Alert,
-  Dimensions,
-  SafeAreaView,
-  TouchableOpacity
+  Image
 } from 'react-native';
-import { Link } from 'expo-router';
-import { InputField, Button } from '../../components/AuthComponents';
-import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import * as Location from 'expo-location';
+import Animated, { 
+  FadeInUp, 
+  FadeInRight,
+  SlideInDown,
+  ZoomIn
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { InputField } from '@/components/AuthComponents';
+import { ActivityIndicator } from 'react-native';
+import { useAuth } from '@/context/AuthContext'; // Add this import
 
-// Screen: handles credential-based login for ClimateReady responders/citizens.
-export default function LoginScreen() {
+const { width } = Dimensions.get('window');
+
+// Color palette
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT: readonly [ColorValue, ColorValue] = ['#5ba24f', '#4a8c40'];
+const YELLOW = '#fac609';
+const YELLOW_GRADIENT = ['#fac609', '#e6b408'];
+const ORANGE = '#e5793a';
+const ORANGE_GRADIENT = ['#e5793a', '#d4692a'];
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
+
+// Reusable Card Component
+const Card = ({ children, style, gradient, onPress }: any) => {
+  const content = (
+    <View style={[styles.card, style]}>
+      {children}
+    </View>
+  );
+
+  if (gradient) {
+    return (
+      <LinearGradient colors={gradient as [ColorValue, ColorValue, ...ColorValue[]]} style={[styles.card, style]}>
+        {children}
+      </LinearGradient>
+    );
+  }
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} style={[styles.card, style]}>
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
+};
+
+// Custom Button Component
+const CustomButton = ({ title, onPress, style, isLoading = false }: any) => {
+  return (
+    <TouchableOpacity 
+      style={[styles.button, style]} 
+      onPress={onPress}
+      disabled={isLoading}
+    >
+      <LinearGradient
+        colors={PRIMARY_GRADIENT}
+        style={styles.buttonGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>{title}</Text>
+        )}
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+};
+
+const LoginScreen = () => {
+  const insets = useSafeAreaInsets();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState({ email: '', password: '' });
   const [authError, setAuthError] = useState('');
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { login } = useAuth();
-  
-  // Validate both fields before attempting Firebase auth so we can
-  // surface friendly inline errors instead of backend error codes.
+  const router = useRouter();
+  const { login } = useAuth(); // Add this line to get the login function
+
+  // Input validation function
   const validateInputs = () => {
-    let isValid = true;
-    const newErrors = { email: '', password: '' };
-    
+    let valid = true;
+    const newErrors: { email?: string; password?: string } = {};
+
     if (!email) {
       newErrors.email = 'Email is required';
-      isValid = false;
+      valid = false;
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-      isValid = false;
+      newErrors.email = 'Enter a valid email address';
+      valid = false;
     }
-    
+
     if (!password) {
       newErrors.password = 'Password is required';
-      isValid = false;
+      valid = false;
     }
-    
+
     setErrors(newErrors);
-    return isValid;
+    return valid;
   };
-  
+
   // Submit credentials to the AuthContext (Firebase under the hood) and translate
   // Firebase error codes into user-friendly messages when something goes wrong.
   const handleLogin = async () => {
@@ -87,47 +159,82 @@ export default function LoginScreen() {
       setIsLoading(false);
     }
   };
-  
-  // Using Link component instead
-  
+
+  // Clear errors when user starts typing
+  const handleEmailChange = (text: string) => {
+    setEmail(text);
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: undefined }));
+    }
+    if (authError) setAuthError('');
+  };
+
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: undefined }));
+    }
+    if (authError) setAuthError('');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Logo and hero copy */}
-          <View style={styles.logoContainer}>
-            <Image 
-              source={require('../../assets/images/ClimateReadyV4.png')} 
-              style={{...styles.logo, resizeMode: 'contain'}} 
-            />
+          {/* Background Elements */}
+          <View style={styles.backgroundElements}>
+            <View style={[styles.bgCircle, styles.bgCircle1]} />
+            <View style={[styles.bgCircle, styles.bgCircle2]} />
+            <View style={[styles.bgCircle, styles.bgCircle3]} />
           </View>
-          
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to continue to ClimateReady</Text>
-          
+
+          {/* Logo with Animation */}
+          <Animated.View 
+            entering={ZoomIn.duration(800)}
+            style={styles.logoContainer}
+          >
+            <Image 
+              source={require('../../assets/images/ClimateReadyv2.png')} 
+              style={styles.logo} 
+            />
+          </Animated.View>
+
+          {/* Header with Animation */}
+          <Animated.View 
+            entering={FadeInUp.duration(600).delay(200)}
+            style={styles.headerContainer}
+          >
+            <Text style={styles.header}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue to ClimateReady</Text>
+          </Animated.View>
+
+          {/* Auth Error Banner */}
           {authError ? (
-            // Global auth error banner for invalid credentials / service issues
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{authError}</Text>
-            </View>
+            <Animated.View 
+              entering={FadeInUp.duration(400)}
+              style={styles.authErrorContainer}
+            >
+              <Text style={styles.authErrorText}>{authError}</Text>
+            </Animated.View>
           ) : null}
-          
-          <View style={styles.formContainer}>
+
+          {/* Form Container */}
+          <Animated.View 
+            entering={FadeInUp.duration(600).delay(400)}
+            style={styles.formContainer}
+          >
             {/* Email field with inline validation */}
             <InputField
               label="Email"
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (authError) setAuthError('');
-              }}
+              onChangeText={handleEmailChange}
               placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -136,14 +243,11 @@ export default function LoginScreen() {
               leftIcon={<Ionicons name="mail-outline" size={20} color="#9ca3af" />}
             />
             
-            {/* Password entry; we intentionally keep the field simple */}
+            {/* Password entry */}
             <InputField
               label="Password"
               value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (authError) setAuthError('');
-              }}
+              onChangeText={handlePasswordChange}
               placeholder="Enter your password"
               secureTextEntry
               error={errors.password}
@@ -151,103 +255,198 @@ export default function LoginScreen() {
               leftIcon={<Ionicons name="lock-closed-outline" size={20} color="#9ca3af" />}
             />
             
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Link href={'/forgot-password' as any} asChild>
+            {/* Forgot Password */}
+            <Animated.View 
+              entering={FadeInUp.duration(600).delay(600)}
+              style={styles.forgotPasswordContainer}
+            >
+              <Link href="/auth/forgot-password" asChild>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </Link>
-            </TouchableOpacity>
+            </Animated.View>
             
-            {/* Primary auth CTA */}
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              style={styles.loginButton}
-            />
+            {/* Login Button */}
+            <Animated.View 
+              entering={FadeInUp.duration(600).delay(800)}
+              style={styles.buttonContainer}
+            >
+              <CustomButton
+                title="Sign In"
+                onPress={handleLogin}
+                isLoading={isLoading}
+                accessibilityLabel="Sign in to your account"
+                accessibilityHint="Navigates to the home screen after successful authentication"
+              />
+            </Animated.View>
             
-            {/* Secondary navigation to registration */}
-            <View style={{flexDirection: 'row', justifyContent: 'center', marginTop: 16}}>
-              <Text style={styles.noAccountText}>Don't have an account? </Text>
-              <Link href={'/register' as any} asChild>
-                <Text style={{color: '#0284c7', fontWeight: '500', fontSize: 14}}>Create Account</Text>
+            {/* Sign Up Link */}
+            <Animated.View 
+              entering={FadeInUp.duration(600).delay(1000)}
+              style={styles.signupContainer}
+            >
+              <Text style={styles.signupText}>Don't have an account? </Text>
+              <Link href={'auth/register' as any} asChild>
+                <Text style={styles.signupLink}>Create Account</Text>
               </Link>
-            </View>
-          </View>
+            </Animated.View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
+};
 
-const { width } = Dimensions.get('window');
+export default LoginScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: BG,
   },
   keyboardAvoid: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
-    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 40,
     justifyContent: 'center',
+    alignItems: 'stretch',
+    minHeight: '100%',
+  },
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
+  },
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
+  },
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
+  },
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginTop: 40,
+    marginBottom: 20,
   },
   logo: {
-    width: width * 0.6,
-    height: 100,
+    width: 180,
+    height: 80,
+    resizeMode: 'contain',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  header: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1f2937',
     textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    fontWeight: '400',
     color: '#6b7280',
-    marginBottom: 32,
     textAlign: 'center',
   },
-  formContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-  },
-  forgotPasswordText: {
-    color: '#0284c7',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loginButton: {
-    marginTop: 8,
-  },
-  noAccountText: {
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  errorContainer: {
+  authErrorContainer: {
     backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    width: '100%',
-    maxWidth: 400,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ef4444',
   },
-  errorText: {
+  authErrorText: {
     color: '#dc2626',
     fontSize: 14,
     fontWeight: '500',
-    textAlign: 'center',
+  },
+  formContainer: {
+    zIndex: 1,
+    alignItems: 'center',
+    width: '100%',
+  },
+  forgotPasswordContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 24,
+    width: '100%',
+  },
+  forgotPasswordText: {
+    color: PRIMARY,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  buttonContainer: {
+    marginBottom: 24,
+    width: '100%',
+  },
+  button: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    paddingHorizontal: 20,
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  signupLink: {
+    color: PRIMARY,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
 });
