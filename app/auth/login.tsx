@@ -152,7 +152,7 @@ export default function LoginScreen() {
             />
             
             <TouchableOpacity style={styles.forgotPassword}>
-              <Link href={'/forgot-password' as any} asChild>
+              <Link href={'auth/forgot-password' as any} asChild>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </Link>
             </TouchableOpacity>
@@ -168,7 +168,7 @@ export default function LoginScreen() {
             {/* Secondary navigation to registration */}
             <View style={{flexDirection: 'row', justifyContent: 'center', marginTop: 16}}>
               <Text style={styles.noAccountText}>Don't have an account? </Text>
-              <Link href={'/register' as any} asChild>
+              <Link href={'auth/register' as any} asChild>
                 <Text style={{color: '#0284c7', fontWeight: '500', fontSize: 14}}>Create Account</Text>
               </Link>
             </View>

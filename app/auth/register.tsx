@@ -253,7 +253,7 @@ export default function RegisterScreen() {
             {/* Link back to login for returning users */}
             <View style={styles.loginLinkContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <Link href={'/login' as any} asChild>
+              <Link href={'auth/login' as any} asChild>
                 <Text style={styles.link}>Sign In</Text>
               </Link>
             </View>
