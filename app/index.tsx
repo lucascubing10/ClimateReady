@@ -279,80 +279,70 @@ export default function HomeScreen() {
     }
   }, [fetchWeatherData]);
 
-  // Fetch progress and badges
+  // Fetch all progress data on focus and mount
   const refreshProgress = useCallback(async () => {
-    // Mock progress data
-    setProgress({
-      points: 450,
-      percent: 65,
-      completedItems: 26,
-      totalItems: 40
-    });
-    setBadges(['first_aid', 'water_supply', 'emergency_kit']);
+    try {
+      // 1. Preparedness Progress (from toolkit)
+      const toolkit = await import('@/utils/storage');
+      const userProgress = await toolkit.getUserProgress();
+      setPrepProgress({
+        completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
+        total: userProgress.totalItems ?? 0,
+        percent: userProgress.percent ?? 0
+      });
+
+      // 2. Learning Progress
+      const completedContent = userProgress.completedLearning || [];
+      const eduProgress = getEducationalProgress(completedContent);
+      setLearningProgress({
+        completed: eduProgress.completed,
+        total: eduProgress.total,
+        percent: eduProgress.percentage
+      });
+
+      // 3. Game Stats
+      const stats = await GameStorage.getStats();
+      setGameStats({
+        bestScore: stats.bestScore,
+        totalGames: stats.totalGames,
+        victories: stats.victories
+      });
+
+      // 4. Badges
+      const earned = getEarnedBadges({
+        completedItems: userProgress.completedItems,
+        totalPoints: userProgress.points
+      });
+      setBadgesCount(earned.length);
+
+      // 5. Gemini AI Tip (optional)
+      try {
+        const profile = await getUserProfile();
+        const kit = await getPersonalizedToolkit(userProgress);
+        setAiTip(`AI recommends: ${kit.slice(0, 2).join(', ')}...`);
+      } catch {
+        setAiTip(null);
+      }
+    } catch (error) {
+      // Handle errors gracefully
+      setPrepProgress({ completed: 0, total: 0, percent: 0 });
+      setLearningProgress({ completed: 0, total: 0, percent: 0 });
+      setGameStats({ bestScore: 0, totalGames: 0, victories: 0 });
+      setBadgesCount(0);
+      setAiTip(null);
+    }
   }, []);
 
-  // Fetch all progress data on focus
-  useFocusEffect(
-    useCallback(() => {
-      (async () => {
-        // 1. Preparedness Progress (from toolkit)
-        // Replace with your actual storage/context logic
-        const toolkit = await import('@/utils/storage');
-        const userProgress = await toolkit.getUserProgress();
-        setPrepProgress({
-          completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
-          total: userProgress.totalItems ?? 0,
-          percent: userProgress.percent ?? 0
-        });
-
-        // 2. Learning Progress
-        const completedContent = userProgress.completedLearning || [];
-        const eduProgress = getEducationalProgress(completedContent);
-        setLearningProgress({
-          completed: eduProgress.completed,
-          total: eduProgress.total,
-          percent: eduProgress.percentage
-        });
-
-        // 3. Game Stats
-        const stats = await GameStorage.getStats();
-        setGameStats({
-          bestScore: stats.bestScore,
-          totalGames: stats.totalGames,
-          victories: stats.victories
-        });
-
-        // 4. Badges
-        const earned = getEarnedBadges({
-          completedItems: userProgress.completedItems,
-          totalPoints: userProgress.points
-        });
-        setBadgesCount(earned.length);
-
-        // 5. Gemini AI Tip (optional)
-        try {
-          const profile = await getUserProfile();
-          const kit = await getPersonalizedToolkit(userProgress);
-          setAiTip(`AI recommends: ${kit.slice(0, 2).join(', ')}...`);
-        } catch {
-          setAiTip(null);
-        }
-      })();
-    }, [])
-  );
-
-  // Only get weather/location on mount
-  useEffect(() => {
-    getLocationAndWeather();
-    refreshProgress();
-  }, [getLocationAndWeather, refreshProgress]);
-
-  // Only refresh progress when navigating back to home
   useFocusEffect(
     useCallback(() => {
       refreshProgress();
     }, [refreshProgress])
   );
+
+  useEffect(() => {
+    refreshProgress();
+    getLocationAndWeather();
+  }, [refreshProgress, getLocationAndWeather]);
 
   const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
     const routeMap: Record<typeof screen, string> = {
