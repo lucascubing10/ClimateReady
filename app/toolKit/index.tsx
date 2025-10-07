@@ -20,7 +20,7 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { checklistItems } from "@/utils/checklistData";
 import { getEarnedBadges } from "@/utils/badges";
-import { getUserProgress, updateChecklistItem } from "@/utils/storage";
+import { getUserProgress, updateChecklistItem, saveAiRecommendation, getAiRecommendation } from "@/utils/storage";
 import { getUserProfile } from "../../utils/profile";
 import { getPersonalizedToolkit } from "../../utils/gemini";
 import { Ionicons } from "@expo/vector-icons";
@@ -263,22 +263,29 @@ export default function ToolkitScreen() {
     (async () => {
       setAiLoading(true);
 
-      // Load profile from AsyncStorage
       let userProfile = await AsyncStorage.getItem("householdProfile");
       let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
       setProfile(parsedProfile);
 
-      // Simulate AI loading
-      setTimeout(() => {
-        setPersonalizedToolkit([
-          "Portable water filter",
-          "Emergency radio with charging",
-          "7-day medication supply",
-          "Important documents waterproof case",
-          "Family contact cards",
-        ]);
-        setAiLoading(false);
-      }, 2000);
+      if (parsedProfile?.householdCompleted) {
+        // Try to load cached AI recommendation first
+        const cached = await getAiRecommendation();
+        if (cached) {
+          setPersonalizedToolkit(JSON.parse(cached));
+          setAiLoading(false);
+          return;
+        }
+        try {
+          const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
+          setPersonalizedToolkit(recommendations);
+          await saveAiRecommendation(JSON.stringify(recommendations)); // Save to AsyncStorage
+        } catch (error) {
+          setPersonalizedToolkit([]);
+        }
+      } else {
+        setPersonalizedToolkit([]);
+      }
+      setAiLoading(false);
     })();
   }, [loadProgress, activeDisaster]);
 
