@@ -23,30 +23,30 @@ export async function getPersonalizedToolkit(profile: any, disasterType?: string
   };
 
   try {
-    console.log('Gemini Toolkit Prompt:', prompt); // <-- LOG PROMPT
+    console.log('[Gemini] Prompt:', prompt); // <-- LOG PROMPT
     const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
     if (!res.ok) {
-      console.error('Gemini API error:', res.status, await res.text());
+      console.error('[Gemini] API error:', res.status, await res.text());
       throw new Error('Gemini API error');
     }
     const data = await res.json();
-    console.log('Gemini Toolkit Response:', data); // <-- LOG RESPONSE
+    console.log('[Gemini] Response:', data); // <-- LOG RESPONSE
     // Try to extract JSON array from response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     try {
       const match = text.match(/\[.*\]/s);
       if (match) return JSON.parse(match[0]);
     } catch (err) {
-      console.error('Gemini JSON parse error:', err, text);
+      console.error('[Gemini] JSON parse error:', err, text);
     }
     // fallback: return lines
     return text.split('\n').map((l: string) => l.trim()).filter(Boolean);
   } catch (err) {
-    console.error('Gemini API call failed:', err);
+    console.error('[Gemini] API call failed:', err);
     return [];
   }
 }

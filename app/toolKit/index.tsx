@@ -20,11 +20,11 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { checklistItems } from "@/utils/checklistData";
 import { getEarnedBadges } from "@/utils/badges";
-import { getUserProgress, updateChecklistItem } from "@/utils/storage";
+import { getUserProgress, updateChecklistItem, saveAiRecommendation, getAiRecommendation, getCustomItems } from "@/utils/storage";
 import { getUserProfile } from "../../utils/profile";
 import { getPersonalizedToolkit } from "../../utils/gemini";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get("window");
 
@@ -263,27 +263,35 @@ export default function ToolkitScreen() {
     (async () => {
       setAiLoading(true);
 
-      // Load profile from AsyncStorage
-      let userProfile = await AsyncStorage.getItem("householdProfile");
-      let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
-      setProfile(parsedProfile);
+      // Load household profile
+      const userProfileRaw = await AsyncStorage.getItem("householdProfile");
+      const userProfile = userProfileRaw ? JSON.parse(userProfileRaw) : null;
+      setProfile(userProfile);
 
-      console.log('Loaded household profile:', parsedProfile);
-
-      if (parsedProfile?.householdCompleted) {
-        try {
-          console.log('Fetching AI recommendations for profile...');
-          // Pass activeDisaster for context
-          const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
-          console.log('AI recommendations received:', recommendations);
-          setPersonalizedToolkit(recommendations);
-        } catch (error) {
-          console.error('Error fetching AI recommendations:', error);
-          setPersonalizedToolkit([]);
+      // Only fetch AI recommendation if householdCompleted is true
+      if (userProfile?.householdCompleted) {
+        // Try to load cached AI recommendation
+        let cached = await getAiRecommendation();
+        if (cached && cached !== '') {
+          setPersonalizedToolkit(JSON.parse(cached));
+        } else {
+          // Fetch from Gemini and save
+          try {
+            const recommendations = await getPersonalizedToolkit(userProfile, activeDisaster ?? undefined);
+            setPersonalizedToolkit(recommendations);
+            await saveAiRecommendation(JSON.stringify(recommendations));
+          } catch (error) {
+            setPersonalizedToolkit([]);
+          }
         }
       } else {
-        console.log('Household profile not completed, skipping AI recommendations');
         setPersonalizedToolkit([]);
+      }
+
+      // Load custom toolkit from storage
+      const custom = await getCustomItems();
+      if (custom) {
+        setCustomItems(custom);
       }
 
       setAiLoading(false);
