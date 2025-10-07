@@ -7,6 +7,7 @@ import ProfileCompletionReminder from '../../components/ProfileCompletionReminde
 import { checkActiveSOSSession, getSOSSettings } from '../../utils/sos/sosService';
 import { useAuth } from '../../context/AuthContext';
 
+// Layout: provides the bottom tab navigator and custom SOS FAB-style button.
 export default function TabsLayout() {
   const router = useRouter();
   const { userProfile } = useAuth();
@@ -27,7 +28,7 @@ export default function TabsLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  // Handle SOS button press
+  // Handle SOS button press - Direct activation with single tap
   const handleSOSButtonPress = async () => {
     if (isSOSActive) {
       // If SOS is already active, go to the SOS screen to manage it
@@ -51,23 +52,11 @@ export default function TabsLayout() {
       return;
     }
 
-    // Show confirmation alert with quick action
-    Alert.alert(
-      'Activate SOS Emergency?',
-      'This will share your location with your emergency contacts.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Activate SOS', 
-          style: 'destructive',
-          onPress: () => router.push('/tabs/sos') 
-        },
-        { 
-          text: 'SOS Settings', 
-          onPress: () => router.push('/tabs/sos-settings') 
-        }
-      ]
-    );
+    // Directly go to SOS page with a parameter to auto-activate - single tap activation
+    router.push({
+      pathname: '/tabs/sos',
+      params: { autoActivate: 'true' }
+    });
   };
 
   return (
@@ -104,6 +93,7 @@ export default function TabsLayout() {
           name="sos"
           options={{
             title: 'SOS',
+            // Replace default tab item with a prominent panic button.
             tabBarButton: () => (
               <TouchableOpacity
                 style={[

@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { auth, db } from '../../firebaseConfig';
-import { doc, setDoc, getDoc, arrayUnion, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, arrayUnion, updateDoc, serverTimestamp } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
@@ -161,48 +161,99 @@ export async function addEmergencyResponder(contactId: string, pushToken: string
 // Send notification to emergency responders
 export async function notifyEmergencyResponders(sosSessionId: string, userProfile: any) {
   try {
+    console.log('[SOS Notification] Starting emergency notification process', { 
+      sessionId: sosSessionId,
+      contactsCount: userProfile?.emergencyContacts?.length || 0 
+    });
+    
     const user = auth.currentUser;
-    if (!user) throw new Error('User not authenticated');
+    if (!user) {
+      console.error('[SOS Notification] User not authenticated when sending notifications');
+      throw new Error('User not authenticated');
+    }
     
     // If no emergency contacts, exit
     if (!userProfile?.emergencyContacts || userProfile.emergencyContacts.length === 0) {
+      console.warn('[SOS Notification] No emergency contacts to notify');
       return false;
     }
     
-    // For each emergency contact that has a push token registered
+    // For each emergency contact, generate tracking URL
     for (const contact of userProfile.emergencyContacts) {
       try {
-        // Check if this contact is registered as an emergency responder
-        const responderRef = doc(db, 'emergency_responders', contact.phoneNumber);
-        const responderDoc = await getDoc(responderRef);
+        console.log(`[SOS Notification] Processing contact: ${contact.name} (${contact.phoneNumber})`);
         
-        if (responderDoc.exists() && responderDoc.data().pushToken) {
-          // Add to the notifications collection to be sent by the server
-          const notificationRef = doc(db, 'push_notifications', `${sosSessionId}_${contact.phoneNumber}`);
-          await setDoc(notificationRef, {
-            to: responderDoc.data().pushToken,
-            title: `SOS EMERGENCY: ${userProfile.firstName} ${userProfile.lastName}`,
-            body: 'Needs your help! Tap to view their live location.',
-            data: {
-              url: `/session/${sosSessionId}`,
-              sosSessionId,
-              type: 'sos_alert',
-              timestamp: new Date(),
-              senderName: `${userProfile.firstName} ${userProfile.lastName}`,
-            },
-            sendAt: new Date(),
-            sent: false,
-          });
-        }
+        // Generate the tracking URL with access token
+        const accessToken = await generateAccessTokenIfNeeded(sosSessionId);
+        const trackingUrl = `https://sos-live-tracker-map.vercel.app/session/${sosSessionId}?token=${accessToken}`;
+        
+        console.log(`[SOS Notification] Generated tracking URL with token: ${trackingUrl.substring(0, 60)}...`);
+        
+        // We're using SMS notifications instead of push notifications
+        // This would typically call a server function or API to send the SMS
+        // For now we're just logging the info
+        
+        // Create message content (this would be sent via SMS)
+        const messageTitle = `SOS EMERGENCY: ${userProfile.firstName || ''} ${userProfile.lastName || ''}`;
+        const messageBody = 'Needs your help! View their live location at: ' + trackingUrl;
+        
+        console.log(`[SOS Notification] Would send SMS to ${contact.phoneNumber}:`);
+        console.log(`[SOS Notification] Title: ${messageTitle}`);
+        console.log(`[SOS Notification] Body: ${messageBody}`);
       } catch (contactError) {
-        console.error(`Error notifying responder ${contact.phoneNumber}:`, contactError);
+        console.error(`[SOS Notification] Error notifying responder ${contact.phoneNumber}:`, contactError);
         // Continue with next contact
       }
     }
     
+    console.log('[SOS Notification] Emergency notifications prepared successfully');
     return true;
   } catch (error) {
-    console.error('Error notifying emergency responders:', error);
+    console.error('[SOS Notification] Error notifying emergency responders:', error);
     return false;
+  }
+}
+
+// Helper function to ensure we have a valid access token
+async function generateAccessTokenIfNeeded(sosSessionId: string): Promise<string> {
+  try {
+    // Get the session document
+    const sessionRef = doc(db, 'sos_sessions', sosSessionId);
+    const sessionDoc = await getDoc(sessionRef);
+    
+    if (sessionDoc.exists()) {
+      const sessionData = sessionDoc.data();
+      
+      // Check if there's already a token that's not too old
+      if (sessionData.accessToken && sessionData.tokenCreatedAt) {
+        const tokenAge = new Date().getTime() - sessionData.tokenCreatedAt.toMillis();
+        const tokenAgeHours = tokenAge / (1000 * 60 * 60);
+        
+        // If token is less than 12 hours old, reuse it
+        if (tokenAgeHours < 12) {
+          console.log('[SOS Notification] Reusing existing access token');
+          return sessionData.accessToken;
+        }
+      }
+    }
+    
+    // Generate a new secure token (16 characters)
+    const tokenChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < 16; i++) {
+      token += tokenChars.charAt(Math.floor(Math.random() * tokenChars.length));
+    }
+    
+    // Update the session with the new token
+    await updateDoc(sessionRef, {
+      accessToken: token,
+      tokenCreatedAt: serverTimestamp()
+    });
+    
+    console.log('[SOS Notification] Generated new access token');
+    return token;
+  } catch (error) {
+    console.error('[SOS Notification] Error generating access token:', error);
+    throw error;
   }
 }

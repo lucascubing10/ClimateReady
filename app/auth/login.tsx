@@ -17,6 +17,7 @@ import { InputField, Button } from '../../components/AuthComponents';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
+// Screen: handles credential-based login for ClimateReady responders/citizens.
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +27,8 @@ export default function LoginScreen() {
   
   const { login } = useAuth();
   
+  // Validate both fields before attempting Firebase auth so we can
+  // surface friendly inline errors instead of backend error codes.
   const validateInputs = () => {
     let isValid = true;
     const newErrors = { email: '', password: '' };
@@ -47,6 +50,8 @@ export default function LoginScreen() {
     return isValid;
   };
   
+  // Submit credentials to the AuthContext (Firebase under the hood) and translate
+  // Firebase error codes into user-friendly messages when something goes wrong.
   const handleLogin = async () => {
     if (!validateInputs()) return;
     
@@ -96,6 +101,7 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Logo and hero copy */}
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/images/ClimateReadyV4.png')} 
@@ -107,12 +113,14 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Sign in to continue to ClimateReady</Text>
           
           {authError ? (
+            // Global auth error banner for invalid credentials / service issues
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{authError}</Text>
             </View>
           ) : null}
           
           <View style={styles.formContainer}>
+            {/* Email field with inline validation */}
             <InputField
               label="Email"
               value={email}
@@ -128,6 +136,7 @@ export default function LoginScreen() {
               leftIcon={<Ionicons name="mail-outline" size={20} color="#9ca3af" />}
             />
             
+            {/* Password entry; we intentionally keep the field simple */}
             <InputField
               label="Password"
               value={password}
@@ -143,11 +152,12 @@ export default function LoginScreen() {
             />
             
             <TouchableOpacity style={styles.forgotPassword}>
-              <Link href={'/forgot-password' as any} asChild>
+              <Link href={'auth/forgot-password' as any} asChild>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </Link>
             </TouchableOpacity>
             
+            {/* Primary auth CTA */}
             <Button
               title="Sign In"
               onPress={handleLogin}
@@ -155,9 +165,10 @@ export default function LoginScreen() {
               style={styles.loginButton}
             />
             
+            {/* Secondary navigation to registration */}
             <View style={{flexDirection: 'row', justifyContent: 'center', marginTop: 16}}>
               <Text style={styles.noAccountText}>Don't have an account? </Text>
-              <Link href={'/register' as any} asChild>
+              <Link href={'auth/register' as any} asChild>
                 <Text style={{color: '#0284c7', fontWeight: '500', fontSize: 14}}>Create Account</Text>
               </Link>
             </View>

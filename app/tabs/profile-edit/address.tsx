@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { InputField, Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
 
+// Screen: lets users manage the address block of their profile.
 export default function EditAddressScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function EditAddressScreen() {
     zip: '',
   });
   
+  // Keep the form reactive and reset field-level errors once users begin correcting input.
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field as keyof typeof errors]) {
@@ -44,6 +46,8 @@ export default function EditAddressScreen() {
     }
   };
   
+  // Only the ZIP code is validated here; other fields accept free-form values to
+  // accommodate global address formats.
   const validateForm = () => {
     const newErrors = { ...errors };
     let isValid = true;
@@ -58,6 +62,7 @@ export default function EditAddressScreen() {
     return isValid;
   };
   
+  // Persist the updated address to Firestore via AuthContext and then return to profile.
   const handleSave = async () => {
     if (!validateForm()) return;
     
@@ -93,6 +98,7 @@ export default function EditAddressScreen() {
           title: 'Edit Address',
           headerShown: true,
           headerTitleAlign: 'center',
+          // Provide manual back navigation instead of relying on the hardware back button.
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.push('/tabs/profile' as any)}
@@ -115,6 +121,7 @@ export default function EditAddressScreen() {
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Home Address</Text>
             
+            {/* Individual address fields */}
             <InputField
               label="Street Address"
               value={formData.street}
@@ -167,6 +174,7 @@ export default function EditAddressScreen() {
               </Text>
             </View>
             
+            {/* Save CTA */}
             <Button
               title={isLoading ? 'Saving...' : 'Save Changes'}
               onPress={handleSave}

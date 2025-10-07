@@ -17,6 +17,7 @@ import { InputField, Button } from '../../../components/AuthComponents';
 import { useAuth } from '../../../context/AuthContext';
 import { genderOptions } from '../../../utils/userDataModel';
 
+// Screen: captures demographic details used for recommendations.
 export default function EditPersonalDetailsScreen() {
   const { userProfile, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function EditPersonalDetailsScreen() {
     birthday: '',
   });
   
+  // Reset inline errors when the birthday field is modified.
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (field === 'birthday' && errors.birthday) {
@@ -39,6 +41,7 @@ export default function EditPersonalDetailsScreen() {
     }
   };
   
+  // Ensure birthday follows the ISO date format; gender is optional so no validation here.
   const validateForm = () => {
     const newErrors = { ...errors };
     let isValid = true;
@@ -53,6 +56,7 @@ export default function EditPersonalDetailsScreen() {
     return isValid;
   };
   
+  // Persist the updated data and close out once Firestore confirms the write.
   const handleSave = async () => {
     if (!validateForm()) return;
     
@@ -83,6 +87,7 @@ export default function EditPersonalDetailsScreen() {
           title: 'Edit Personal Details',
           headerShown: true,
           headerTitleAlign: 'center',
+          // Mirror back behaviour found on other profile edit screens.
           headerLeft: () => (
             <TouchableOpacity 
               onPress={() => router.push('/tabs/profile' as any)}
@@ -106,6 +111,7 @@ export default function EditPersonalDetailsScreen() {
             <Text style={styles.sectionTitle}>Personal Details</Text>
             
             <Text style={styles.fieldLabel}>Gender</Text>
+            {/* Render selectable chips using the shared option list */}
             <View style={styles.optionsContainer}>
               {genderOptions.map((gender) => (
                 <TouchableOpacity

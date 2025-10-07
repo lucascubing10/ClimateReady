@@ -1,6 +1,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 
+// Layout: centralises the stack configuration for the profile edit wizard.
 export default function ProfileEditLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>

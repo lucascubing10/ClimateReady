@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile } from '../../utils/userDataModel';
 
+// Screen: creates a new ClimateReady user and captures baseline profile fields.
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -41,6 +42,7 @@ export default function RegisterScreen() {
   
   const { register } = useAuth();
   
+  // Keep the form state and validation errors in sync as the user types.
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
@@ -49,6 +51,8 @@ export default function RegisterScreen() {
     }
   };
   
+  // Apply lightweight client-side validation so we can give actionable
+  // feedback before hitting Firebase and so we can highlight each field.
   const validateInputs = () => {
     const newErrors = { ...errors };
     let isValid = true;
@@ -98,6 +102,8 @@ export default function RegisterScreen() {
     return isValid;
   };
   
+  // Delegate the actual account creation to AuthContext; Firebase will emit
+  // the auth state change that reroutes the user into the main app shell.
   const handleRegister = async () => {
     if (!validateInputs()) return;
     
@@ -147,6 +153,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Brand lockup */}
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/images/ClimateReadyV4.png')} 
@@ -158,6 +165,7 @@ export default function RegisterScreen() {
           <Text style={styles.subtitle}>Start your climate safety journey</Text>
           
           <View style={styles.formContainer}>
+            {/* Group name inputs side-by-side on larger screens */}
             <View style={styles.nameRow}>
               <InputField
                 label="First Name"
@@ -234,6 +242,7 @@ export default function RegisterScreen() {
               </Text>
             </View>
             
+            {/* Create account button */}
             <Button
               title="Create Account"
               onPress={handleRegister}
@@ -241,9 +250,10 @@ export default function RegisterScreen() {
               style={styles.registerButton}
             />
             
+            {/* Link back to login for returning users */}
             <View style={styles.loginLinkContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <Link href={'/login' as any} asChild>
+              <Link href={'auth/login' as any} asChild>
                 <Text style={styles.link}>Sign In</Text>
               </Link>
             </View>

@@ -88,6 +88,7 @@ const ProfileSection = ({
   </View>
 );
 
+// Screen: overview of the user’s profile completeness plus quick entry points to edit sections.
 export default function ProfileScreen() {
   const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
   const router = useRouter();
@@ -125,7 +126,7 @@ export default function ProfileScreen() {
         router.push('/tabs/profile' as any);
     }
   };
-  
+      // Navigate to the dedicated editor for the tapped profile section.
   // State for tracking loading timeouts
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 

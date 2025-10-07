@@ -17,6 +17,7 @@ import { InputField, Button } from '../../components/AuthComponents';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
+// Screen: allows a user to request a password reset email for their account.
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -25,6 +26,8 @@ export default function ForgotPasswordScreen() {
   
   const { resetPassword } = useAuth();
   
+  // Basic client-side validation to prevent unnecessary backend calls
+  // and give users immediate feedback on formatting mistakes.
   const validateEmail = () => {
     if (!email.trim()) {
       setError('Email is required');
@@ -38,6 +41,8 @@ export default function ForgotPasswordScreen() {
     return true;
   };
   
+  // Trigger Firebase Auth reset flow and switch the UI to the success state
+  // even if the email does not exist to avoid leaking account existence.
   const handleResetPassword = async () => {
     if (!validateEmail()) return;
     
@@ -73,6 +78,7 @@ export default function ForgotPasswordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* Brand header */}
           <View style={styles.logoContainer}>
             <Image 
               source={require('../../assets/images/ClimateReadyV4.png')} 
@@ -81,12 +87,14 @@ export default function ForgotPasswordScreen() {
           </View>
           
           {resetSent ? (
+            // Confirmation state after the reset email was dispatched
             <View style={styles.successContainer}>
               <Ionicons name="checkmark-circle-outline" size={64} color="#5ba24f" />
               <Text style={styles.title}>Email Sent</Text>
               <Text style={styles.subtitle}>
                 If an account exists for {email}, you'll receive a password reset link at this email address.
               </Text>
+              {/* Keep the primary CTA for layout consistency, but steer users to Link below */}
               <Button
                 title="Back to Login"
                 onPress={() => {}} // Will use Link instead
@@ -99,6 +107,7 @@ export default function ForgotPasswordScreen() {
               </Link>
             </View>
           ) : (
+            // Default form shown before the reset email is sent
             <View style={styles.formContainer}>
               <Text style={styles.title}>Forgot Password</Text>
               <Text style={styles.subtitle}>
@@ -124,7 +133,7 @@ export default function ForgotPasswordScreen() {
                 style={styles.button}
               />
               
-              <Link href={'/login' as any} asChild>
+              <Link href={'auth/login' as any} asChild>
                 <TouchableOpacity style={styles.backLink}>
                   <Ionicons name="arrow-back" size={16} color="#0284c7" />
                   <Text style={styles.backLinkText}>Back to Login</Text>
