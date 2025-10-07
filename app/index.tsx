@@ -316,13 +316,7 @@ export default function HomeScreen() {
       setBadgesCount(earned.length);
 
       // 5. Gemini AI Tip (optional)
-      try {
-        const profile = await getUserProfile();
-        const kit = await getPersonalizedToolkit(userProgress);
-        setAiTip(`AI recommends: ${kit.slice(0, 2).join(', ')}...`);
-      } catch {
-        setAiTip(null);
-      }
+      
     } catch (error) {
       // Handle errors gracefully
       setPrepProgress({ completed: 0, total: 0, percent: 0 });
