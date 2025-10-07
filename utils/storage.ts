@@ -3,6 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'user_preparedness_progress';
 
 export interface UserProgress {
+  totalItems: number;
+  completedLearning: never[];
+  completedItems: string[];
   level: number;
   points: number;
   percent: number;
@@ -16,59 +19,116 @@ export interface UserProgress {
 }
 
 export const defaultUserProgress: UserProgress = {
+  completedItems: [],
   level: 1,
   points: 0,
   percent: 0,
   checklists: {},
   completedCategories: 0,
   lastUpdated: new Date().toISOString(),
+  completedLearning: [],
+  totalItems: 0
 };
 
 export const getUserProgress = async (): Promise<UserProgress> => {
   try {
     const storedProgress = await AsyncStorage.getItem(STORAGE_KEY);
+    let progress: UserProgress;
     if (storedProgress) {
-      return JSON.parse(storedProgress);
+      progress = JSON.parse(storedProgress);
+    } else {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUserProgress));
+      progress = { ...defaultUserProgress };
     }
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(defaultUserProgress));
-    return defaultUserProgress;
+
+    // Ensure completedItems is always an array
+    if (!Array.isArray(progress.completedItems)) {
+      progress.completedItems = [];
+    }
+
+    // Recalculate percent and points based on all checklistItems
+    const completedItemIds: string[] = [];
+    Object.entries(progress.checklists).forEach(([cat, items]) => {
+      Object.entries(items).forEach(([id, done]) => {
+        if (done) completedItemIds.push(id);
+      });
+    });
+    const totalItems = checklistItems.length;
+    const completedItems = checklistItems.filter(item => completedItemIds.includes(item.id)).length;
+    progress.percent = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+    progress.points = checklistItems.reduce((sum, item) => completedItemIds.includes(item.id) ? sum + (item.points || 0) : sum, 0);
+    progress.level = Math.floor(progress.points / 100) + 1;
+
+    return progress;
   } catch (error) {
     console.error('Error getting user progress:', error);
-    return defaultUserProgress;
+    return { ...defaultUserProgress, completedItems: [] };
   }
 };
 
+// Import checklistItems for accurate progress calculation
+import { checklistItems } from './checklistData';
+
 export const updateChecklistItem = async (
-  categoryId: string, 
-  itemId: string, 
+  categoryId: string,
+  itemId: string,
   completed: boolean
 ): Promise<void> => {
   try {
     const progress = await getUserProgress();
-    
+
     if (!progress.checklists[categoryId]) {
       progress.checklists[categoryId] = {};
     }
-    
+
     progress.checklists[categoryId][itemId] = completed;
     progress.lastUpdated = new Date().toISOString();
-    
-    // Calculate new progress
-    const totalItems = Object.values(progress.checklists).reduce((total, category) => {
-      return total + Object.keys(category).length;
-    }, 0);
-    
-    const completedItems = Object.values(progress.checklists).reduce((completed, category) => {
-      return completed + Object.values(category).filter(item => item === true).length;
-    }, 0);
-    
+
+    // Calculate completed items (all true in checklists)
+    const completedItemIds: string[] = [];
+    Object.entries(progress.checklists).forEach(([cat, items]) => {
+      Object.entries(items).forEach(([id, done]) => {
+        if (done) completedItemIds.push(id);
+      });
+    });
+
+    // Use all checklistItems for total
+    const totalItems = checklistItems.length;
+    const completedItems = checklistItems.filter(item => completedItemIds.includes(item.id)).length;
+
     progress.percent = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
-    progress.points = Math.floor(progress.percent * 10);
+    // Points: sum of points for completed items
+    progress.points = checklistItems.reduce((sum, item) => completedItemIds.includes(item.id) ? sum + (item.points || 0) : sum, 0);
     progress.level = Math.floor(progress.points / 100) + 1;
-    
+
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch (error) {
     console.error('Error updating checklist item:', error);
     throw error;
   }
+};
+
+export const saveCustomItems = async (items: any) => {
+  await AsyncStorage.setItem('customItems', JSON.stringify(items));
+};
+
+export const getCustomItems = async () => {
+  const items = await AsyncStorage.getItem('customItems');
+  return items ? JSON.parse(items) : [];
+};
+
+export interface AiRecommendation {
+  // Define the structure of your recommendation here, for example:
+  // message: string;
+  // score?: number;
+  // Add more fields as needed
+  [key: string]: any;
+}
+
+export const saveAiRecommendation = async (recommendation: AiRecommendation | string): Promise<void> => {
+  await AsyncStorage.setItem('aiRecommendation', typeof recommendation === 'string' ? recommendation : JSON.stringify(recommendation));
+};
+
+export const getAiRecommendation = async () => {
+  return await AsyncStorage.getItem('aiRecommendation');
 };

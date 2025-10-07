@@ -1,62 +1,87 @@
-import { UserProgress } from './storage';
-
 export interface Badge {
-  icon: React.ReactNode;
-  label: string;
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  requirements: {
+    type: 'checklist_completion' | 'points' | 'content_completion' | 'category_mastery';
+    target: number;
+    category?: string;
+  };
 }
 
-export const getEarnedBadges = (progress: UserProgress): Badge[] => {
-  const badges: Badge[] = [];
-  
-  if (!progress) return badges;
+export const badges: Badge[] = [
+  {
+    id: 'badge-1',
+    name: 'Preparedness Beginner',
+    description: 'Complete your first 5 checklist items',
+    icon: '🎯',
+    color: '#FFD700',
+    requirements: { type: 'checklist_completion', target: 5 }
+  },
+  {
+    id: 'badge-2',
+    name: 'Water Warrior',
+    description: 'Complete all water-related checklist items',
+    icon: '💧',
+    color: '#3498db',
+    requirements: { type: 'category_mastery', target: 2, category: 'water' }
+  },
+  {
+    id: 'badge-3',
+    name: 'Safety Specialist',
+    description: 'Complete all safety and health checklist items',
+    icon: '🛡️',
+    color: '#e74c3c',
+    requirements: { type: 'category_mastery', target: 2, category: 'safety' }
+  },
+  {
+    id: 'badge-4',
+    name: 'Family Protector',
+    description: 'Complete checklist items for all special needs categories',
+    icon: '👨‍👩‍👧‍👦',
+    color: '#9b59b6',
+    requirements: { type: 'category_mastery', target: 3, category: 'special_needs' }
+  }
+];
 
-  // First checklist item badge
-  const hasCompletedAnyItem = Object.values(progress.checklists).some(category => 
-    Object.values(category).some(completed => completed)
-  );
-  
-  if (hasCompletedAnyItem) {
-    badges.push({
-      icon: '⭐',
-      label: 'Starter'
-    });
+// Helper function to calculate earned badges
+export const getEarnedBadges = (userProgress: {
+  completedItems?: string[];
+  totalPoints?: number;
+}): string[] => {
+  const completedItems = userProgress.completedItems ?? [];
+  const earned: string[] = [];
+
+  // Badge 1: Complete 5 items
+  if (completedItems.length >= 5) {
+    earned.push('badge-1');
   }
 
-  // First category completed badge
-  const completedCategories = Object.keys(progress.checklists).filter(categoryId => {
-    const category = progress.checklists[categoryId];
-    return Object.values(category).every(completed => completed);
-  });
-  
-  if (completedCategories.length > 0) {
-    badges.push({
-      icon: '🏆',
-      label: 'Expert'
-    });
+  // Badge 2: Water items (check if all water items are completed)
+  const waterItems = ['water-1', 'water-2'];
+  if (waterItems.every(item => completedItems.includes(item))) {
+    earned.push('badge-2');
   }
 
-  // Level badge
-  if (progress.level >= 2) {
-    badges.push({
-      icon: '🚀',
-      label: `Level ${progress.level}`
-    });
+  // Badge 3: Safety items
+  const safetyItems = ['safety-1', 'safety-2'];
+  if (safetyItems.every(item => completedItems.includes(item))) {
+    earned.push('badge-3');
   }
 
-  // Progress badge
-  if (progress.percent >= 50) {
-    badges.push({
-      icon: '🔥',
-      label: 'Halfway'
-    });
+  // Badge 4: Special needs items
+  const specialItems = ['special-1', 'special-2', 'special-3'];
+  if (specialItems.every(item => completedItems.includes(item))) {
+    earned.push('badge-4');
   }
 
-  if (progress.percent >= 100) {
-    badges.push({
-      icon: '🎯',
-      label: 'Complete'
-    });
-  }
-
-  return badges;
+  return earned;
 };
+
+// Example usage:
+getEarnedBadges({
+  completedItems: ['water-1', 'water-2', 'safety-1', 'safety-2', 'special-1', 'special-2', 'special-3'],
+  totalPoints: 10
+});
