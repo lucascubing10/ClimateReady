@@ -8,7 +8,8 @@ import {
   Alert,
   SafeAreaView,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
+  Dimensions
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useRouter } from 'expo-router';
@@ -16,16 +17,38 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfile } from '../../utils/userDataModel';
 import refreshProfile from '../../utils/profileRefresh';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
+import Animated, { 
+  FadeInUp, 
+  FadeInRight,
+  ZoomIn
+} from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
+
+// Color palette - matching login screen
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT: readonly [ColorValue, ColorValue] = ['#5ba24f', '#4a8c40'];
+const YELLOW = '#fac609';
+const YELLOW_GRADIENT = ['#fac609', '#e6b408'];
+const ORANGE = '#e5793a';
+const ORANGE_GRADIENT = ['#e5793a', '#d4692a'];
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
 
 // Progress bar component for profile completeness
 const ProfileCompleteness = ({ percentage }: { percentage: number }) => (
   <View style={styles.completenessContainer}>
     <View style={styles.progressBarContainer}>
-      <View 
+      <LinearGradient
+        colors={getProgressGradient(percentage)}
         style={[
           styles.progressBar, 
-          { width: `${percentage}%`, backgroundColor: getProgressColor(percentage) }
-        ]} 
+          { width: `${percentage}%` }
+        ]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
       />
     </View>
     <Text style={styles.completenessText}>
@@ -34,18 +57,19 @@ const ProfileCompleteness = ({ percentage }: { percentage: number }) => (
   </View>
 );
 
-// Helper function to get color based on progress
-const getProgressColor = (percentage: number) => {
-  if (percentage < 30) return '#ef4444'; // red
-  if (percentage < 70) return '#f59e0b'; // amber
-  return '#10b981'; // emerald
+// Helper function to get gradient based on progress
+const getProgressGradient = (percentage: number): readonly [ColorValue, ColorValue] => {
+  if (percentage < 30) return ['#ef4444', '#dc2626'];
+  if (percentage < 70) return ['#f59e0b', '#d97706'];
+  return ['#10b981', '#059669'];
 };
 
-// Profile section component
+// Profile section component with animations
 const ProfileSection = ({ 
   title, 
   items, 
-  onPress 
+  onPress,
+  delay = 0
 }: { 
   title: string; 
   items: Array<{ 
@@ -54,19 +78,26 @@ const ProfileSection = ({
     icon: JSX.Element; 
     isComplete: boolean; 
   }>; 
-  onPress: () => void; 
+  onPress: () => void;
+  delay?: number;
 }) => (
-  <View style={styles.section}>
+  <Animated.View 
+    entering={FadeInUp.duration(600).delay(delay)}
+    style={styles.section}
+  >
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <TouchableOpacity onPress={onPress}>
+      <TouchableOpacity onPress={onPress} style={styles.editButtonContainer}>
         <Text style={styles.editButton}>Edit</Text>
       </TouchableOpacity>
     </View>
     <View style={styles.sectionContent}>
       {items.map((item, index) => (
         <View key={index} style={styles.profileItem}>
-          <View style={styles.iconContainer}>
+          <View style={[
+            styles.iconContainer,
+            item.isComplete ? styles.iconComplete : styles.iconIncomplete
+          ]}>
             {item.icon}
           </View>
           <View style={styles.itemContent}>
@@ -85,23 +116,30 @@ const ProfileSection = ({
         </View>
       ))}
     </View>
-  </View>
+  </Animated.View>
 );
 
-// Screen: overview of the user’s profile completeness plus quick entry points to edit sections.
+// Screen: overview of the user's profile completeness plus quick entry points to edit sections.
 export default function ProfileScreen() {
   const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  
+  // Set a timeout for loading
+  useEffect(() => {
+    if (!userProfile) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 5000); // 5 seconds timeout
+      
+      return () => clearTimeout(timer);
+    }
+  }, [userProfile]);
 
-  
   // Navigate to edit profile section
   const navigateToEditSection = (section: string) => {
-    // Navigate to the appropriate edit screen based on section
     switch(section.toLowerCase()) {
       case 'basic info':
         router.push('/tabs/profile-edit/basic-info' as any);
@@ -122,34 +160,25 @@ export default function ProfileScreen() {
         router.push('/tabs/profile-edit/medical-info' as any);
         break;
       default:
-        // Fallback to the profile screen if section is not recognized
         router.push('/tabs/profile' as any);
     }
   };
-      // Navigate to the dedicated editor for the tapped profile section.
-  // State for tracking loading timeouts
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-
-  // Set a timeout for loading
-  useEffect(() => {
-    if (!userProfile) {
-      // Set a timeout to show an error message if profile takes too long to load
-      const timer = setTimeout(() => {
-        setLoadingTimeout(true);
-      }, 5000); // 5 seconds timeout
-      
-      return () => clearTimeout(timer);
-    }
-  }, [userProfile]);
 
   // Handle when there's no user profile
   if (!userProfile) {
     return (
       <SafeAreaView style={styles.container}>
         <Stack.Screen options={{ title: 'Profile' }} />
+        {/* Background Elements */}
+        <View style={styles.backgroundElements}>
+          <View style={[styles.bgCircle, styles.bgCircle1]} />
+          <View style={[styles.bgCircle, styles.bgCircle2]} />
+          <View style={[styles.bgCircle, styles.bgCircle3]} />
+        </View>
+        
         <View style={styles.loadingContainer}>
           {loadingTimeout ? (
-            <>
+            <Animated.View entering={ZoomIn.duration(600)} style={styles.errorContainer}>
               <Ionicons name="warning" size={40} color="#f59e0b" />
               <Text style={styles.errorText}>Failed to load profile</Text>
               <TouchableOpacity 
@@ -166,14 +195,19 @@ export default function ProfileScreen() {
                   }
                 }}
               >
-                <Text style={styles.retryButtonText}>Try Again</Text>
+                <LinearGradient
+                  colors={PRIMARY_GRADIENT}
+                  style={styles.retryButtonGradient}
+                >
+                  <Text style={styles.retryButtonText}>Try Again</Text>
+                </LinearGradient>
               </TouchableOpacity>
-            </>
+            </Animated.View>
           ) : (
-            <>
-              <ActivityIndicator size="large" color="#0284c7" />
+            <Animated.View entering={ZoomIn.duration(600)} style={styles.loadingContent}>
+              <ActivityIndicator size="large" color={PRIMARY} />
               <Text style={styles.loadingText}>Loading profile...</Text>
-            </>
+            </Animated.View>
           )}
         </View>
       </SafeAreaView>
@@ -200,10 +234,20 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
       
-      <ScrollView>
+      {/* Background Elements */}
+      <View style={styles.backgroundElements}>
+        <View style={[styles.bgCircle, styles.bgCircle1]} />
+        <View style={[styles.bgCircle, styles.bgCircle2]} />
+        <View style={[styles.bgCircle, styles.bgCircle3]} />
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
-        <View style={styles.profileHeader}>
-          {/* Logout Button in Header */}
+        <LinearGradient
+          colors={PRIMARY_GRADIENT}
+          style={styles.profileHeader}
+        >
+          {/* Header Buttons */}
           <View style={styles.headerButtonsContainer}>
             <TouchableOpacity 
               style={styles.headerButton}
@@ -246,39 +290,52 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.profileImageContainer}>
-            <Text style={styles.profileInitials}>
-              {userProfile.firstName?.[0] || ''}{userProfile.lastName?.[0] || ''}
-            </Text>
-          </View>
-          <Text style={styles.profileName}>{userProfile.firstName} {userProfile.lastName}</Text>
-          <Text style={styles.profileEmail}>{userProfile.email}</Text>
-          
-          <ProfileCompleteness percentage={profileCompleteness} />
-        </View>
+          {/* Profile Info */}
+          <Animated.View 
+            entering={ZoomIn.duration(800)}
+            style={styles.profileInfo}
+          >
+            <View style={styles.profileImageContainer}>
+              <Text style={styles.profileInitials}>
+                {userProfile.firstName?.[0] || ''}{userProfile.lastName?.[0] || ''}
+              </Text>
+            </View>
+            <Text style={styles.profileName}>{userProfile.firstName} {userProfile.lastName}</Text>
+            <Text style={styles.profileEmail}>{userProfile.email}</Text>
+          </Animated.View>
+
+          {/* Profile Completeness */}
+          <Animated.View 
+            entering={FadeInUp.duration(600).delay(200)}
+            style={styles.completenessWrapper}
+          >
+            <ProfileCompleteness percentage={profileCompleteness} />
+          </Animated.View>
+        </LinearGradient>
         
         {/* Profile Sections */}
         <View style={styles.content}>
           <ProfileSection
             title="Basic Information"
             onPress={() => navigateToEditSection('basic info')}
+            delay={400}
             items={[
               {
                 label: 'Full Name',
                 value: `${userProfile.firstName} ${userProfile.lastName}`,
-                icon: <Ionicons name="person" size={20} color="#0284c7" />,
+                icon: <Ionicons name="person" size={20} color="#fff" />,
                 isComplete: basicInfoComplete,
               },
               {
                 label: 'Email',
                 value: userProfile.email,
-                icon: <Ionicons name="mail" size={20} color="#0284c7" />,
+                icon: <Ionicons name="mail" size={20} color="#fff" />,
                 isComplete: !!userProfile.email,
               },
               {
                 label: 'Phone Number',
                 value: userProfile.phoneNumber,
-                icon: <Ionicons name="call" size={20} color="#0284c7" />,
+                icon: <Ionicons name="call" size={20} color="#fff" />,
                 isComplete: contactInfoComplete,
               },
             ]}
@@ -287,17 +344,18 @@ export default function ProfileScreen() {
           <ProfileSection
             title="Preferences"
             onPress={() => navigateToEditSection('preferences')}
+            delay={500}
             items={[
               {
                 label: 'Preferred Language',
                 value: userProfile.preferredLanguage,
-                icon: <Ionicons name="language" size={20} color="#0284c7" />,
+                icon: <Ionicons name="language" size={20} color="#fff" />,
                 isComplete: !!userProfile.preferredLanguage,
               },
               {
                 label: 'Household Type',
                 value: userProfile.householdType,
-                icon: <Ionicons name="home" size={20} color="#0284c7" />,
+                icon: <Ionicons name="home" size={20} color="#fff" />,
                 isComplete: !!userProfile.householdType,
               },
             ]}
@@ -306,17 +364,18 @@ export default function ProfileScreen() {
           <ProfileSection
             title="Personal Details"
             onPress={() => navigateToEditSection('personal details')}
+            delay={600}
             items={[
               {
                 label: 'Gender',
                 value: userProfile.gender,
-                icon: <MaterialCommunityIcons name="gender-male-female" size={20} color="#0284c7" />,
+                icon: <MaterialCommunityIcons name="gender-male-female" size={20} color="#fff" />,
                 isComplete: !!userProfile.gender,
               },
               {
                 label: 'Birthday',
                 value: userProfile.birthday,
-                icon: <Ionicons name="calendar" size={20} color="#0284c7" />,
+                icon: <Ionicons name="calendar" size={20} color="#fff" />,
                 isComplete: !!userProfile.birthday,
               },
             ]}
@@ -325,13 +384,14 @@ export default function ProfileScreen() {
           <ProfileSection
             title="Address"
             onPress={() => navigateToEditSection('address')}
+            delay={700}
             items={[
               {
                 label: 'Home Address',
                 value: userProfile.address ? 
                   `${userProfile.address.street || ''}, ${userProfile.address.city || ''}, ${userProfile.address.state || ''} ${userProfile.address.zip || ''}` :
                   null,
-                icon: <Ionicons name="location" size={20} color="#0284c7" />,
+                icon: <Ionicons name="location" size={20} color="#fff" />,
                 isComplete: addressComplete,
               },
             ]}
@@ -340,6 +400,7 @@ export default function ProfileScreen() {
           <ProfileSection
             title="Emergency Contacts"
             onPress={() => navigateToEditSection('emergency contacts')}
+            delay={800}
             items={[
               {
                 label: 'Primary Emergency Contact',
@@ -349,7 +410,7 @@ export default function ProfileScreen() {
                        userProfile.emergencyContacts[0] ? 
                   `${userProfile.emergencyContacts[0].name} (${userProfile.emergencyContacts[0].relationship})` : 
                   null,
-                icon: <Ionicons name="people" size={20} color="#0284c7" />,
+                icon: <Ionicons name="people" size={20} color="#fff" />,
                 isComplete: emergencyContactsComplete,
               },
             ]}
@@ -358,16 +419,16 @@ export default function ProfileScreen() {
           <ProfileSection
             title="Medical Information"
             onPress={() => navigateToEditSection('medical info')}
+            delay={900}
             items={[
               {
                 label: 'Medical Information',
                 value: userProfile.medicalInfo ? 'Provided' : null,
-                icon: <Ionicons name="medical" size={20} color="#0284c7" />,
+                icon: <Ionicons name="medical" size={20} color="#fff" />,
                 isComplete: medicalInfoComplete,
               },
             ]}
           />
-
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -377,149 +438,69 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: BG,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
+  },
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
+  },
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
+  },
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   loadingText: {
     marginTop: 16,
     color: '#6b7280',
     fontSize: 16,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   profileHeader: {
-    backgroundColor: '#0284c7',
     paddingVertical: 32,
     paddingHorizontal: 20,
     alignItems: 'center',
-  },
-  profileImageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  profileInitials: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#0284c7',
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  profileEmail: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 16,
-  },
-  completenessContainer: {
-    width: '100%',
-    marginBottom: 8,
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  progressBar: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  completenessText: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  content: {
-    padding: 20,
-  },
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  editButton: {
-    color: '#0284c7',
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  sectionContent: {
-    padding: 12,
-  },
-  profileItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  itemValue: {
-    fontSize: 15,
-    color: '#1f2937',
-    fontWeight: '500',
-  },
-  itemMissing: {
-    fontSize: 15,
-    color: '#9ca3af',
-    fontStyle: 'italic',
-  },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  logoutText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
   },
   headerButtonsContainer: {
     position: 'absolute',
@@ -534,26 +515,173 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginLeft: 8,
+  },
+  profileInfo: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  profileImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  profileInitials: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: PRIMARY,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 16,
+  },
+  completenessWrapper: {
+    width: '100%',
+    marginTop: 16,
+  },
+  completenessContainer: {
+    width: '100%',
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  completenessText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  section: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  editButtonContainer: {
+    padding: 4,
+  },
+  editButton: {
+    color: PRIMARY,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  sectionContent: {
+    padding: 16,
+  },
+  profileItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  iconComplete: {
+    backgroundColor: PRIMARY,
+  },
+  iconIncomplete: {
+    backgroundColor: '#9ca3af',
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  itemValue: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  itemMissing: {
+    fontSize: 15,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   errorText: {
     marginTop: 16,
     color: '#dc2626',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#0284c7',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
     marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  retryButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

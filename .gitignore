@@ -2,6 +2,8 @@
 
 .vscode/
 
+android/
+
 # dependencies
 node_modules/
 

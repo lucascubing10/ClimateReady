@@ -100,7 +100,7 @@ export default function ForgotPasswordScreen() {
                 onPress={() => {}} // Will use Link instead
                 style={styles.button}
               />
-              <Link href={'/login' as any} asChild>
+              <Link href={'auth/login' as any} asChild>
                 <TouchableOpacity style={styles.linkButton}>
                   <Text style={styles.linkText}>Back to Login</Text>
                 </TouchableOpacity>
