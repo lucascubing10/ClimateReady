@@ -18,6 +18,9 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile } from '../../utils/userDataModel';
 
+const PRIMARY = '#5ba24f';
+const CARD_BG = '#ffffff';
+
 // Screen: creates a new ClimateReady user and captures baseline profile fields.
 export default function RegisterScreen() {
   const [formData, setFormData] = useState({
@@ -251,9 +254,9 @@ export default function RegisterScreen() {
             />
             
             {/* Link back to login for returning users */}
-            <View style={styles.loginLinkContainer}>
+            <View style={styles.logoContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <Link href={'/login' as any} asChild>
+              <Link href={'auth/login' as any} asChild>
                 <Text style={styles.link}>Sign In</Text>
               </Link>
             </View>
@@ -269,7 +272,9 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#dcefdd', // match BG from home
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   keyboardAvoid: {
     flex: 1,
@@ -277,6 +282,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingTop: 12,
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 24,
+    padding: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 10,
+    width: '90%',
+    maxWidth: 400,
+    alignSelf: 'center',
   },
   logoContainer: {
     alignItems: 'center',
@@ -287,17 +305,17 @@ const styles = StyleSheet.create({
     height: 80,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1f2937',
     textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    fontWeight: '400',
     color: '#6b7280',
-    marginBottom: 24,
     textAlign: 'center',
+    marginBottom: 24,
   },
   formContainer: {
     width: '100%',
@@ -323,22 +341,40 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   registerButton: {
+    backgroundColor: PRIMARY,
+    borderRadius: 12,
+    paddingVertical: 14,
     marginTop: 8,
   },
-  loginLinkContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+  registerButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  link: {
+    color: PRIMARY,
+    fontWeight: '600',
+    fontSize: 14,
+    textAlign: 'center',
     marginTop: 16,
-    marginBottom: 24,
   },
   loginText: {
     fontSize: 14,
-    color: '#374151',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginTop: 16,
   },
-  link: {
-    color: '#0284c7',
-    fontWeight: '500',
+  errorContainer: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#dc2626',
     fontSize: 14,
-  }
+    fontWeight: '500',
+    textAlign: 'center',
+  },
 });
