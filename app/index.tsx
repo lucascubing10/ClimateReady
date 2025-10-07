@@ -1,37 +1,17 @@
 import React, { useEffect, useState, useCallback, JSX } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator,
-  Dimensions,
-  StyleSheet
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator,Dimensions,StyleSheet} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { 
-  FadeInUp, 
-  FadeInRight,
-  SlideInDown,
-  ZoomIn
-} from 'react-native-reanimated';
-import { Card } from '../components/Toolkit/Card';
-import { Badge } from '../components/Toolkit/Badge';
-import { ProgressBar } from '../components/Toolkit/ProgressBar';
-import { getUserProgress } from '../utils/storage';
-import { getEarnedBadges } from '../utils/badges';
+import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn} from 'react-native-reanimated';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
-
-//testing push notifications
+//only for testing push notifications
 import { registerForPushNotificationsAsync } from '../utils/registerPushNotifications';
-
-
 
 
 import { getUserProfile } from '@/utils/userProfile';
