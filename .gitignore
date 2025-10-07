@@ -9,7 +9,7 @@ node_modules/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
+
 
 # Native
 .kotlin/
@@ -34,10 +34,7 @@ yarn-error.*
 
 # local env files
 # Existing ignores...
-.env
-server/.env
-server/.env.local
-server/.env.*
+
 
 # typescript
 *.tsbuildinfo
