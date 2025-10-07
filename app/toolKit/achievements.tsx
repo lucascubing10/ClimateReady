@@ -4,26 +4,42 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from '
 import { badges, Badge, getEarnedBadges } from '@/utils/badges';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { getUserProgress } from '@/utils/storage';
 
 export default function AchievementsScreen() {
   const [activeTab, setActiveTab] = useState<'earned' | 'all'>('earned');
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
-  const [userProgress, setUserProgress] = useState({
-    completedItems: ['water-1', 'food-1', 'safety-1', 'special-2', 'special-3'],
-    totalPoints: 53
+  const [userProgress, setUserProgress] = useState<{
+    completedItems: string[];
+    totalPoints: number;
+  }>({
+    completedItems: [],
+    totalPoints: 0
   });
 
   // Mock animation values
   const scaleAnims = badges.reduce((acc, badge) => {
     acc[badge.id] = new Animated.Value(1);
+    
     return acc;
   }, {} as Record<string, Animated.Value>);
 
   useEffect(() => {
-    // Calculate earned badges based on user progress
-    const badges = getEarnedBadges(userProgress);
-    setEarnedBadges(badges);
-  }, [userProgress]);
+    // Load user progress from persistent storage
+    const loadProgress = async () => {
+      const progress = await getUserProgress();
+      setUserProgress({
+        completedItems: progress.completedItems,
+        totalPoints: progress.points
+      });
+      const badges = getEarnedBadges({
+        completedItems: progress.completedItems,
+        totalPoints: progress.points
+      });
+      setEarnedBadges(badges);
+    };
+    loadProgress();
+  }, []);
 
   const animateBadge = (badgeId: string) => {
     Animated.sequence([
