@@ -107,3 +107,28 @@ export const updateChecklistItem = async (
     throw error;
   }
 };
+
+export const saveCustomItems = async (items: any) => {
+  await AsyncStorage.setItem('customItems', JSON.stringify(items));
+};
+
+export const getCustomItems = async () => {
+  const items = await AsyncStorage.getItem('customItems');
+  return items ? JSON.parse(items) : [];
+};
+
+export interface AiRecommendation {
+  // Define the structure of your recommendation here, for example:
+  // message: string;
+  // score?: number;
+  // Add more fields as needed
+  [key: string]: any;
+}
+
+export const saveAiRecommendation = async (recommendation: AiRecommendation | string): Promise<void> => {
+  await AsyncStorage.setItem('aiRecommendation', typeof recommendation === 'string' ? recommendation : JSON.stringify(recommendation));
+};
+
+export const getAiRecommendation = async () => {
+  return await AsyncStorage.getItem('aiRecommendation');
+};

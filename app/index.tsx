@@ -26,6 +26,9 @@ import { getPersonalizedToolkit } from '@/utils/gemini';
 import { getEducationalProgress } from '@/utils/educationalData';
 import { GameStorage } from '@/utils/gameStorage';
 import { getEarnedBadges } from '@/utils/badges';
+// import { getCustomItems, getAiRecommendation } from '@/utils/persistedData';
+// If the correct file is 'storage.ts', update as below:
+import { getCustomItems, getAiRecommendation } from '@/utils/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -183,6 +186,7 @@ export default function HomeScreen() {
   const [badgesCount, setBadgesCount] = useState(0);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [customItems, setCustomItems] = useState<any[]>([]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -282,16 +286,15 @@ export default function HomeScreen() {
   // Fetch all progress data on focus and mount
   const refreshProgress = useCallback(async () => {
     try {
-      // 1. Preparedness Progress (from toolkit)
       const toolkit = await import('@/utils/storage');
       const userProgress = await toolkit.getUserProgress();
+      console.log('HomeScreen userProgress:', userProgress);
       setPrepProgress({
         completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
         total: userProgress.totalItems ?? 0,
         percent: userProgress.percent ?? 0
       });
 
-      // 2. Learning Progress
       const completedContent = userProgress.completedLearning || [];
       const eduProgress = getEducationalProgress(completedContent);
       setLearningProgress({
@@ -300,7 +303,6 @@ export default function HomeScreen() {
         percent: eduProgress.percentage
       });
 
-      // 3. Game Stats
       const stats = await GameStorage.getStats();
       setGameStats({
         bestScore: stats.bestScore,
@@ -308,14 +310,13 @@ export default function HomeScreen() {
         victories: stats.victories
       });
 
-      // 4. Badges
       const earned = getEarnedBadges({
         completedItems: userProgress.completedItems,
         totalPoints: userProgress.points
       });
       setBadgesCount(earned.length);
 
-      // 5. Gemini AI Tip (optional)
+      // AI Tip (optional)
       
     } catch (error) {
       // Handle errors gracefully
@@ -334,9 +335,18 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
+    const loadPersistedData = async () => {
+      const customItems = await getCustomItems();
+      setCustomItems(customItems);
+
+      const aiRecommendation = await getAiRecommendation();
+      setAiTip(aiRecommendation);
+    };
+
+    loadPersistedData();
     refreshProgress();
     getLocationAndWeather();
-  }, [refreshProgress, getLocationAndWeather]);
+  }, []);
 
   const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
     const routeMap: Record<typeof screen, string> = {
