@@ -311,7 +311,7 @@ export default function ToolkitScreen() {
     if (!item) return;
 
     await updateChecklistItem(item.category, item.id, !isCompleted);
-    await loadProgress();
+    await loadProgress(); // <-- This reloads progress after update
 
     if (!isCompleted) {
       Alert.alert(
