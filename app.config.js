@@ -1,3 +1,14 @@
+const expoProjectId =
+  process.env.EXPO_PUBLIC_PROJECT_ID ??
+  process.env.EXPO_PROJECT_ID ??
+  null;
+
+if (!expoProjectId) {
+  console.warn(
+    "No EAS project ID found. Set EXPO_PUBLIC_PROJECT_ID or EXPO_PROJECT_ID to enable push notifications."
+  );
+}
+
 export default {
   expo: {
     name: 'ClimateReady',
@@ -65,7 +76,7 @@ export default {
     extra: {
       openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
       sosWebAppUrl: process.env.SOS_WEB_APP_URL,
-      expoProjectId: process.env.EXPO_PROJECT_ID,
+      expoProjectId,
       GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY
     }
   }
