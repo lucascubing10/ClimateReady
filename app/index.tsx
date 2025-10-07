@@ -187,12 +187,17 @@ export default function HomeScreen() {
   // Push notification registration for testing
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
+    const registerNotifications = async () => {
+      const token = await registerForPushNotificationsAsync();
       if (token) {
         console.log('🔥 Got device token:', token);
         // TODO: Persist token to backend so the user can receive targeted notifications.
+      } else {
+        console.log('Push notifications unavailable in this environment.');
       }
-    });
+    };
+
+    registerNotifications();
   }, []);
 
   // Greeting logic

@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
 // Configure how notifications behave when received
@@ -20,6 +21,22 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
+    if (Constants.appOwnership === "expo") {
+      console.warn(
+        "Push notifications are not supported in Expo Go starting with SDK 53. Use an EAS development build instead: https://docs.expo.dev/develop/development-builds/introduction/."
+      );
+      return null;
+    }
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
+    }
+
     // Ask for permissions
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
@@ -33,10 +50,23 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    // ✅ Get Expo push token
-    const token = (await Notifications.getExpoPushTokenAsync({
-      projectId: "climateready-40665", // your Firebase project ID
-    })).data;
+    const projectId =
+      Constants.easConfig?.projectId ??
+      Constants.expoConfig?.extra?.expoProjectId ??
+      (process.env.EXPO_PUBLIC_PROJECT_ID as string | undefined) ??
+      (process.env.EXPO_PROJECT_ID as string | undefined);
+
+    if (!projectId) {
+      console.warn(
+        "Expo project ID not found. Set EXPO_PUBLIC_PROJECT_ID or update app config to include extra.expoProjectId for push notifications."
+      );
+    }
+
+    const tokenResponse = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined
+    );
+
+    const token = tokenResponse.data;
 
     console.log("✅ Device Push Token:", token);
     return token;
