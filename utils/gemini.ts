@@ -6,7 +6,7 @@
 // Example .env:
 // GEMINI_API_KEY=your-key-here
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyBkmarMub5OToRrpfXbaTrHeQwIo3e0mC4';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCim4U3-17VLcv97b2DtR2PlFHhSA27AAk';
 
 export async function getPersonalizedToolkit(profile: any, disasterType?: string): Promise<string[]> {
   if (!GEMINI_API_KEY) throw new Error('Gemini API key not set');
@@ -23,6 +23,7 @@ export async function getPersonalizedToolkit(profile: any, disasterType?: string
   };
 
   try {
+    console.log('Gemini Toolkit Prompt:', prompt); // <-- LOG PROMPT
     const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -33,7 +34,7 @@ export async function getPersonalizedToolkit(profile: any, disasterType?: string
       throw new Error('Gemini API error');
     }
     const data = await res.json();
-    console.log('Gemini API response:', data); // <-- LOG FULL RESPONSE
+    console.log('Gemini Toolkit Response:', data); // <-- LOG RESPONSE
     // Try to extract JSON array from response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     try {
@@ -85,6 +86,8 @@ Return ONLY a JSON object with this structure:
 }
 `;
 
+  console.log('[Gemini Scenario] Prompt:', prompt); // <-- LOG PROMPT
+
   const body = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.3, maxOutputTokens: 700 }
@@ -98,6 +101,8 @@ Return ONLY a JSON object with this structure:
     });
     if (!res.ok) throw new Error('Gemini API error');
     const data = await res.json();
+    console.log('[Gemini Scenario] Response:', data); // <-- LOG RESPONSE
+    // Try to extract JSON object from response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]);
@@ -107,5 +112,3 @@ Return ONLY a JSON object with this structure:
     return null;
   }
 }
-
-// Removed duplicate getPersonalizedToolkit function to resolve redeclaration error.

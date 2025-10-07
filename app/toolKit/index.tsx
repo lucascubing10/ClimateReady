@@ -268,17 +268,25 @@ export default function ToolkitScreen() {
       let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
       setProfile(parsedProfile);
 
-      // Simulate AI loading
-      setTimeout(() => {
-        setPersonalizedToolkit([
-          "Portable water filter",
-          "Emergency radio with charging",
-          "7-day medication supply",
-          "Important documents waterproof case",
-          "Family contact cards",
-        ]);
-        setAiLoading(false);
-      }, 2000);
+      console.log('Loaded household profile:', parsedProfile);
+
+      if (parsedProfile?.householdCompleted) {
+        try {
+          console.log('Fetching AI recommendations for profile...');
+          // Pass activeDisaster for context
+          const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
+          console.log('AI recommendations received:', recommendations);
+          setPersonalizedToolkit(recommendations);
+        } catch (error) {
+          console.error('Error fetching AI recommendations:', error);
+          setPersonalizedToolkit([]);
+        }
+      } else {
+        console.log('Household profile not completed, skipping AI recommendations');
+        setPersonalizedToolkit([]);
+      }
+
+      setAiLoading(false);
     })();
   }, [loadProgress, activeDisaster]);
 
