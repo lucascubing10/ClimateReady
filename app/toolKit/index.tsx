@@ -25,6 +25,7 @@ import { getUserProfile } from "../../utils/profile";
 import { getPersonalizedToolkit } from "../../utils/gemini";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get("window");
 
@@ -143,6 +144,7 @@ export default function ToolkitScreen() {
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
+  const [storageError, setStorageError] = useState(false);
 
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -231,35 +233,105 @@ export default function ToolkitScreen() {
     }).start();
   }, [aiProgress]);
 
-  // Load progress
+  // Unified loadProgress function
   const loadProgress = useCallback(async () => {
     setLoading(true);
-    const userProgress = await getUserProgress();
-    const completed: string[] = [];
-    Object.entries(userProgress.checklists).forEach(([cat, items]) => {
-      Object.entries(items).forEach(([id, done]) => {
-        if (done) completed.push(id);
+    setStorageError(false);
+    
+    try {
+      // Method 1: Load from your storage utility (main checklist items)
+      const userProgress = await getUserProgress();
+      const completedFromStorage: string[] = [];
+      
+      Object.entries(userProgress.checklists).forEach(([cat, items]) => {
+        Object.entries(items).forEach(([id, done]) => {
+          if (done) completedFromStorage.push(id);
+        });
       });
-    });
-    setCompletedItems(completed);
 
-    const points = completed.reduce((sum, itemId) => {
-      const item = checklistItems.find((i) => i.id === itemId);
-      return sum + (item?.points || 0);
-    }, 0);
-    setUserPoints(points);
+      // Method 2: Load from AsyncStorage (AI and custom items backup)
+      const completedFromAsync = await AsyncStorage.getItem("completedItems");
+      const completedFromAsyncArray = completedFromAsync ? JSON.parse(completedFromAsync) : [];
 
-    const badges = getEarnedBadges({
-      completedItems: completed,
-      totalPoints: points,
-    });
-    setEarnedBadges(badges);
-    setLoading(false);
-  }, []);
+      // Merge both sources, removing duplicates
+      const allCompleted = [...new Set([...completedFromStorage, ...completedFromAsyncArray])];
+      
+      setCompletedItems(allCompleted);
 
-  // Load AI toolkit
+      // Calculate points based on all completed items
+      const points = allCompleted.reduce((sum, itemId) => {
+        const item = checklistItems.find((i) => i.id === itemId) || 
+                     customItems.find((i) => i.id === itemId);
+        return sum + (item?.points || 0);
+      }, 0);
+      
+      setUserPoints(points);
+
+      const badges = getEarnedBadges({
+        completedItems: allCompleted,
+        totalPoints: points,
+      });
+      setEarnedBadges(badges);
+    } catch (error) {
+      console.error("Error loading progress:", error);
+      setStorageError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [checklistItems, customItems]);
+
+  // Unified toggle function
+  const toggleItemCompletion = async (itemId: string, category?: string) => {
+    const isCompleted = completedItems.includes(itemId);
+    let updatedCompleted: string[];
+
+    if (isCompleted) {
+      updatedCompleted = completedItems.filter((cid) => cid !== itemId);
+    } else {
+      updatedCompleted = [...completedItems, itemId];
+    }
+
+    // Update state immediately for better UX
+    setCompletedItems(updatedCompleted);
+
+    try {
+      // Save to both storage systems for redundancy
+      if (category) {
+        // For main checklist items, use your storage utility
+        await updateChecklistItem(category, itemId, !isCompleted);
+      }
+      
+      // Always save to AsyncStorage as backup for all items
+      await AsyncStorage.setItem("completedItems", JSON.stringify(updatedCompleted));
+
+      // Show points alert for main checklist items
+      if (!isCompleted && category) {
+        const item = checklistItems.find((i) => i.id === itemId);
+        if (item) {
+          Alert.alert(
+            "Great Job! 🎉",
+            `You completed "${item.title}" and earned ${item.points} points!`,
+            [{ text: "Awesome!" }]
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error saving progress:", error);
+      // Revert state on error
+      setCompletedItems(completedItems);
+      Alert.alert("Error", "Failed to save progress");
+    }
+  };
+
+  // Load progress when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProgress();
+    }, [loadProgress])
+  );
+
+  // Load AI toolkit and custom items
   useEffect(() => {
-    loadProgress();
     (async () => {
       setAiLoading(true);
 
@@ -287,81 +359,7 @@ export default function ToolkitScreen() {
       }
       setAiLoading(false);
     })();
-  }, [loadProgress, activeDisaster]);
-
-  // Animate mount
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerScale, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
-  const toggleItemCompletion = async (itemId: string) => {
-    const isCompleted = completedItems.includes(itemId);
-    const item = checklistItems.find((i) => i.id === itemId);
-    if (!item) return;
-
-    await updateChecklistItem(item.category, item.id, !isCompleted);
-    await loadProgress(); // <-- This reloads progress after update
-
-    if (!isCompleted) {
-      Alert.alert(
-        "Great Job! 🎉",
-        `You completed "${item.title}" and earned ${item.points} points!`,
-        [{ text: "Awesome!" }]
-      );
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "critical":
-        return "#dc2626";
-      case "high":
-        return "#ea580c";
-      case "medium":
-        return "#d97706";
-      case "low":
-        return "#16a34a";
-      default:
-        return "#6b7280";
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "critical":
-        return "⚡";
-      case "high":
-        return "🔥";
-      case "medium":
-        return "⚠️";
-      case "low":
-        return "💚";
-      default:
-        return "📌";
-    }
-  };
-
-  const selectedCategoryData = categories.find(
-    (cat) => cat.id === selectedCategory
-  );
+  }, [activeDisaster]);
 
   // Load custom items from storage
   useEffect(() => {
@@ -411,9 +409,6 @@ export default function ToolkitScreen() {
       ? 0
       : (customCompleted.length / customIds.length) * 100;
 
-  // Main Checklist Progress (excluding custom)
-  // Already declared above, so remove this duplicate block.
-
   const allTaskIds = [
     ...mainIds,
     ...aiToolkitIds.filter((id) => !mainIds.includes(id)), // avoid double-counting if AI items are in main
@@ -424,6 +419,63 @@ export default function ToolkitScreen() {
     allTaskIds.length === 0
       ? 0
       : (allCompleted.length / allTaskIds.length) * 100;
+
+  // Animate mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 1000,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerScale, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "critical":
+        return "#dc2626";
+      case "high":
+        return "#ea580c";
+      case "medium":
+        return "#d97706";
+      case "low":
+        return "#16a34a";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case "critical":
+        return "⚡";
+      case "high":
+        return "🔥";
+      case "medium":
+        return "⚠️";
+      case "low":
+        return "💚";
+      default:
+        return "📌";
+    }
+  };
+
+  const selectedCategoryData = categories.find(
+    (cat) => cat.id === selectedCategory
+  );
 
   return (
     <View style={styles.container} pointerEvents="box-none">
@@ -824,20 +876,15 @@ export default function ToolkitScreen() {
                         ]}
                       >
                         <TouchableOpacity
-                          onPress={async () => {
-                            let updatedCompleted = [...completedItems];
-                            if (isCompleted) {
-                              updatedCompleted = updatedCompleted.filter(
-                                (cid) => cid !== id
-                              );
+                          onPress={() => {
+                            const found = checklistItems.find((i) => i.title === item);
+                            if (found) {
+                              toggleItemCompletion(found.id, found.category);
                             } else {
-                              updatedCompleted.push(id);
+                              // For AI-only items, just use AsyncStorage
+                              const id = `ai-${item.replace(/\s+/g, "-").toLowerCase()}`;
+                              toggleItemCompletion(id);
                             }
-                            setCompletedItems(updatedCompleted);
-                            await AsyncStorage.setItem(
-                              "completedItems",
-                              JSON.stringify(updatedCompleted)
-                            );
                           }}
                           activeOpacity={0.7}
                           style={styles.itemTouchable}
@@ -1006,21 +1053,7 @@ export default function ToolkitScreen() {
                       ]}
                     >
                       <TouchableOpacity
-                        onPress={async () => {
-                          let updatedCompleted = [...completedItems];
-                          if (isCompleted) {
-                            updatedCompleted = updatedCompleted.filter(
-                              (cid) => cid !== item.id
-                            );
-                          } else {
-                            updatedCompleted.push(item.id);
-                          }
-                          setCompletedItems(updatedCompleted);
-                          await AsyncStorage.setItem(
-                            "completedItems",
-                            JSON.stringify(updatedCompleted)
-                          );
-                        }}
+                        onPress={() => toggleItemCompletion(item.id)}
                         onLongPress={() => {
                           Alert.alert(
                             "Delete Custom Item?",
@@ -1181,22 +1214,7 @@ export default function ToolkitScreen() {
                       ]}
                     >
                       <TouchableOpacity
-                        onPress={async () => {
-                          let updatedCompleted = [...completedItems];
-                          if (isCompleted) {
-                            updatedCompleted = updatedCompleted.filter(
-                              (cid) => cid !== item.id
-                            );
-                          } else {
-                            updatedCompleted.push(item.id);
-                          }
-                          setCompletedItems(updatedCompleted);
-                          await AsyncStorage.setItem(
-                            "completedItems",
-                            JSON.stringify(updatedCompleted)
-                          );
-                          // Optionally call toggleItemCompletion(item.id) if you want to keep points/badges logic
-                        }}
+                        onPress={() => toggleItemCompletion(item.id, item.category)}
                         activeOpacity={0.7}
                         style={styles.itemTouchable}
                       >
