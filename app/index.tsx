@@ -191,7 +191,7 @@ export default function HomeScreen() {
       const token = await registerForPushNotificationsAsync();
       if (token) {
         console.log('🔥 Got device token:', token);
-        // TODO: Persist token to backend so the user can receive targeted notifications.
+        // Token sync with Firestore happens inside AuthContext.
       } else {
         console.log('Push notifications unavailable in this environment.');
       }
