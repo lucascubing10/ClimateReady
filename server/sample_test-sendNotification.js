@@ -1,7 +1,10 @@
 //only for testing sending a notification from server to device
 
 import admin from "firebase-admin";
-import serviceAccount from "./climateready-40665-firebase-adminsdk-fbsvc-caf96cfc09.json" assert { type: "json" };
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const serviceAccount = require("./climateready-40665-firebase-adminsdk-fbsvc-caf96cfc09.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
