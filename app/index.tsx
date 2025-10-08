@@ -321,24 +321,56 @@ export default function HomeScreen() {
   const refreshProgress = useCallback(async () => {
     try {
       setRefreshing(true);
-      
-      // Get user progress from storage
-      const toolkit = await import('@/utils/storage');
-      const userProgress = await toolkit.getUserProgress();
-      console.log('HomeScreen userProgress:', userProgress);
 
-      // Calculate preparedness progress
-      const completedItems = Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0;
-      const totalItems = userProgress.totalItems || 12; // Default to 12 items
+    // Import all checklist sources and storage
+    const { getUserProgress } = await import('@/utils/storage');
+    const { checklistItems } = await import('@/utils/checklistData');
+    const { getCustomItems } = await import('@/utils/storage');
+
+      // Get all checklist items (predefined, custom)
+      const predefinedItems = checklistItems || [];
+      const customItems = await getCustomItems();
+
+      // Get completed items from user progress
+      const userProgress = await getUserProgress();
+      const completedIds = Array.isArray(userProgress.completedItems)
+        ? userProgress.completedItems
+        : [];
+
+      // Fallback: get AI toolkit items using getPersonalizedToolkit (returns array of names)
+      let aiItems: { id: string; name: string }[] = [];
+      try {
+        // Use points and level as a simple profile for AI toolkit
+        const profile = {
+          points: userProgress.points || 0,
+          level: userProgress.level || 1
+        };
+        const aiToolkitNames = await getPersonalizedToolkit(profile);
+        aiItems = Array.isArray(aiToolkitNames)
+          ? aiToolkitNames.map((name, idx) => ({ id: `ai-${idx}`, name }))
+          : [];
+      } catch (err) {
+        aiItems = [];
+      }
+
+      const allItems = [
+        ...predefinedItems,
+        ...(Array.isArray(customItems) ? customItems : []),
+        ...(Array.isArray(aiItems) ? aiItems : [])
+      ];
+
+      // Calculate accurate progress
+      const totalItems = allItems.length;
+      const completedItems = allItems.filter(item => completedIds.includes(item.id)).length;
       const prepPercent = totalItems > 0 ? Math.min(100, (completedItems / totalItems) * 100) : 0;
-      
+
       setPrepProgress({
         completed: completedItems,
         total: totalItems,
         percent: prepPercent
       });
 
-      // Calculate learning progress
+      // Calculate learning progress (unchanged)
       const completedContent = userProgress.completedLearning || [];
       const eduProgress = getEducationalProgress(completedContent);
       setLearningProgress({
@@ -347,34 +379,30 @@ export default function HomeScreen() {
         percent: eduProgress.percentage
       });
 
-      // Get game stats
+      // Get game stats (unchanged)
       const stats = await GameStorage.getStats();
-      const gamePercent = stats.totalGames > 0 ? Math.min(100, (stats.victories / stats.totalGames) * 100) : 0;
-      
       setGameStats({
         bestScore: stats.bestScore,
         totalGames: stats.totalGames,
         victories: stats.victories
       });
 
-      // Calculate badges
+      // Calculate badges (unchanged)
       const earned = getEarnedBadges({
-        completedItems: userProgress.completedItems,
+        completedItems: completedIds,
         totalPoints: userProgress.points || 0
       });
-      const badgesPercent = earned.length > 0 ? Math.min(100, (earned.length / 10) * 100) : 0; // Assuming 10 total badges
-      
       setBadgesCount(earned.length);
 
-      // Get AI tip
+      // Get AI tip (unchanged)
       const aiRecommendation = await getAiRecommendation();
       setAiTip(aiRecommendation);
 
     } catch (error) {
       console.error('Error refreshing progress:', error);
       // Set default values
-      setPrepProgress({ completed: 0, total: 12, percent: 0 });
-      setLearningProgress({ completed: 0, total: 8, percent: 0 });
+      setPrepProgress({ completed: 0, total: 0, percent: 0 });
+      setLearningProgress({ completed: 0, total: 0, percent: 0 });
       setGameStats({ bestScore: 0, totalGames: 0, victories: 0 });
       setBadgesCount(0);
       setAiTip(null);
@@ -663,22 +691,6 @@ export default function HomeScreen() {
               </View>
             </Card>
           </Animated.View>
-
-          {/* AI Tip Section */}
-          {aiTip && (
-            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>AI Tip</Text>
-                <Ionicons name="sparkles" size={20} color={YELLOW} />
-              </View>
-              <Card style={styles.aiTipCard}>
-                <LinearGradient colors={['#f0fdf4', '#ecfdf5']} style={styles.aiTipContent}>
-                  <Ionicons name="bulb" size={24} color={PRIMARY} style={styles.aiTipIcon} />
-                  <Text style={styles.aiTipText}>{aiTip}</Text>
-                </LinearGradient>
-              </Card>
-            </Animated.View>
-          )}
 
           {/* Hero Section */}
           <Animated.View entering={FadeInUp.delay(600).duration(500)}>
@@ -1125,10 +1137,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: CARD_BG,
     borderRadius: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 3,
   },
 });

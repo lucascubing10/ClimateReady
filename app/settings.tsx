@@ -86,14 +86,21 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { userProfile, logout } = useAuth();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
-  
-  // Load SOS settings when the screen loads
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Load SOS settings and dark mode when the screen loads
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getSOSSettings();
       setSOSSettings(settings);
+      // Load dark mode from local storage
+      const storedDark = await Promise.resolve(
+        typeof window !== 'undefined' && window.localStorage
+          ? window.localStorage.getItem('darkMode')
+          : null
+      );
+      setDarkMode(storedDark === 'true');
     };
-    
     loadSettings();
   }, []);
 
@@ -103,9 +110,19 @@ export default function SettingsScreen() {
       ...sosSettings,
       [key]: !sosSettings[key]
     };
-    
     setSOSSettings(newSettings);
     await saveSOSSettings(newSettings);
+  };
+
+  // Toggle dark mode
+  const toggleDarkMode = async () => {
+    setDarkMode((prev) => {
+      const newValue = !prev;
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('darkMode', newValue ? 'true' : 'false');
+      }
+      return newValue;
+    });
   };
 
   return (
@@ -170,8 +187,8 @@ export default function SettingsScreen() {
           />
           <SettingsItem 
             label="Dark Mode" 
-            switchValue={false}
-            onToggle={() => {}}
+            switchValue={darkMode}
+            onToggle={toggleDarkMode}
           />
           <SettingsItem 
             label="Location Services" 

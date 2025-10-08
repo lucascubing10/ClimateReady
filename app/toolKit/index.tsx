@@ -323,12 +323,12 @@ export default function ToolkitScreen() {
   // Animate progress bar
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: aiProgress,
+      toValue: allProgress,
       duration: 1500,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [aiProgress]);
+  }, [allProgress]);
 
   // Detect new badge unlocks
   useEffect(() => {
