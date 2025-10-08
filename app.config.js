@@ -15,7 +15,7 @@ export default {
     slug: 'climateready',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/images/ClimateReadyV4.png',
+  icon: './assets/images/ClimateReady.png',
     scheme: 'climateready',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
@@ -33,9 +33,12 @@ export default {
 
       "googleServicesFile": "./google-services.json",
       
+      icon: './assets/images/ClimateReady.png',
       adaptiveIcon: {
-        foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#5ba24f'
+        foregroundImage: './assets/images/ClimateReady.png',
+        backgroundColor: '#ffffff'
+        //backgroundColor: '#5ba24f'
+
       },
       edgeToEdgeEnabled: true,
       permissions: [
