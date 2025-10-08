@@ -81,7 +81,7 @@ $env:EXPO_PUBLIC_PROJECT_ID = "<your-eas-project-id>"
 - Android channels are configured automatically in the helper. Watch the Metro logs for the “Expo push token ready” message after sign-in.
 
 ## 🌐 Companion apps
-The `sos-live-tracker-map/` directory contains a Vite + TypeScript web experience that visualises SOS locations. Refer to its local README for build instructions when working on live tracking features.
+The SOS live-tracking web experience lives in a standalone repository: [ClimateReady SOS Live Tracker Map](https://github.com/R-Tharanka/sos-live-tracker-map). Consult that project’s README for build and deployment instructions, and keep `SOS_WEB_APP_URL` in sync with the hosted URL.
 
 ## 🤝 Contributing
 Contributions are welcome! Please open an issue to discuss significant changes. When submitting a PR, run `npm run lint` and include any relevant updates to documentation or screenshots.
