@@ -60,6 +60,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 
     let imageUrl;
     if (fileRef) {
+      console.log('Uploaded multipart image saved at:', fileRef.path);
       imageUrl = `/uploads/${path.basename(fileRef.path)}`;
     } else if (parsed.imageBase64) {
       try {
@@ -264,7 +265,8 @@ router.patch('/:id', upload.single('image'), async (req, res) => {
     if (!fileRef && Array.isArray(req.files) && req.files.length) fileRef = req.files[0];
     if (fileRef) {
       const oldAbs = localFile(post.imageUrl);
-      if (oldAbs) fs.unlink(oldAbs, () => {});
+  if (oldAbs) fs.unlink(oldAbs, () => {});
+  console.log('Uploaded replacement image saved at:', fileRef.path);
       updates.imageUrl = `/uploads/${path.basename(fileRef.path)}`;
     } else if (parsed.imageBase64) {
       try {
