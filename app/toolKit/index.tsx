@@ -26,6 +26,8 @@ import { getPersonalizedToolkit } from "../../utils/gemini";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from '@react-navigation/native';
+import { firestoreService } from "@/utils/firestoreService";
+import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get("window");
 
@@ -127,24 +129,23 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 };
 
 export default function ToolkitScreen() {
+  const { user, isLoggedIn } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [completedItems, setCompletedItems] = useState<string[]>([]);
   const [userPoints, setUserPoints] = useState(0);
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
-  const [personalizedToolkit, setPersonalizedToolkit] = useState<
-    string[] | null
-  >(null);
+  const [personalizedToolkit, setPersonalizedToolkit] = useState<string[] | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [activeDisaster, setActiveDisaster] = useState<string | null>(
-    "hurricane"
-  );
+  const [activeDisaster, setActiveDisaster] = useState<string | null>("hurricane");
   const [customItems, setCustomItems] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [storageError, setStorageError] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"synced" | "syncing" | "offline">("synced");
 
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -223,6 +224,25 @@ export default function ToolkitScreen() {
       ? 0
       : (aiCompleted.length / aiToolkitIds.length) * 100;
 
+  // Custom Checklist Progress
+  const customIds = customItems.map((item) => item.id);
+  const customCompleted = customIds.filter((id) => completedItems.includes(id));
+  const customProgress =
+    customIds.length === 0
+      ? 0
+      : (customCompleted.length / customIds.length) * 100;
+
+  const allTaskIds = [
+    ...mainIds,
+    ...aiToolkitIds.filter((id) => !mainIds.includes(id)),
+    ...customIds,
+  ];
+  const allCompleted = allTaskIds.filter((id) => completedItems.includes(id));
+  const allProgress =
+    allTaskIds.length === 0
+      ? 0
+      : (allCompleted.length / allTaskIds.length) * 100;
+
   // Animate progress bar
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -233,76 +253,124 @@ export default function ToolkitScreen() {
     }).start();
   }, [aiProgress]);
 
-  // Unified loadProgress function
+  // Updated loadProgress function
   const loadProgress = useCallback(async () => {
     setLoading(true);
     setStorageError(false);
     
     try {
-      // Method 1: Load from your storage utility (main checklist items)
-      const userProgress = await getUserProgress();
-      const completedFromStorage: string[] = [];
-      
-      Object.entries(userProgress.checklists).forEach(([cat, items]) => {
-        Object.entries(items).forEach(([id, done]) => {
-          if (done) completedFromStorage.push(id);
+      if (isLoggedIn && user) {
+        // Use Firestore for authenticated users
+        const userProgress = await firestoreService.getUserProgress();
+        setCompletedItems(userProgress.completedItems);
+        setUserPoints(userProgress.points);
+        setEarnedBadges(userProgress.badges || []);
+
+        const customItemsData = await firestoreService.getCustomItems();
+        setCustomItems(customItemsData);
+        setSyncStatus("synced");
+      } else {
+        // Use local storage for unauthenticated users
+        const userProgress = await getUserProgress();
+        setCompletedItems(userProgress.completedItems);
+        setUserPoints(userProgress.points);
+
+        const badges = getEarnedBadges({
+          completedItems: userProgress.completedItems,
+          totalPoints: userProgress.points,
         });
-      });
+        setEarnedBadges(badges);
 
-      // Method 2: Load from AsyncStorage (AI and custom items backup)
-      const completedFromAsync = await AsyncStorage.getItem("completedItems");
-      const completedFromAsyncArray = completedFromAsync ? JSON.parse(completedFromAsync) : [];
-
-      // Merge both sources, removing duplicates
-      const allCompleted = [...new Set([...completedFromStorage, ...completedFromAsyncArray])];
-      
-      setCompletedItems(allCompleted);
-
-      // Calculate points based on all completed items
-      const points = allCompleted.reduce((sum, itemId) => {
-        const item = checklistItems.find((i) => i.id === itemId) || 
-                     customItems.find((i) => i.id === itemId);
-        return sum + (item?.points || 0);
-      }, 0);
-      
-      setUserPoints(points);
-
-      const badges = getEarnedBadges({
-        completedItems: allCompleted,
-        totalPoints: points,
-      });
-      setEarnedBadges(badges);
+        const customItemsData = await AsyncStorage.getItem('customChecklistItems');
+        setCustomItems(customItemsData ? JSON.parse(customItemsData) : []);
+        setSyncStatus("synced");
+      }
     } catch (error) {
       console.error("Error loading progress:", error);
       setStorageError(true);
+      setSyncStatus("offline");
     } finally {
       setLoading(false);
     }
-  }, [checklistItems, customItems]);
+  }, [isLoggedIn, user]);
 
-  // Unified toggle function
+  // Setup real-time listeners when user is authenticated
+  useEffect(() => {
+    if (isLoggedIn && user) {
+      const unsubscribeProgress = firestoreService.subscribeToUserProgress((progress) => {
+        setCompletedItems(progress.completedItems);
+        setUserPoints(progress.points);
+        setEarnedBadges(progress.badges || []);
+        setSyncStatus("synced");
+      });
+
+      const unsubscribeCustomItems = firestoreService.subscribeToCustomItems((items) => {
+        setCustomItems(items);
+        setSyncStatus("synced");
+      });
+
+      return () => {
+        unsubscribeProgress();
+        unsubscribeCustomItems();
+      };
+    }
+  }, [isLoggedIn, user]);
+
+  // Migrate data when user logs in
+  useEffect(() => {
+    const migrateData = async () => {
+      if (isLoggedIn && user) {
+        setMigrating(true);
+        await firestoreService.migrateLocalDataToFirestore();
+        setMigrating(false);
+        loadProgress();
+      }
+    };
+
+    migrateData();
+  }, [isLoggedIn, user]);
+
+  // Updated toggle function
   const toggleItemCompletion = async (itemId: string, category?: string) => {
     const isCompleted = completedItems.includes(itemId);
-    let updatedCompleted: string[];
-
-    if (isCompleted) {
-      updatedCompleted = completedItems.filter((cid) => cid !== itemId);
-    } else {
-      updatedCompleted = [...completedItems, itemId];
-    }
-
+    
     // Update state immediately for better UX
-    setCompletedItems(updatedCompleted);
+    setCompletedItems(prev => 
+      isCompleted 
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
 
     try {
-      // Save to both storage systems for redundancy
-      if (category) {
-        // For main checklist items, use your storage utility
-        await updateChecklistItem(category, itemId, !isCompleted);
+      if (isLoggedIn && user) {
+        // Use Firestore for authenticated users
+        setSyncStatus("syncing");
+        const success = await firestoreService.updateChecklistItem({
+          itemId,
+          category,
+          completed: !isCompleted,
+        });
+
+        if (!success) {
+          throw new Error('Failed to update item in Firestore');
+        }
+        setSyncStatus("synced");
+      } else {
+        // Use local storage for unauthenticated users
+        let updatedCompleted = [...completedItems];
+        if (isCompleted) {
+          updatedCompleted = updatedCompleted.filter((cid) => cid !== itemId);
+        } else {
+          updatedCompleted.push(itemId);
+        }
+        
+        await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
+        
+        // Also update through your existing storage system for points calculation
+        if (category) {
+          await updateChecklistItem(category, itemId, !isCompleted);
+        }
       }
-      
-      // Always save to AsyncStorage as backup for all items
-      await AsyncStorage.setItem("completedItems", JSON.stringify(updatedCompleted));
 
       // Show points alert for main checklist items
       if (!isCompleted && category) {
@@ -319,28 +387,86 @@ export default function ToolkitScreen() {
       console.error("Error saving progress:", error);
       // Revert state on error
       setCompletedItems(completedItems);
-      Alert.alert("Error", "Failed to save progress");
+      setSyncStatus("offline");
+      Alert.alert("Error", "Failed to save progress. Please check your connection.");
     }
   };
 
-  // Load progress when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      loadProgress();
-    }, [loadProgress])
-  );
+  // Updated addCustomItem function
+  const addCustomItem = async () => {
+    if (!newTitle.trim()) return;
 
-  // Load AI toolkit and custom items
+    const newItem = {
+      title: newTitle,
+      description: newDesc,
+      category: selectedCategory === "all" ? "custom" : selectedCategory,
+      points: 5,
+      priority: "low" as const,
+      estimatedTime: 5,
+      difficulty: "easy" as const,
+      custom: true,
+    };
+
+    try {
+      if (isLoggedIn && user) {
+        setSyncStatus("syncing");
+        await firestoreService.saveCustomItem(newItem);
+        setSyncStatus("synced");
+      } else {
+        // Fallback to local storage
+        const localItemsJson = await AsyncStorage.getItem('customChecklistItems');
+        const localItems = localItemsJson ? JSON.parse(localItemsJson) : [];
+        const customItem = {
+          ...newItem,
+          id: `custom-${Date.now()}`,
+        };
+        const updatedItems = [...localItems, customItem];
+        await AsyncStorage.setItem('customChecklistItems', JSON.stringify(updatedItems));
+        setCustomItems(updatedItems);
+      }
+
+      setNewTitle("");
+      setNewDesc("");
+      setShowModal(false);
+      Alert.alert("Success", "Custom item added!");
+    } catch (error) {
+      console.error("Error adding custom item:", error);
+      setSyncStatus("offline");
+      Alert.alert("Error", "Failed to add custom item");
+    }
+  };
+
+  // Updated deleteCustomItem function
+  const deleteCustomItem = async (id: string) => {
+    try {
+      if (isLoggedIn && user) {
+        setSyncStatus("syncing");
+        await firestoreService.deleteCustomItem(id);
+        setSyncStatus("synced");
+      } else {
+        // Fallback to local storage
+        const localItemsJson = await AsyncStorage.getItem('customChecklistItems');
+        const localItems = localItemsJson ? JSON.parse(localItemsJson) : [];
+        const updatedItems = localItems.filter((item: any) => item.id !== id);
+        await AsyncStorage.setItem('customChecklistItems', JSON.stringify(updatedItems));
+        setCustomItems(updatedItems);
+      }
+    } catch (error) {
+      console.error("Error deleting custom item:", error);
+      setSyncStatus("offline");
+      Alert.alert("Error", "Failed to delete custom item");
+    }
+  };
+
+  // Load AI toolkit
   useEffect(() => {
     (async () => {
       setAiLoading(true);
-
       let userProfile = await AsyncStorage.getItem("householdProfile");
       let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
       setProfile(parsedProfile);
 
       if (parsedProfile?.householdCompleted) {
-        // Try to load cached AI recommendation first
         const cached = await getAiRecommendation();
         if (cached) {
           setPersonalizedToolkit(JSON.parse(cached));
@@ -350,7 +476,7 @@ export default function ToolkitScreen() {
         try {
           const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
           setPersonalizedToolkit(recommendations);
-          await saveAiRecommendation(JSON.stringify(recommendations)); // Save to AsyncStorage
+          await saveAiRecommendation(JSON.stringify(recommendations));
         } catch (error) {
           setPersonalizedToolkit([]);
         }
@@ -361,64 +487,12 @@ export default function ToolkitScreen() {
     })();
   }, [activeDisaster]);
 
-  // Load custom items from storage
-  useEffect(() => {
-    (async () => {
-      const stored = await AsyncStorage.getItem("customChecklistItems");
-      if (stored) setCustomItems(JSON.parse(stored));
-    })();
-  }, []);
-
-  // Save custom items to storage
-  const saveCustomItems = async (items: any[]) => {
-    setCustomItems(items);
-    await AsyncStorage.setItem("customChecklistItems", JSON.stringify(items));
-  };
-
-  // Add new custom item
-  const addCustomItem = async () => {
-    if (!newTitle.trim()) return;
-    const newItem = {
-      id: `custom-${Date.now()}`,
-      title: newTitle,
-      description: newDesc,
-      category: selectedCategory === "all" ? "custom" : selectedCategory,
-      points: 5,
-      priority: "low",
-      estimatedTime: 5,
-      custom: true,
-    };
-    const updated = [...customItems, newItem];
-    await saveCustomItems(updated);
-    setNewTitle("");
-    setNewDesc("");
-    setShowModal(false);
-  };
-
-  // Delete custom item
-  const deleteCustomItem = async (id: string) => {
-    const updated = customItems.filter((item) => item.id !== id);
-    await saveCustomItems(updated);
-  };
-
-  // Custom Checklist Progress
-  const customIds = customItems.map((item) => item.id);
-  const customCompleted = customIds.filter((id) => completedItems.includes(id));
-  const customProgress =
-    customIds.length === 0
-      ? 0
-      : (customCompleted.length / customIds.length) * 100;
-
-  const allTaskIds = [
-    ...mainIds,
-    ...aiToolkitIds.filter((id) => !mainIds.includes(id)), // avoid double-counting if AI items are in main
-    ...customIds,
-  ];
-  const allCompleted = allTaskIds.filter((id) => completedItems.includes(id));
-  const allProgress =
-    allTaskIds.length === 0
-      ? 0
-      : (allCompleted.length / allTaskIds.length) * 100;
+  // Load progress when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadProgress();
+    }, [loadProgress])
+  );
 
   // Animate mount
   useEffect(() => {
@@ -477,6 +551,52 @@ export default function ToolkitScreen() {
     (cat) => cat.id === selectedCategory
   );
 
+  // Sync status indicator
+  const renderSyncStatus = () => {
+    let icon, color, text;
+    
+    switch (syncStatus) {
+      case "synced":
+        icon = "checkmark-circle";
+        color = "#10b981";
+        text = "Synced";
+        break;
+      case "syncing":
+        icon = "sync";
+        color = "#f59e0b";
+        text = "Syncing...";
+        break;
+      case "offline":
+        icon = "cloud-offline";
+        color = "#ef4444";
+        text = "Offline";
+        break;
+    }
+
+    return (
+      <View style={styles.syncStatus}>
+        <Ionicons name={icon as any} size={16} color={color} />
+        <Text style={[styles.syncStatusText, { color }]}>{text}</Text>
+      </View>
+    );
+  };
+
+  // Add migration indicator
+  if (migrating) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.migrationContainer}>
+          <ActivityIndicator size="large" color="#6366f1" />
+          <Text style={styles.migrationTitle}>Migrating Your Data</Text>
+          <Text style={styles.migrationText}>
+            We're moving your checklist progress to the cloud so you can access it from any device.
+          </Text>
+          <Text style={styles.migrationSubtext}>This will only take a moment...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Background Elements */}
@@ -499,6 +619,9 @@ export default function ToolkitScreen() {
           <View>
             <Text style={styles.greeting}>Emergency Preparedness</Text>
             <Text style={styles.subtitle}>Stay ready, stay safe</Text>
+          </View>
+          <View style={styles.headerRight}>
+            {renderSyncStatus()}
           </View>
         </Animated.View>
 
@@ -546,6 +669,7 @@ export default function ToolkitScreen() {
                   <Text style={styles.progressTitle}>Your Preparedness</Text>
                   <Text style={styles.progressSubtitle}>
                     {allCompleted.length} of {allTaskIds.length} items complete
+                    {isLoggedIn && " • Cloud Synced"}
                   </Text>
                 </View>
                 <View style={styles.progressBadge}>
@@ -1292,7 +1416,8 @@ export default function ToolkitScreen() {
             </View>
           </ExpandableCard>
         </ScrollView>
-        {/* Move FAB here, inside Animated.View but after ScrollView */}
+
+        {/* Floating Action Button */}
         <FloatingActionButton
           onPress={() => setShowModal(true)}
           icon="add"
@@ -1386,7 +1511,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
-    position: "relative", // <-- ensure relative positioning
+    position: "relative",
   },
   backgroundElements: {
     position: "absolute",
@@ -1437,6 +1562,9 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 16,
   },
+  headerRight: {
+    alignItems: "flex-end",
+  },
   greeting: {
     fontSize: 28,
     fontWeight: "800",
@@ -1448,20 +1576,18 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     marginTop: 4,
   },
-  profileButton: {
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  profileGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    justifyContent: "center",
+  syncStatus: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 4,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  syncStatusText: {
+    fontSize: 12,
+    fontWeight: "600",
   },
   emergencyBanner: {
     marginHorizontal: 24,
@@ -1573,34 +1699,6 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 6,
   },
-  statsGrid: {
-    flexDirection: "row",
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    padding: 8,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-    padding: 12,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: "#e5e7eb",
-    marginVertical: 8,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1f2937",
-    marginTop: 4,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "600",
-  },
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1683,37 +1781,6 @@ const styles = StyleSheet.create({
   loadingText: {
     color: "#6b7280",
     fontSize: 14,
-  },
-  aiChecklistItems: {
-    gap: 8,
-  },
-  aiChecklistItem: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  aiChecklistGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  aiChecklistItemCompleted: {
-    shadowColor: "#7c3aed",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  aiChecklistText: {
-    fontSize: 14,
-    color: "#374151",
-    flex: 1,
-    fontWeight: "500",
-  },
-  aiChecklistTextCompleted: {
-    color: "#fff",
-    fontWeight: "600",
   },
   categoryContainer: {
     marginBottom: 16,
@@ -1841,41 +1908,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
-  itemFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  itemMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: "#6b7280",
-    fontWeight: "500",
-  },
-  specialNeeds: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  specialNeedTag: {
-    backgroundColor: "rgba(99, 102, 241, 0.1)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  specialNeedText: {
-    fontSize: 10,
-    color: "#6366f1",
-    fontWeight: "600",
-  },
   completedRibbon: {
     position: "absolute",
     top: 12,
@@ -1905,7 +1937,35 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
-    elevation: 20, // <-- increase elevation for Android
-    zIndex: 100, // <-- add zIndex for iOS/web
+    elevation: 20,
+    zIndex: 100,
+  },
+  migrationContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    padding: 24,
+  },
+  migrationTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  migrationText: {
+    fontSize: 16,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  migrationSubtext: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });
