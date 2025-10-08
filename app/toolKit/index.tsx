@@ -177,7 +177,8 @@ const BadgeUnlockAnimation = ({
         source={require('@/assets/animations/confetti.json')}
         autoPlay
         loop={false}
-        style={styles.confettiAnimation}
+        style={StyleSheet.absoluteFill}
+        resizeMode="cover"
       />
       
       <Animated.View 
