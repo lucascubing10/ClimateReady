@@ -1,6 +1,10 @@
 const expoProjectId =
-  process.env.EXPO_PUBLIC_PROJECT_ID ??
-  process.env.EXPO_PROJECT_ID ??
+  process.env.EXPO_PUBLIC_PROJECT_ID ?? process.env.EXPO_PROJECT_ID ?? null;
+
+const googleMapsApiKey =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+  process.env.VITE_GOOGLE_MAPS_API_KEY ??
+  process.env.GOOGLE_MAPS_API_KEY ??
   null;
 
 if (!expoProjectId) {
@@ -27,7 +31,14 @@ export default {
         NSLocationAlwaysUsageDescription: 'ClimateReady uses your location to provide accurate weather information and emergency alerts even when the app is in the background.',
         UIBackgroundModes: ['location', 'fetch']
       },
-      bundleIdentifier: 'com.yourcompany.climateready'
+      bundleIdentifier: 'com.yourcompany.climateready',
+      ...(googleMapsApiKey
+        ? {
+            config: {
+              googleMapsApiKey,
+            },
+          }
+        : {}),
     },
     android: {
 
@@ -46,7 +57,16 @@ export default {
         'ACCESS_FINE_LOCATION',
         'ACCESS_BACKGROUND_LOCATION'
       ],
-      package: 'com.yourcompany.climateready'
+      package: 'com.yourcompany.climateready',
+      ...(googleMapsApiKey
+        ? {
+            config: {
+              googleMaps: {
+                apiKey: googleMapsApiKey,
+              },
+            },
+          }
+        : {}),
     },
     web: {
       bundler: 'metro',
@@ -80,7 +100,7 @@ export default {
       openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
       sosWebAppUrl: process.env.SOS_WEB_APP_URL,
       expoProjectId,
-      GOOGLE_MAPS_API_KEY: process.env.VITE_GOOGLE_MAPS_API_KEY
+      googleMapsApiKey,
     }
   }
 };
