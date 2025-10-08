@@ -29,6 +29,9 @@ npx expo run:android --variant development -- --stacktrace --info
 cd android
 .\gradlew.bat clean
 cd ..
+ 
+# Regenerate the android/ folder from Expo config (run after changing splash/icon assets or when re-syncing with Expo)
+npx expo prebuild --platform android
 ```
 
 ## Android device management (ADB)
