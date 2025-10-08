@@ -1,50 +1,63 @@
 # ClimateReady Command Reference
 
-This cheat sheet lists the CLI commands we rely on most when building and debugging the Expo-based Android app on Windows PowerShell.
+Go-to CLI commands for developing and debugging the Expo-based Android app on Windows PowerShell. Commands are grouped in the order you typically need them.
 
-## Expo development workflow
+## Project setup
 
 ```powershell
-# Start Metro for an installed development client (daily coding loop)
+# Install JS dependencies after cloning or pulling new changes
+npm install
+```
+
+## Daily development loop
+
+```powershell
+# 1) Start Metro for an already-installed development client
 npx expo start --dev-client
 
-# Rebuild and install the native Android development client
+# 2) (Only when native code or config changes) rebuild and reinstall dev client
 npx expo run:android --variant development
 
-# Same as above, but with verbose Gradle logging for troubleshooting
+# 3) Re-run the native build with verbose logging when diagnosing Gradle failures
 npx expo run:android --variant development -- --stacktrace --info
 ```
 
-## Android Gradle maintenance
+## Native build maintenance
 
 ```powershell
-# Clean Gradle build artifacts (run after dependency changes or flaky builds)
+# Clear Gradle caches/artifacts when builds behave oddly or after dependency changes
 cd android
 .\gradlew.bat clean
 cd ..
 ```
 
-## Android Debug Bridge (ADB)
+## Android device management (ADB)
 
 ```powershell
-# List connected Android devices and their status
+# Confirm your device is connected and authorized
 adb devices
 
-# Remove an existing installation of the dev client from a device
+# Uninstall any previously installed ClimateReady dev client (prevents signature conflicts)
 adb uninstall com.yourcompany.climateready
 
-# Sideload the freshly built development APK onto a connected device
+# Sideload the freshly built development APK onto the connected device
 adb install -r android\app\build\outputs\apk\development\app-development.apk
 ```
 
 ## Environment helpers
 
 ```powershell
-# (Example) Set Expo project ID for the current shell session
+# (Per-shell) Set Expo project ID before running native builds
 $env:EXPO_PUBLIC_PROJECT_ID = "your-eas-project-id"
 
-# Print the active Java home path to confirm JDK 17 is selected
-$env:JAVA_HOME
+# Persist the Expo project ID for future shells (optional)
+setx EXPO_PUBLIC_PROJECT_ID "your-eas-project-id"
+
+# Check the active Java home to verify JDK 17 is selected
+echo $env:JAVA_HOME
 ```
 
-> **Tip:** When a command fails, re-run it with `--stacktrace --info` (for Gradle) or check the Metro console for detailed logs. Always confirm the device shows up in `adb devices` before installing builds.
+> **Tips:**
+> - When a native build fails, add `--stacktrace --info` (already shown above) for more Gradle diagnostics.
+> - Always confirm the device appears as `device` (not `unauthorized`) in `adb devices` before installing builds.
+> - After rebuilding the dev client, return to `npx expo start --dev-client` for hot-reload development.
