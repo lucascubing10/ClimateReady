@@ -8,100 +8,112 @@ interface FetchGoogleSafeZonesParams {
   signal?: AbortSignal;
 }
 
-interface PlacesApiResponse {
-  status: string;
-  results: Array<{
-    place_id: string;
-    name: string;
+interface PlacesNewApiResponse {
+  places?: Array<{
+    id: string;
     types?: string[];
-    geometry: {
-      location: { lat: number; lng: number };
-    };
-    vicinity?: string;
-    formatted_address?: string;
+    displayName?: { text?: string };
+    formattedAddress?: string;
+    location?: { latitude?: number; longitude?: number };
     rating?: number;
-    user_ratings_total?: number;
-    international_phone_number?: string;
-    website?: string;
+    userRatingCount?: number;
+    nationalPhoneNumber?: string;
+    internationalPhoneNumber?: string;
+    websiteUri?: string;
   }>;
-  error_message?: string;
 }
 
-const GOOGLE_NEARBY_SEARCH_URL = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+const PLACES_NEARBY_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
-const buildSearchUrl = ({
-  location,
-  radiusMeters,
-  apiKey,
-  type,
-  keyword,
-}: {
-  location: Coordinates;
-  radiusMeters: number;
-  apiKey: string;
-  type?: string;
-  keyword?: string;
-}): string => {
-  const params = [
-    `location=${location.lat},${location.lng}`,
-    `radius=${radiusMeters}`,
-    type ? `type=${encodeURIComponent(type)}` : null,
-    keyword ? `keyword=${encodeURIComponent(keyword)}` : null,
-    `key=${apiKey}`,
-  ].filter(Boolean);
+const getRequestPayload = (
+  category: SafeZoneCategory,
+  location: Coordinates,
+  radiusMeters: number,
+) => {
+  const basePayload: Record<string, unknown> = {
+    locationRestriction: {
+      circle: {
+        center: {
+          latitude: location.lat,
+          longitude: location.lng,
+        },
+        radius: radiusMeters,
+      },
+    },
+    maxResultCount: 20,
+    rankPreference: 'DISTANCE',
+  };
 
-  return `${GOOGLE_NEARBY_SEARCH_URL}?${params.join('&')}`;
+  if (category === 'hospital') {
+    return {
+      ...basePayload,
+      includedTypes: ['hospital'],
+    };
+  }
+
+  return {
+    ...basePayload,
+    includedTypes: ['point_of_interest'],
+    keyword: 'emergency shelter',
+  };
 };
-
-const mapPlaceToSafeZone = (result: PlacesApiResponse['results'][number], type: SafeZoneCategory): SafeZone => ({
-  id: result.place_id,
-  name: result.name,
-  type,
-  location: {
-    lat: result.geometry.location.lat,
-    lng: result.geometry.location.lng,
-  },
-  address: result.vicinity ?? result.formatted_address,
-  rating: result.rating,
-  userRatingsTotal: result.user_ratings_total,
-  phoneNumber: result.international_phone_number,
-  website: result.website,
-  source: 'google',
-  placeId: result.place_id,
-});
 
 const fetchCategory = async (
   category: SafeZoneCategory,
   params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
 ): Promise<SafeZone[]> => {
   const { apiKey, location, radiusMeters, signal } = params;
-  const requestUrl =
-    category === 'hospital'
-      ? buildSearchUrl({ location, radiusMeters, apiKey, type: 'hospital' })
-      : buildSearchUrl({
-          location,
-          radiusMeters,
-          apiKey,
-          type: 'point_of_interest',
-          keyword: 'emergency shelter',
-        });
+  const response = await fetch(`${PLACES_NEARBY_SEARCH_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-FieldMask': [
+        'places.id',
+        'places.displayName',
+        'places.location',
+        'places.formattedAddress',
+        'places.rating',
+        'places.userRatingCount',
+        'places.nationalPhoneNumber',
+        'places.internationalPhoneNumber',
+        'places.websiteUri',
+      ].join(','),
+    },
+    body: JSON.stringify(getRequestPayload(category, location, radiusMeters)),
+    signal,
+  });
 
-  const response = await fetch(requestUrl, { signal });
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${category} data from Google Places (HTTP ${response.status})`);
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch ${category} data from Google Places (HTTP ${response.status}): ${errorText}`,
+    );
   }
 
-  const payload = (await response.json()) as PlacesApiResponse;
+  const payload = (await response.json()) as PlacesNewApiResponse;
 
-  if (payload.status === 'ZERO_RESULTS') {
+  if (!payload.places?.length) {
     return [];
   }
 
-  if (payload.status !== 'OK') {
-    throw new Error(payload.error_message ?? `Google Places API error: ${payload.status}`);
-  }
-
-  return payload.results.map((result) => mapPlaceToSafeZone(result, category));
+  return payload.places
+    .filter((place): place is NonNullable<typeof payload.places>[number] => Boolean(place?.id))
+    .map((place) => ({
+      id: place.id,
+      name: place.displayName?.text ?? 'Unknown safe zone',
+  type: category,
+      location: {
+        lat: place.location?.latitude ?? location.lat,
+        lng: place.location?.longitude ?? location.lng,
+      },
+      address: place.formattedAddress,
+      rating: place.rating,
+      userRatingsTotal: place.userRatingCount,
+      phoneNumber: place.internationalPhoneNumber ?? place.nationalPhoneNumber,
+      website: place.websiteUri,
+      source: 'google',
+      placeId: place.id,
+    }));
 };
 
 export const fetchGoogleSafeZones = async (
