@@ -22,20 +22,7 @@ npx expo run:android --variant development
 npx expo run:android --variant development -- --stacktrace --info
 ```
 
-## Update the device and stream logs
-
-Use this flow when you need to refresh the development client on your device with the latest native updates and immediately tail console output.
-
-```powershell
-# 1) (Optional) Sync dependencies when package.json changed
-npm install
-
-# 2) Rebuild and reinstall the dev client with current native updates
-npx expo run:android --variant development
-
-# 3) Launch Metro with the dev client to capture console logs
-npx expo start --dev-client
-```
+> **Workflow hint:** When you need to refresh the development client on your device and watch logs, run step 2 above to rebuild/reinstall, then step 1 to launch Metro. Step 3 is optional for deeper Gradle diagnostics.
 
 ## Native build maintenance
 
