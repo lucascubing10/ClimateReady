@@ -1,5 +1,6 @@
 // app/(tabs)/toolkit/index.tsx
 import React, { useState, useEffect, useCallback } from "react";
+import { Vibration } from 'react-native';
 import {
   View,
   Text,
@@ -19,7 +20,7 @@ import {
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { checklistItems } from "@/utils/checklistData";
-import { getEarnedBadges } from "@/utils/badges";
+import { Badge, badges, getEarnedBadges } from "@/utils/badges";
 import { getUserProgress, updateChecklistItem, saveAiRecommendation, getAiRecommendation } from "@/utils/storage";
 import { getUserProfile } from "../../utils/profile";
 import { getPersonalizedToolkit } from "../../utils/gemini";
@@ -28,6 +29,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from '@react-navigation/native';
 import { firestoreService } from "@/utils/firestoreService";
 import { useAuth } from '@/context/AuthContext';
+import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get("window");
 
@@ -91,6 +93,7 @@ type FloatingActionButtonProps = {
   onPress: () => void;
   icon: string;
   color?: string;
+  
 };
 
 const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
@@ -101,6 +104,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const scaleAnim = useState(new Animated.Value(1))[0];
 
   const handlePress = () => {
+    Vibration.vibrate([0, 500, 200, 500]);
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -128,6 +132,91 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   );
 };
 
+// Badge Unlock Animation Component
+const BadgeUnlockAnimation = ({ 
+  badge, 
+  visible, 
+  onClose 
+}: { 
+  badge: Badge; 
+  visible: boolean; 
+  onClose: () => void 
+}) => {
+  const scaleAnim = useState(new Animated.Value(0))[0];
+  const opacityAnim = useState(new Animated.Value(0))[0];
+  
+
+  useEffect(() => {
+    Vibration.vibrate([0, 500, 200, 500]);
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={styles.badgeAnimationOverlay}>
+      {/* Confetti Background Animation */}
+      <LottieView
+        source={require('@/assets/animations/confetti.json')}
+        autoPlay
+        loop={false}
+        style={styles.confettiAnimation}
+      />
+      
+      <Animated.View 
+        style={[
+          styles.badgeAnimationContainer,
+          {
+            opacity: opacityAnim,
+            transform: [{ scale: scaleAnim }]
+          }
+        ]}
+      >
+        <View style={styles.badgeAnimationContent}>
+          {/* Badge Icon */}
+          <View style={[styles.badgeIconContainer, { backgroundColor: badge.color }]}>
+            <Text style={styles.badgeIcon}>
+              {badge.icon}
+            </Text>
+          </View>
+          
+          {/* Badge Text */}
+          <View style={styles.badgeTextContainer}>
+            <Text style={styles.badgeUnlockTitle}>Badge Unlocked! 🎉</Text>
+            <Text style={styles.badgeName}>{badge.name}</Text>
+            <Text style={styles.badgeDescription}>{badge.description}</Text>
+          </View>
+          
+          {/* Close Button */}
+          <TouchableOpacity 
+            style={styles.badgeCloseButton}
+            onPress={onClose}
+          >
+            <Text style={styles.badgeCloseText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
+
 export default function ToolkitScreen() {
   const { user, isLoggedIn } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -146,6 +235,11 @@ export default function ToolkitScreen() {
   const [storageError, setStorageError] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"synced" | "syncing" | "offline">("synced");
+  
+  // Badge Animation States
+  const [showBadgeAnimation, setShowBadgeAnimation] = useState(false);
+  const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
+  const [previousEarnedBadges, setPreviousEarnedBadges] = useState<string[]>([]);
 
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -205,43 +299,25 @@ export default function ToolkitScreen() {
       ? allItems
       : allItems.filter((item) => item.category === selectedCategory);
 
-  // Progress (use only main checklist items for overall progress)
+  // Progress calculations
   const mainIds = checklistItems.map((item) => item.id);
   const mainCompleted = mainIds.filter((id) => completedItems.includes(id));
-  const mainProgress =
-    mainIds.length === 0 ? 0 : (mainCompleted.length / mainIds.length) * 100;
-  const completedCount = mainCompleted.length;
-  const totalCount = mainIds.length;
+  const mainProgress = mainIds.length === 0 ? 0 : (mainCompleted.length / mainIds.length) * 100;
 
-  // AI Recommended Progress
   const aiToolkitIds = (personalizedToolkit ?? []).map((item) => {
     const found = checklistItems.find((i) => i.title === item);
     return found ? found.id : `ai-${item.replace(/\s+/g, "-").toLowerCase()}`;
   });
   const aiCompleted = aiToolkitIds.filter((id) => completedItems.includes(id));
-  const aiProgress =
-    aiToolkitIds.length === 0
-      ? 0
-      : (aiCompleted.length / aiToolkitIds.length) * 100;
+  const aiProgress = aiToolkitIds.length === 0 ? 0 : (aiCompleted.length / aiToolkitIds.length) * 100;
 
-  // Custom Checklist Progress
   const customIds = customItems.map((item) => item.id);
   const customCompleted = customIds.filter((id) => completedItems.includes(id));
-  const customProgress =
-    customIds.length === 0
-      ? 0
-      : (customCompleted.length / customIds.length) * 100;
+  const customProgress = customIds.length === 0 ? 0 : (customCompleted.length / customIds.length) * 100;
 
-  const allTaskIds = [
-    ...mainIds,
-    ...aiToolkitIds.filter((id) => !mainIds.includes(id)),
-    ...customIds,
-  ];
+  const allTaskIds = [...mainIds, ...aiToolkitIds.filter((id) => !mainIds.includes(id)), ...customIds];
   const allCompleted = allTaskIds.filter((id) => completedItems.includes(id));
-  const allProgress =
-    allTaskIds.length === 0
-      ? 0
-      : (allCompleted.length / allTaskIds.length) * 100;
+  const allProgress = allTaskIds.length === 0 ? 0 : (allCompleted.length / allTaskIds.length) * 100;
 
   // Animate progress bar
   useEffect(() => {
@@ -253,6 +329,21 @@ export default function ToolkitScreen() {
     }).start();
   }, [aiProgress]);
 
+  // Detect new badge unlocks
+  useEffect(() => {
+    if (earnedBadges.length > previousEarnedBadges.length) {
+      const newBadgeId = earnedBadges.find(badgeId => !previousEarnedBadges.includes(badgeId));
+      if (newBadgeId) {
+        const newBadge = badges.find(badge => badge.id === newBadgeId);
+        if (newBadge) {
+          setUnlockedBadge(newBadge);
+          setShowBadgeAnimation(true);
+        }
+      }
+    }
+    setPreviousEarnedBadges(earnedBadges);
+  }, [earnedBadges, previousEarnedBadges]);
+
   // Updated loadProgress function
   const loadProgress = useCallback(async () => {
     setLoading(true);
@@ -260,7 +351,6 @@ export default function ToolkitScreen() {
     
     try {
       if (isLoggedIn && user) {
-        // Use Firestore for authenticated users
         const userProgress = await firestoreService.getUserProgress();
         setCompletedItems(userProgress.completedItems);
         setUserPoints(userProgress.points);
@@ -270,7 +360,6 @@ export default function ToolkitScreen() {
         setCustomItems(customItemsData);
         setSyncStatus("synced");
       } else {
-        // Use local storage for unauthenticated users
         const userProgress = await getUserProgress();
         setCompletedItems(userProgress.completedItems);
         setUserPoints(userProgress.points);
@@ -330,9 +419,12 @@ export default function ToolkitScreen() {
     migrateData();
   }, [isLoggedIn, user]);
 
-  // Updated toggle function
+  // Updated toggle function with badge tracking
   const toggleItemCompletion = async (itemId: string, category?: string) => {
     const isCompleted = completedItems.includes(itemId);
+    
+    // Store current badges before update
+    const currentBadges = [...earnedBadges];
     
     // Update state immediately for better UX
     setCompletedItems(prev => 
@@ -343,7 +435,6 @@ export default function ToolkitScreen() {
 
     try {
       if (isLoggedIn && user) {
-        // Use Firestore for authenticated users
         setSyncStatus("syncing");
         const success = await firestoreService.updateChecklistItem({
           itemId,
@@ -356,7 +447,6 @@ export default function ToolkitScreen() {
         }
         setSyncStatus("synced");
       } else {
-        // Use local storage for unauthenticated users
         let updatedCompleted = [...completedItems];
         if (isCompleted) {
           updatedCompleted = updatedCompleted.filter((cid) => cid !== itemId);
@@ -366,7 +456,6 @@ export default function ToolkitScreen() {
         
         await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
         
-        // Also update through your existing storage system for points calculation
         if (category) {
           await updateChecklistItem(category, itemId, !isCompleted);
         }
@@ -385,7 +474,6 @@ export default function ToolkitScreen() {
       }
     } catch (error) {
       console.error("Error saving progress:", error);
-      // Revert state on error
       setCompletedItems(completedItems);
       setSyncStatus("offline");
       Alert.alert("Error", "Failed to save progress. Please check your connection.");
@@ -413,7 +501,6 @@ export default function ToolkitScreen() {
         await firestoreService.saveCustomItem(newItem);
         setSyncStatus("synced");
       } else {
-        // Fallback to local storage
         const localItemsJson = await AsyncStorage.getItem('customChecklistItems');
         const localItems = localItemsJson ? JSON.parse(localItemsJson) : [];
         const customItem = {
@@ -444,7 +531,6 @@ export default function ToolkitScreen() {
         await firestoreService.deleteCustomItem(id);
         setSyncStatus("synced");
       } else {
-        // Fallback to local storage
         const localItemsJson = await AsyncStorage.getItem('customChecklistItems');
         const localItems = localItemsJson ? JSON.parse(localItemsJson) : [];
         const updatedItems = localItems.filter((item: any) => item.id !== id);
@@ -1503,6 +1589,13 @@ export default function ToolkitScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Badge Unlock Animation */}
+      <BadgeUnlockAnimation
+        badge={unlockedBadge!}
+        visible={showBadgeAnimation}
+        onClose={() => setShowBadgeAnimation(false)}
+      />
     </View>
   );
 }
@@ -1967,5 +2060,94 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  // Badge Animation Styles
+  badgeAnimationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  confettiAnimation: {
+    position: 'absolute',
+    top: -100,
+    width: 400,
+    height: 400,
+  },
+  badgeAnimationContainer: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 20,
+  },
+  badgeAnimationContent: {
+    alignItems: 'center',
+  },
+  badgeIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  badgeIcon: {
+    fontSize: 48,
+  },
+  badgeTextContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  badgeUnlockTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  badgeName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#6366f1',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  badgeDescription: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  badgeCloseButton: {
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  badgeCloseText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
