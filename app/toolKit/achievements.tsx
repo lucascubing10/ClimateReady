@@ -2,26 +2,44 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
 import { badges, Badge, getEarnedBadges } from '@/utils/badges';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { getUserProgress } from '@/utils/storage';
 
 export default function AchievementsScreen() {
   const [activeTab, setActiveTab] = useState<'earned' | 'all'>('earned');
   const [earnedBadges, setEarnedBadges] = useState<string[]>([]);
-  const [userProgress, setUserProgress] = useState({
-    completedItems: ['water-1', 'food-1', 'safety-1', 'special-2', 'special-3'],
-    totalPoints: 53
+  const [userProgress, setUserProgress] = useState<{
+    completedItems: string[];
+    totalPoints: number;
+  }>({
+    completedItems: [],
+    totalPoints: 0
   });
 
   // Mock animation values
   const scaleAnims = badges.reduce((acc, badge) => {
     acc[badge.id] = new Animated.Value(1);
+    
     return acc;
   }, {} as Record<string, Animated.Value>);
 
   useEffect(() => {
-    // Calculate earned badges based on user progress
-    const badges = getEarnedBadges(userProgress);
-    setEarnedBadges(badges);
-  }, [userProgress]);
+    // Load user progress from persistent storage
+    const loadProgress = async () => {
+      const progress = await getUserProgress();
+      setUserProgress({
+        completedItems: progress.completedItems,
+        totalPoints: progress.points
+      });
+      const badges = getEarnedBadges({
+        completedItems: progress.completedItems,
+        totalPoints: progress.points
+      });
+      setEarnedBadges(badges);
+    };
+    loadProgress();
+  }, []);
 
   const animateBadge = (badgeId: string) => {
     Animated.sequence([
@@ -124,24 +142,27 @@ export default function AchievementsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Back Button */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push('/tabs/toolKit')} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#6366f1" />
+        </TouchableOpacity>
         <Text style={styles.title}>Achievements</Text>
-        <Text style={styles.subtitle}>Track your preparedness progress</Text>
-        
-        <View style={styles.statsOverview}>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{earnedBadges.length}</Text>
-            <Text style={styles.statLabel}>Badges Earned</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{userProgress.totalPoints}</Text>
-            <Text style={styles.statLabel}>Total Points</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statNumber}>{Math.round((earnedBadges.length / badges.length) * 100)}%</Text>
-            <Text style={styles.statLabel}>Completion</Text>
-          </View>
+      </View>
+      <Text style={styles.subtitle}>Track your preparedness progress</Text>
+      
+      <View style={styles.statsOverview}>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{earnedBadges.length}</Text>
+          <Text style={styles.statLabel}>Badges Earned</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{userProgress.totalPoints}</Text>
+          <Text style={styles.statLabel}>Total Points</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{Math.round((earnedBadges.length / badges.length) * 100)}%</Text>
+          <Text style={styles.statLabel}>Completion</Text>
         </View>
       </View>
 
@@ -206,25 +227,32 @@ export default function AchievementsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   header: {
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingBottom: 0,
+    backgroundColor: "white",
+  },
+  backButton: {
+    marginRight: 8,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "#ede9fe",
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#2e7d32',
-    marginBottom: 4,
+    fontWeight: "700",
+    color: "#6366f1",
+    textAlign: "left",
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
     marginBottom: 20,
+    textAlign: "left",
   },
   statsOverview: {
     flexDirection: 'row',

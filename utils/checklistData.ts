@@ -122,3 +122,19 @@ export const checklistItems: ChecklistItem[] = [
     customFields: { forPets: true }
   }
 ];
+
+export type ChecklistCategoryType = {
+  id: string;
+  name: string;
+  items: Array<{
+    id: string;
+    label: string;
+    completed: boolean;
+  }>;
+};
+
+const checklistData: ChecklistCategoryType[] = [
+  // your checklist data here
+];
+
+export default checklistData;

@@ -590,12 +590,7 @@ export default function HomeScreen() {
                   </View>
                   <Ionicons name="trophy" size={32} color={ORANGE} />
                 </View>
-                {/* AI Tip */}
-                {aiTip && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ color: PRIMARY, fontWeight: '600' }}>{aiTip}</Text>
-                  </View>
-                )}
+                
               </LinearGradient>
             </Card>
           </Animated.View>

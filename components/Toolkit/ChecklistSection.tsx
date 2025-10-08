@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
-import { checklistData } from '../../utils/checklistData';
+import checklistData from '../../utils/checklistData';
 import ChecklistCategory from './ChecklistCategory';
+import type { ChecklistCategoryType } from '../../utils/checklistData';
 
 interface ChecklistSectionProps {
   progress: any;
@@ -22,14 +23,14 @@ const ChecklistSection = ({ progress, onToggleItem }: ChecklistSectionProps) => 
 
   return (
     <View style={[styles.container, isLargeScreen && styles.containerLarge]}>
-      {checklistData.map((category, index) => (
-        <ChecklistCategory
-          key={category.id}
-          category={category}
-          progress={progress}
-          onToggleItem={onToggleItem}
-          index={index}
-        />
+      {checklistData.map((category: ChecklistCategoryType, index: number) => (
+      <ChecklistCategory
+        key={category.id}
+        category={category}
+        progress={progress}
+        onToggleItem={onToggleItem}
+        index={index}
+      />
       ))}
     </View>
   );

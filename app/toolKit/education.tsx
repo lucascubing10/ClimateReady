@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { educationalContent, EducationalContent, getEducationalProgress } from '@/utils/educationalData';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 export default function EducationScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -56,6 +58,12 @@ export default function EducationScreen() {
   if (selectedContent) {
     return (
       <View style={styles.detailContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => setSelectedContent(null)}>
+            <Ionicons name="arrow-back" size={24} color="#6366f1" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Educational Resources</Text>
+        </View>
         <ScrollView style={styles.detailContent}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -121,32 +129,35 @@ export default function EducationScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/tabs/toolKit')}>
+          <Ionicons name="arrow-back" size={24} color="#6366f1" />
+        </TouchableOpacity>
         <Text style={styles.title}>Educational Resources</Text>
-        <Text style={styles.subtitle}>Learn essential preparedness skills</Text>
-        
-        <View style={styles.progressContainer}>
-          <View style={styles.progressStats}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{progress.completed}/{progress.total}</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{progress.points}</Text>
-              <Text style={styles.statLabel}>Points</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{Math.round(progress.percentage)}%</Text>
-              <Text style={styles.statLabel}>Progress</Text>
-            </View>
+      </View>
+      <Text style={styles.subtitle}>Learn essential preparedness skills</Text>
+      
+      <View style={styles.progressContainer}>
+        <View style={styles.progressStats}>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{progress.completed}/{progress.total}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
           </View>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { width: `${progress.percentage}%` }
-              ]} 
-            />
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{progress.points}</Text>
+            <Text style={styles.statLabel}>Points</Text>
           </View>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{Math.round(progress.percentage)}%</Text>
+            <Text style={styles.statLabel}>Progress</Text>
+          </View>
+        </View>
+        <View style={styles.progressBar}>
+          <View 
+            style={[
+              styles.progressFill, 
+              { width: `${progress.percentage}%` }
+            ]} 
+          />
         </View>
       </View>
 
@@ -230,17 +241,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingBottom: 0,
+    backgroundColor: 'white',
+  },
+  backButton: {
+    marginRight: 8,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "#ede9fe",
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#2e7d32',
-    marginBottom: 4,
+    color: '#6366f1',
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
@@ -421,7 +438,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  backButton: {
+  detailBackButton: {
     marginBottom: 16,
   },
   backButtonText: {

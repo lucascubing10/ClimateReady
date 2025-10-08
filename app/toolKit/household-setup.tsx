@@ -9,6 +9,8 @@ import { getUserDocument } from '../../firebaseConfig';
 import { useAuth } from '../../context/AuthContext'; // If you have an auth context
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { saveAiRecommendation, saveCustomItems } from '../../utils/storage';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HouseholdSetupScreen() {
   const [household, setHousehold] = useState({
@@ -87,14 +89,17 @@ export default function HouseholdSetupScreen() {
   const [profileSaved, setProfileSaved] = useState(false);
 
   const saveProfile = async () => {
-    setProfileSaved(true); // Show animation
+    setProfileSaved(true);
 
-    // Save household profile to AsyncStorage (or your backend)
     await AsyncStorage.setItem('householdProfile', JSON.stringify({ ...household, householdCompleted: true }));
+
+    // Clear cached AI recommendation and custom toolkit so they will be refreshed
+    await saveAiRecommendation('');
+    await saveCustomItems([]);
 
     setTimeout(() => {
       setProfileSaved(false);
-      router.replace('/tabs/toolKit'); // Go to toolkit page (not back)
+      router.replace('/tabs/toolKit');
     }, 2000);
   };
 
@@ -147,10 +152,18 @@ export default function HouseholdSetupScreen() {
     setLoadingLocation(false);
   };
 
+  const goBack = () => router.back();
+
   return (
     <>
       <ScrollView style={styles.container}>
-        <Text style={styles.title}>Household Profile</Text>
+        {/* Header with Back Button */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#6366f1" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Household Profile</Text>
+        </View>
         <Text style={styles.subtitle}>Customize your preparedness plan</Text>
 
         {/* Household Type */}
@@ -347,20 +360,30 @@ export default function HouseholdSetupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
     padding: 16,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  backButton: {
+    marginRight: 8,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "#ede9fe",
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#2e7d32',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#6366f1",
+    textAlign: "left",
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "left",
     marginBottom: 24,
   },
   section: {

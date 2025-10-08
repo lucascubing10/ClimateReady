@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { EnhancedDisasterGame } from '@/components/game/EnhancedDisasterGame';
 import { GameStorage, GameResult } from '@/utils/gameStorage';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -142,8 +143,8 @@ export default function SimulationsScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => setGameMode('menu')}>
-            <Text style={styles.backText}>← Back</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/tabs/toolKit')}>
+            <Ionicons name="arrow-back" size={24} color="#6366f1" />
           </TouchableOpacity>
           <Text style={styles.title}>Training Complete</Text>
           <View style={styles.headerSpacer} />
@@ -198,25 +199,28 @@ export default function SimulationsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#6366f1" />
+        </TouchableOpacity>
         <Text style={styles.title}>Disaster Training Simulator</Text>
-        <Text style={styles.subtitle}>
-          AI-powered emergency response training with realistic scenarios
-        </Text>
-        
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={styles.quickStat}>
-            <Text style={styles.quickStatNumber}>{gameStats.totalGames}</Text>
-            <Text style={styles.quickStatLabel}>Games</Text>
-          </View>
-          <View style={styles.quickStat}>
-            <Text style={styles.quickStatNumber}>{gameStats.victories}</Text>
-            <Text style={styles.quickStatLabel}>Wins</Text>
-          </View>
-          <View style={styles.quickStat}>
-            <Text style={styles.quickStatNumber}>{gameStats.bestScore}</Text>
-            <Text style={styles.quickStatLabel}>Best</Text>
-          </View>
+      </View>
+      <Text style={styles.subtitle}>
+        AI-powered emergency response training with realistic scenarios
+      </Text>
+      
+      {/* Quick Stats */}
+      <View style={styles.quickStats}>
+        <View style={styles.quickStat}>
+          <Text style={styles.quickStatNumber}>{gameStats.totalGames}</Text>
+          <Text style={styles.quickStatLabel}>Games</Text>
+        </View>
+        <View style={styles.quickStat}>
+          <Text style={styles.quickStatNumber}>{gameStats.victories}</Text>
+          <Text style={styles.quickStatLabel}>Wins</Text>
+        </View>
+        <View style={styles.quickStat}>
+          <Text style={styles.quickStatNumber}>{gameStats.bestScore}</Text>
+          <Text style={styles.quickStatLabel}>Best</Text>
         </View>
       </View>
 
@@ -361,23 +365,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingBottom: 0,
+    backgroundColor: 'white',
+  },
+  backButton: {
+    marginRight: 8,
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "#ede9fe",
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#2e7d32',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#6366f1',
+    textAlign: 'left',
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 20,
-    lineHeight: 22,
+    marginBottom: 16,
   },
   quickStats: {
     flexDirection: 'row',
@@ -584,9 +593,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7f8c8d',
     textAlign: 'center',
-  },
-  backButton: {
-    padding: 8,
   },
   backText: {
     color: '#2e7d32',
