@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   ListRenderItem,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -11,45 +12,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useSafeZones } from '@/features/safe-zones/hooks/useSafeZones';
 import type { SafeZone, SafeZoneCategory } from '@/features/safe-zones/types';
 import { SafeZoneCard } from '@/features/safe-zones/components/SafeZoneCard';
-
-const CATEGORY_COLORS: Record<SafeZoneCategory, string> = {
-  hospital: '#ef4444',
-  shelter: '#2563eb',
-};
-
-const CATEGORY_LABELS: Record<SafeZoneCategory, string> = {
-  hospital: 'Hospitals',
-  shelter: 'Shelters',
-};
-
-const DEFAULT_RADIUS_KM = 5;
-const RADIUS_OPTIONS = [2, 5, 10, 20];
-const FALLBACK_REGION = {
-  latitude: 37.7749,
-  longitude: -122.4194,
-  latitudeDelta: 0.25,
-  longitudeDelta: 0.25,
-};
-
-const computeRegionDelta = (latitude: number, radiusKm: number) => {
-  const safeRadius = Math.max(radiusKm, 0.5);
-  const latitudeDelta = Math.max(safeRadius / 111, 0.02);
-  const longitudeDelta = Math.max(
-    safeRadius / (111 * Math.cos((latitude * Math.PI) / 180)),
-    0.02,
-  );
-
-  return { latitudeDelta, longitudeDelta };
-};
+import SafeZoneMap, {
+  type SafeZoneMapHandle,
+} from '@/features/safe-zones/components/SafeZoneMap';
+import {
+  CATEGORY_COLORS,
+  CATEGORY_LABELS,
+  DEFAULT_RADIUS_KM,
+  RADIUS_OPTIONS,
+} from '@/features/safe-zones/constants';
 
 const SafeZonesScreen: React.FC = () => {
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<SafeZoneMapHandle | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
 
@@ -71,43 +50,11 @@ const SafeZonesScreen: React.FC = () => {
 
   const hasSafeZones = filteredSafeZones.length > 0;
 
-  const initialRegion = useMemo(() => {
-    if (userLocation) {
-      const { latitudeDelta, longitudeDelta } = computeRegionDelta(userLocation.lat, radiusKm);
-      return {
-        latitude: userLocation.lat,
-        longitude: userLocation.lng,
-        latitudeDelta,
-        longitudeDelta,
-      };
-    }
-    return FALLBACK_REGION;
-  }, [userLocation, radiusKm]);
-
-  const animateToLocation = useCallback(
-    (latitude: number, longitude: number, targetRadiusKm = radiusKm) => {
-      if (!mapRef.current) {
-        return;
-      }
-      const { latitudeDelta, longitudeDelta } = computeRegionDelta(latitude, targetRadiusKm);
-      mapRef.current.animateToRegion(
-        {
-          latitude,
-          longitude,
-          latitudeDelta,
-          longitudeDelta,
-        },
-        600,
-      );
-    },
-    [radiusKm],
-  );
-
   useEffect(() => {
     if (mapReady && userLocation) {
-      animateToLocation(userLocation.lat, userLocation.lng);
+      mapRef.current?.focusOnLocation(userLocation, radiusKm);
     }
-  }, [animateToLocation, mapReady, userLocation]);
+  }, [mapReady, radiusKm, userLocation]);
 
   const handleLocateMe = useCallback(async () => {
     if (!userLocation) {
@@ -117,16 +64,16 @@ const SafeZonesScreen: React.FC = () => {
       }
     }
     if (userLocation) {
-      animateToLocation(userLocation.lat, userLocation.lng);
+      mapRef.current?.focusOnLocation(userLocation, radiusKm);
     }
-  }, [animateToLocation, requestPermission, userLocation]);
+  }, [radiusKm, requestPermission, userLocation]);
 
   const handleSelectZone = useCallback(
     (zone: SafeZone) => {
       setSelectedZoneId(zone.id);
-      animateToLocation(zone.location.lat, zone.location.lng, Math.min(radiusKm, 2));
+      mapRef.current?.focusOnLocation(zone.location, Math.min(radiusKm, 2));
     },
-    [animateToLocation, radiusKm],
+    [radiusKm],
   );
 
   const handleToggleCategory = useCallback(
@@ -140,18 +87,19 @@ const SafeZonesScreen: React.FC = () => {
     (nextRadius: number) => {
       setRadiusKm(nextRadius);
       if (userLocation) {
-        animateToLocation(userLocation.lat, userLocation.lng, nextRadius);
+        mapRef.current?.focusOnLocation(userLocation, nextRadius);
       }
     },
-    [animateToLocation, setRadiusKm, userLocation],
+    [setRadiusKm, userLocation],
   );
 
   const handleClearFilters = useCallback(() => {
     clearFilters();
+    setSelectedZoneId(null);
     if (userLocation) {
-      animateToLocation(userLocation.lat, userLocation.lng, DEFAULT_RADIUS_KM);
+      mapRef.current?.focusOnLocation(userLocation, DEFAULT_RADIUS_KM);
     }
-  }, [animateToLocation, clearFilters, userLocation]);
+  }, [clearFilters, userLocation]);
 
   const renderSafeZone: ListRenderItem<SafeZone> = useCallback(
     ({ item }) => <SafeZoneCard zone={item} onPressLocate={handleSelectZone} />,
@@ -199,55 +147,92 @@ const SafeZonesScreen: React.FC = () => {
       <Stack.Screen options={{ title: 'Safe Zones', headerShown: true }} />
 
       <View style={styles.mapContainer}>
-        <MapView
-          ref={(instance) => {
-            mapRef.current = instance;
-          }}
-          provider={PROVIDER_GOOGLE}
-          style={StyleSheet.absoluteFillObject}
-          initialRegion={initialRegion}
-          onMapReady={() => setMapReady(true)}
-          showsUserLocation
-          showsMyLocationButton={false}
-          showsPointsOfInterest={false}
-          toolbarEnabled={false}
-          accessibilityLabel="Safe zones map"
-        >
-          {userLocation ? (
-            <Circle
-              center={{ latitude: userLocation.lat, longitude: userLocation.lng }}
-              radius={radiusKm * 1000}
-              strokeColor="rgba(37, 99, 235, 0.35)"
-              fillColor="rgba(37, 99, 235, 0.08)"
-            />
-          ) : null}
+        <SafeZoneMap
+          ref={mapRef}
+          onReady={() => setMapReady(true)}
+          radiusKm={radiusKm}
+          safeZones={filteredSafeZones}
+          selectedZoneId={selectedZoneId}
+          userLocation={userLocation}
+          onSelectZone={handleSelectZone}
+        />
 
-          {filteredSafeZones.map((zone) => (
-            <Marker
-              key={zone.id}
-              coordinate={{
-                latitude: zone.location.lat,
-                longitude: zone.location.lng,
-              }}
-              onPress={() => handleSelectZone(zone)}
-              accessibilityLabel={`${zone.name} (${CATEGORY_LABELS[zone.type]})`}
-            >
-              <View
-                style={[
-                  styles.marker,
-                  { backgroundColor: CATEGORY_COLORS[zone.type] },
-                  selectedZoneId === zone.id ? styles.markerSelected : null,
-                ]}
-              >
-                <View style={styles.markerIconWrapper}>
-                  <Ionicons name={zone.type === 'hospital' ? 'medkit' : 'home'} size={18} color="#fff" />
+        {Platform.OS !== 'web' ? (
+          <View style={styles.controlsContainer} pointerEvents="box-none">
+            <View style={styles.filterCard}>
+              <View style={styles.filterHeader}>
+                <Text style={styles.filterTitle}>Filters</Text>
+                <Pressable onPress={handleClearFilters}>
+                  <Text style={styles.clearFiltersLabel}>Clear</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.chipRow}>
+                {(Object.keys(CATEGORY_LABELS) as SafeZoneCategory[]).map((category) => {
+                  const isSelected = selectedCategories.includes(category);
+                  return (
+                    <Pressable
+                      key={category}
+                      style={[styles.chip, isSelected ? styles.chipSelected : styles.chipUnselected]}
+                      onPress={() => handleToggleCategory(category)}
+                    >
+                      <Ionicons
+                        name={category === 'hospital' ? 'medkit' : 'home'}
+                        size={16}
+                        color={isSelected ? '#fff' : CATEGORY_COLORS[category]}
+                      />
+                      <Text
+                        style={[styles.chipLabel, isSelected ? styles.chipLabelSelected : styles.chipLabelUnselected]}
+                      >
+                        {CATEGORY_LABELS[category]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.radiusSection}>
+                <Text style={styles.radiusLabel}>Within</Text>
+                <View style={styles.radiusOptions}>
+                  {RADIUS_OPTIONS.map((option) => {
+                    const isSelected = option === radiusKm;
+                    return (
+                      <Pressable
+                        key={option}
+                        style={[styles.radiusChip, isSelected ? styles.radiusChipSelected : styles.radiusChipUnselected]}
+                        onPress={() => handleRadiusChange(option)}
+                      >
+                        <Text
+                          style={[
+                            styles.radiusChipLabel,
+                            isSelected ? styles.radiusChipLabelSelected : styles.radiusChipLabelUnselected,
+                          ]}
+                        >
+                          {option} km
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
-            </Marker>
-          ))}
-        </MapView>
+            </View>
 
-        <View style={styles.controlsContainer} pointerEvents="box-none">
+            <Pressable style={styles.locateButton} onPress={handleLocateMe} accessibilityLabel="Locate me">
+              <Ionicons name="navigate" size={22} color="#2563eb" />
+            </Pressable>
+          </View>
+        ) : null}
+
+        {isLoading ? (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#2563eb" />
+            <Text style={styles.loadingLabel}>Finding nearby safe zones…</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {Platform.OS === 'web' ? (
+        <View style={styles.webControlsContainer}>
           <View style={styles.filterCard}>
             <View style={styles.filterHeader}>
               <Text style={styles.filterTitle}>Filters</Text>
@@ -303,19 +288,8 @@ const SafeZonesScreen: React.FC = () => {
               </View>
             </View>
           </View>
-
-          <Pressable style={styles.locateButton} onPress={handleLocateMe} accessibilityLabel="Locate me">
-            <Ionicons name="navigate" size={22} color="#2563eb" />
-          </Pressable>
         </View>
-
-        {isLoading ? (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#2563eb" />
-            <Text style={styles.loadingLabel}>Finding nearby safe zones…</Text>
-          </View>
-        ) : null}
-      </View>
+      ) : null}
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -354,6 +328,10 @@ const styles = StyleSheet.create({
     top: 16,
     left: 16,
     right: 16,
+  },
+  webControlsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   filterCard: {
     backgroundColor: '#fff',
@@ -464,25 +442,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
-    elevation: 6,
-  },
-  marker: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    transform: [{ rotate: '-45deg' }],
-  },
-  markerIconWrapper: {
-    transform: [{ rotate: '45deg' }],
-  },
-  markerSelected: {
-    transform: [{ scale: 1.05 }, { rotate: '-45deg' }],
-    shadowColor: '#1e293b',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 8,
     elevation: 6,
   },
   loadingOverlay: {
