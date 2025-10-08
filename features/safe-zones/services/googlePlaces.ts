@@ -1,5 +1,24 @@
 import type { Coordinates, SafeZone, SafeZoneCategory } from '../types';
 
+type PlacesApiErrorCode =
+  | 'PLACES_API_DISABLED'
+  | 'PLACES_API_DEPRECATED_SETTING'
+  | 'API_KEY_INVALID'
+  | 'QUOTA_EXCEEDED'
+  | 'UNKNOWN';
+
+export class SafeZonePlacesError extends Error {
+  code: PlacesApiErrorCode;
+  httpStatus: number;
+
+  constructor(message: string, code: PlacesApiErrorCode, httpStatus: number) {
+    super(message);
+    this.name = 'SafeZonePlacesError';
+    this.code = code;
+    this.httpStatus = httpStatus;
+  }
+}
+
 interface FetchGoogleSafeZonesParams {
   location: Coordinates;
   radiusMeters: number;
@@ -84,10 +103,47 @@ const fetchCategory = async (
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Failed to fetch ${category} data from Google Places (HTTP ${response.status}): ${errorText}`,
-    );
+    const rawBody = await response.text();
+    let parsedBody: unknown = null;
+    try {
+      parsedBody = rawBody ? JSON.parse(rawBody) : null;
+    } catch (parseError) {
+      parsedBody = null;
+    }
+
+    const detailsArray =
+      typeof parsedBody === 'object' && parsedBody && 'error' in parsedBody
+        ? ((parsedBody as Record<string, any>).error?.details as Array<Record<string, any>> | undefined)
+        : undefined;
+
+    const errorInfo = detailsArray?.find((detail) => detail?.['@type']?.includes('ErrorInfo'));
+    const reason = errorInfo?.reason as string | undefined;
+    const activationUrl = errorInfo?.metadata?.activationUrl as string | undefined;
+
+    const defaultMessage =
+      (typeof parsedBody === 'object' && parsedBody && 'error' in parsedBody
+        ? (parsedBody as Record<string, any>).error?.message
+        : undefined) ?? rawBody ?? 'Unknown error';
+
+    let code: PlacesApiErrorCode = 'UNKNOWN';
+    let message = `Failed to fetch ${category} data from Google Places (HTTP ${response.status}). ${defaultMessage}`;
+
+    if (reason === 'SERVICE_DISABLED' || reason === 'ACCESS_NOT_CONFIGURED') {
+      code = 'PLACES_API_DISABLED';
+      message =
+        'Google Places API (New) is disabled for this project. Enable it in Google Cloud Console (APIs & Services ▸ Library ▸ Places API (New)) and try again.';
+      if (activationUrl) {
+        message += ` Activation link: ${activationUrl}`;
+      }
+    } else if (reason === 'API_KEY_INVALID' || reason === 'API_KEY_EXPIRED') {
+      code = 'API_KEY_INVALID';
+      message = 'The configured Google Maps API key is invalid or missing the Places API scope. Check the key and regenerate if necessary.';
+    } else if (reason === 'DAILY_LIMIT_EXCEEDED' || reason === 'USER_RATE_LIMIT_EXCEEDED') {
+      code = 'QUOTA_EXCEEDED';
+      message = 'This Google Maps API key has exceeded its quota for the Places API. Try again later or adjust quotas in Google Cloud Console.';
+    }
+
+    throw new SafeZonePlacesError(message, code, response.status);
   }
 
   const payload = (await response.json()) as PlacesNewApiResponse;

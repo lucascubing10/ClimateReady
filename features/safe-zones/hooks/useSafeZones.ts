@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 
 import type { Coordinates, SafeZone, SafeZoneCategory } from '../types';
-import { fetchGoogleSafeZones } from '../services/googlePlaces';
+import { SafeZonePlacesError, fetchGoogleSafeZones } from '../services/googlePlaces';
 import { fetchFirestoreSafeZones } from '../services/firestore';
 import { calculateDistanceMeters } from '../utils/distance';
 
@@ -113,7 +113,13 @@ export const useSafeZones = ({ initialRadiusKm = 5 }: UseSafeZonesOptions = {}):
         if ((fetchError as Error).name === 'AbortError') {
           return;
         }
-        setError('We had trouble loading nearby safe zones. Please try again later.');
+
+        if (fetchError instanceof SafeZonePlacesError) {
+          setError(fetchError.message);
+        } else {
+          setError('We had trouble loading nearby safe zones. Please try again later.');
+        }
+
         setSafeZones([]);
       }
     },
