@@ -271,7 +271,7 @@ const SafeZonesScreen: React.FC = () => {
                 {
                   translateX: filtersWidthAnim.interpolate({
                     inputRange: [0, FILTER_PANEL_WIDTH],
-                    outputRange: [FILTER_PANEL_WIDTH + 12, 0],
+                    outputRange: [FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH, 0],
                   }),
                 },
               ],
@@ -449,11 +449,11 @@ const styles = StyleSheet.create({
   filterDrawerContainer: {
     position: 'absolute',
     top: 88,
-    right: 16,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
     zIndex: 20,
-    width: FILTER_HANDLE_WIDTH + 8,
+    width: FILTER_HANDLE_WIDTH,
     height: 'auto',
     overflow: 'visible',
   },
@@ -467,12 +467,12 @@ const styles = StyleSheet.create({
     elevation: 4,
     position: 'absolute',
     top: 0,
-    right: FILTER_HANDLE_WIDTH + 8,
+    right: FILTER_HANDLE_WIDTH,
   },
   filterDrawerHandle: {
     width: FILTER_HANDLE_WIDTH,
     height: 120,
-    marginLeft: 8,
+    marginLeft: 0,
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
     backgroundColor: '#fff',
