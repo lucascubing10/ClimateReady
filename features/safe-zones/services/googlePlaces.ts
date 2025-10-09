@@ -9,7 +9,26 @@ const CATEGORY_TEXT_QUERIES: Record<SafeZoneCategory, string> = {
 
 const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
   hospital: ['hospital'],
-  shelter: ['civil_defense', 'shelter', 'local_government_office', 'city_hall', 'community_center'],
+  shelter: [
+    'shelter',
+    'civil_defense',
+    'community_center',
+    'local_government_office',
+    'city_hall',
+    'place_of_worship',
+    'church',
+    'synagogue',
+    'mosque',
+    'police',
+    'fire_station',
+    'school',
+    'university',
+    'lodging',
+    'rv_park',
+    'campground',
+    'point_of_interest',
+    'establishment',
+  ],
 };
 
 const shouldLogDebug = typeof __DEV__ !== 'undefined' ? __DEV__ : true;
@@ -197,7 +216,16 @@ const fetchCategory = async (
       if (!allowedTypes.size || !place.types?.length) {
         return true;
       }
-      return place.types.some((type) => allowedTypes.has(type));
+      const match = place.types.some((type) => allowedTypes.has(type));
+      if (!match) {
+        logDebug('filtered place due to types', {
+          category,
+          placeId: place.id,
+          types: place.types,
+          displayName: place.displayName?.text,
+        });
+      }
+      return match;
     })
     .map((place) => ({
       id: place.id,
