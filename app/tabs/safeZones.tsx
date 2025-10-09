@@ -142,6 +142,68 @@ const SafeZonesScreen: React.FC = () => {
     );
   }, [handleClearFilters, hasLocationPermission, isLoading, requestPermission]);
 
+  const filtersCard = useMemo(() => (
+    <View style={styles.filterCard}>
+      <View style={styles.filterHeader}>
+        <Text style={styles.filterTitle}>Filters</Text>
+        <Pressable onPress={handleClearFilters} accessibilityRole="button">
+          <Text style={styles.clearFiltersLabel}>Clear</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.chipRow}>
+        {(Object.keys(CATEGORY_LABELS) as SafeZoneCategory[]).map((category) => {
+          const isSelected = selectedCategories.includes(category);
+          return (
+            <Pressable
+              key={category}
+              style={[styles.chip, isSelected ? styles.chipSelected : styles.chipUnselected]}
+              onPress={() => handleToggleCategory(category)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+            >
+              <Ionicons
+                name={category === 'hospital' ? 'medkit' : 'home'}
+                size={16}
+                color={isSelected ? '#fff' : CATEGORY_COLORS[category]}
+              />
+              <Text style={[styles.chipLabel, isSelected ? styles.chipLabelSelected : styles.chipLabelUnselected]}>
+                {CATEGORY_LABELS[category]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.radiusSection}>
+        <Text style={styles.radiusLabel}>Within</Text>
+        <View style={styles.radiusOptions}>
+          {RADIUS_OPTIONS.map((option) => {
+            const isSelected = option === radiusKm;
+            return (
+              <Pressable
+                key={option}
+                style={[styles.radiusChip, isSelected ? styles.radiusChipSelected : styles.radiusChipUnselected]}
+                onPress={() => handleRadiusChange(option)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+              >
+                <Text
+                  style={[
+                    styles.radiusChipLabel,
+                    isSelected ? styles.radiusChipLabelSelected : styles.radiusChipLabelUnselected,
+                  ]}
+                >
+                  {option} km
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  ), [handleClearFilters, handleRadiusChange, handleToggleCategory, radiusKm, selectedCategories]);
+
   return (
     <SafeAreaView style={styles.container}>
       <Stack.Screen options={{ title: 'Safe Zones', headerShown: true }} />
@@ -158,69 +220,9 @@ const SafeZonesScreen: React.FC = () => {
         />
 
         {Platform.OS !== 'web' ? (
-          <View style={styles.controlsContainer} pointerEvents="box-none">
-            <View style={styles.filterCard}>
-              <View style={styles.filterHeader}>
-                <Text style={styles.filterTitle}>Filters</Text>
-                <Pressable onPress={handleClearFilters}>
-                  <Text style={styles.clearFiltersLabel}>Clear</Text>
-                </Pressable>
-              </View>
-
-              <View style={styles.chipRow}>
-                {(Object.keys(CATEGORY_LABELS) as SafeZoneCategory[]).map((category) => {
-                  const isSelected = selectedCategories.includes(category);
-                  return (
-                    <Pressable
-                      key={category}
-                      style={[styles.chip, isSelected ? styles.chipSelected : styles.chipUnselected]}
-                      onPress={() => handleToggleCategory(category)}
-                    >
-                      <Ionicons
-                        name={category === 'hospital' ? 'medkit' : 'home'}
-                        size={16}
-                        color={isSelected ? '#fff' : CATEGORY_COLORS[category]}
-                      />
-                      <Text
-                        style={[styles.chipLabel, isSelected ? styles.chipLabelSelected : styles.chipLabelUnselected]}
-                      >
-                        {CATEGORY_LABELS[category]}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <View style={styles.radiusSection}>
-                <Text style={styles.radiusLabel}>Within</Text>
-                <View style={styles.radiusOptions}>
-                  {RADIUS_OPTIONS.map((option) => {
-                    const isSelected = option === radiusKm;
-                    return (
-                      <Pressable
-                        key={option}
-                        style={[styles.radiusChip, isSelected ? styles.radiusChipSelected : styles.radiusChipUnselected]}
-                        onPress={() => handleRadiusChange(option)}
-                      >
-                        <Text
-                          style={[
-                            styles.radiusChipLabel,
-                            isSelected ? styles.radiusChipLabelSelected : styles.radiusChipLabelUnselected,
-                          ]}
-                        >
-                          {option} km
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
-
-            <Pressable style={styles.locateButton} onPress={handleLocateMe} accessibilityLabel="Locate me">
-              <Ionicons name="navigate" size={22} color="#2563eb" />
-            </Pressable>
-          </View>
+          <Pressable style={styles.locateButton} onPress={handleLocateMe} accessibilityLabel="Locate me">
+            <Ionicons name="navigate" size={22} color="#2563eb" />
+          </Pressable>
         ) : null}
 
         {isLoading ? (
@@ -231,65 +233,7 @@ const SafeZonesScreen: React.FC = () => {
         ) : null}
       </View>
 
-      {Platform.OS === 'web' ? (
-        <View style={styles.webControlsContainer}>
-          <View style={styles.filterCard}>
-            <View style={styles.filterHeader}>
-              <Text style={styles.filterTitle}>Filters</Text>
-              <Pressable onPress={handleClearFilters}>
-                <Text style={styles.clearFiltersLabel}>Clear</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.chipRow}>
-              {(Object.keys(CATEGORY_LABELS) as SafeZoneCategory[]).map((category) => {
-                const isSelected = selectedCategories.includes(category);
-                return (
-                  <Pressable
-                    key={category}
-                    style={[styles.chip, isSelected ? styles.chipSelected : styles.chipUnselected]}
-                    onPress={() => handleToggleCategory(category)}
-                  >
-                    <Ionicons
-                      name={category === 'hospital' ? 'medkit' : 'home'}
-                      size={16}
-                      color={isSelected ? '#fff' : CATEGORY_COLORS[category]}
-                    />
-                    <Text style={[styles.chipLabel, isSelected ? styles.chipLabelSelected : styles.chipLabelUnselected]}>
-                      {CATEGORY_LABELS[category]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.radiusSection}>
-              <Text style={styles.radiusLabel}>Within</Text>
-              <View style={styles.radiusOptions}>
-                {RADIUS_OPTIONS.map((option) => {
-                  const isSelected = option === radiusKm;
-                  return (
-                    <Pressable
-                      key={option}
-                      style={[styles.radiusChip, isSelected ? styles.radiusChipSelected : styles.radiusChipUnselected]}
-                      onPress={() => handleRadiusChange(option)}
-                    >
-                      <Text
-                        style={[
-                          styles.radiusChipLabel,
-                          isSelected ? styles.radiusChipLabelSelected : styles.radiusChipLabelUnselected,
-                        ]}
-                      >
-                        {option} km
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        </View>
-      ) : null}
+      <View style={Platform.OS === 'web' ? styles.filtersWrapperWeb : styles.filtersWrapper}>{filtersCard}</View>
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -322,16 +266,18 @@ const styles = StyleSheet.create({
     height: 320,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e2e8f0',
+    marginBottom: 12,
   },
-  controlsContainer: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    right: 16,
-  },
-  webControlsContainer: {
+  filtersWrapper: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  filtersWrapperWeb: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 720,
   },
   filterCard: {
     backgroundColor: '#fff',
@@ -430,8 +376,8 @@ const styles = StyleSheet.create({
   },
   locateButton: {
     position: 'absolute',
-    bottom: -26,
-    right: 12,
+    bottom: 16,
+    right: 16,
     height: 52,
     width: 52,
     borderRadius: 26,
@@ -458,7 +404,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingTop: 28,
+    paddingTop: 12,
     gap: 12,
   },
   listHeader: {

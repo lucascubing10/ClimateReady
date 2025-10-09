@@ -22,6 +22,16 @@ npx expo run:android --variant development
 npx expo run:android --variant development -- --stacktrace --info
 ```
 
+## Produce installable APKs with the latest JS bundle
+
+```powershell
+# Development build (installs on the connected device and embeds the current JS bundle)
+npx expo run:android --variant development
+
+# Release build (outputs android\app\build\outputs\apk\release\app-release.apk for sideloading)
+npx expo run:android --variant release
+```
+
 > **Workflow hint:** When you need to refresh the development client on your device and watch logs, run step 2 above to rebuild/reinstall, then step 1 to launch Metro. Step 3 is optional for deeper Gradle diagnostics.
 
 ## Native build maintenance

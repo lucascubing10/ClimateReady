@@ -22,7 +22,10 @@ const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
     'police',
     'fire_station',
     'school',
+    'primary_school',
+    'secondary_school',
     'university',
+    'library',
     'lodging',
     'rv_park',
     'campground',
@@ -30,6 +33,45 @@ const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
     'establishment',
   ],
 };
+
+interface TextSearchVariant {
+  textQuery: string;
+  includedTypes?: string[];
+  strictTypeFiltering?: boolean;
+}
+
+const SHELTER_TEXT_VARIANTS: TextSearchVariant[] = [
+  {
+    textQuery: 'official emergency shelter',
+    includedTypes: ['shelter'],
+    strictTypeFiltering: true,
+  },
+  {
+    textQuery: 'public safety shelter',
+    includedTypes: ['local_government_office', 'city_hall', 'civil_defense'],
+    strictTypeFiltering: true,
+  },
+  {
+    textQuery: 'community center shelter',
+    includedTypes: ['community_center'],
+    strictTypeFiltering: true,
+  },
+  {
+    textQuery: 'place of worship shelter',
+    includedTypes: ['place_of_worship', 'church', 'synagogue', 'mosque'],
+    strictTypeFiltering: true,
+  },
+  {
+    textQuery: 'school emergency shelter',
+    includedTypes: ['school', 'primary_school', 'secondary_school', 'university'],
+    strictTypeFiltering: true,
+  },
+  {
+    textQuery: 'disaster relief center',
+    includedTypes: ['local_government_office', 'community_center'],
+    strictTypeFiltering: true,
+  },
+];
 
 const shouldLogDebug = typeof __DEV__ !== 'undefined' ? __DEV__ : true;
 
@@ -88,17 +130,15 @@ interface PlacesNewApiResponse {
 
 const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
-const fetchCategory = async (
-  category: SafeZoneCategory,
-  params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
-): Promise<SafeZone[]> => {
-  const { apiKey, location, radiusMeters, signal } = params;
-  const endpoint = PLACES_TEXT_SEARCH_URL;
+type PlaceResult = NonNullable<PlacesNewApiResponse['places']>[number];
 
-  const textQuery = CATEGORY_TEXT_QUERIES[category] ?? category;
-
-  const bodyPayload = {
-    textQuery,
+const buildTextSearchPayload = (
+  variant: TextSearchVariant,
+  location: Coordinates,
+  radiusMeters: number,
+): Record<string, unknown> => {
+  const payload: Record<string, unknown> = {
+    textQuery: variant.textQuery,
     languageCode: 'en',
     regionCode: 'US',
     locationBias: {
@@ -111,17 +151,33 @@ const fetchCategory = async (
       },
     },
     maxResultCount: 20,
-    strictTypeFiltering: false,
+    strictTypeFiltering: variant.strictTypeFiltering ?? false,
   };
+
+  if (variant.includedTypes?.length) {
+    payload.includedTypes = variant.includedTypes;
+  }
+
+  return payload;
+};
+
+const requestTextSearch = async (
+  category: SafeZoneCategory,
+  variant: TextSearchVariant,
+  params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
+): Promise<PlacesNewApiResponse> => {
+  const { apiKey, location, radiusMeters, signal } = params;
+  const payload = buildTextSearchPayload(variant, location, radiusMeters);
 
   logDebug('sending request', {
     category,
-    endpoint,
-    textQuery,
+    endpoint: PLACES_TEXT_SEARCH_URL,
+    textQuery: variant.textQuery,
+    includedTypes: variant.includedTypes,
     radiusMeters,
   });
 
-  const response = await fetch(`${endpoint}?key=${apiKey}`, {
+  const response = await fetch(`${PLACES_TEXT_SEARCH_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -138,7 +194,7 @@ const fetchCategory = async (
         'places.types',
       ].join(','),
     },
-    body: JSON.stringify(bodyPayload),
+    body: JSON.stringify(payload),
     signal,
   });
 
@@ -153,10 +209,10 @@ const fetchCategory = async (
 
     console.warn(`${DEBUG_LOG_PREFIX} request failed`, {
       category,
-      endpoint,
+      endpoint: PLACES_TEXT_SEARCH_URL,
       status: response.status,
       body: {
-        ...bodyPayload,
+        ...payload,
         locationBias: undefined,
       },
       response: parsedBody ?? rawBody,
@@ -197,21 +253,26 @@ const fetchCategory = async (
     throw new SafeZonePlacesError(message, code, response.status);
   }
 
-  const payload = (await response.json()) as PlacesNewApiResponse;
+  const payloadResponse = (await response.json()) as PlacesNewApiResponse;
 
   logDebug('received response', {
     category,
-    count: payload.places?.length ?? 0,
+    textQuery: variant.textQuery,
+    includedTypes: variant.includedTypes,
+    count: payloadResponse.places?.length ?? 0,
   });
 
-  if (!payload.places?.length) {
-    return [];
-  }
+  return payloadResponse;
+};
 
+const toSafeZones = (
+  category: SafeZoneCategory,
+  origin: Coordinates,
+  places: PlaceResult[],
+): SafeZone[] => {
   const allowedTypes = new Set(CATEGORY_ALLOWED_TYPES[category]);
 
-  return payload.places
-    .filter((place): place is NonNullable<typeof payload.places>[number] => Boolean(place?.id))
+  return places
     .filter((place) => {
       if (!allowedTypes.size || !place.types?.length) {
         return true;
@@ -230,10 +291,10 @@ const fetchCategory = async (
     .map((place) => ({
       id: place.id,
       name: place.displayName?.text ?? 'Unknown safe zone',
-  type: category,
+      type: category,
       location: {
-        lat: place.location?.latitude ?? location.lat,
-        lng: place.location?.longitude ?? location.lng,
+        lat: place.location?.latitude ?? origin.lat,
+        lng: place.location?.longitude ?? origin.lng,
       },
       address: place.formattedAddress,
       rating: place.rating,
@@ -243,6 +304,39 @@ const fetchCategory = async (
       source: 'google',
       placeId: place.id,
     }));
+};
+
+const fetchCategory = async (
+  category: SafeZoneCategory,
+  params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
+): Promise<SafeZone[]> => {
+  const variants: TextSearchVariant[] =
+    category === 'shelter'
+      ? SHELTER_TEXT_VARIANTS
+      : [
+          {
+            textQuery: CATEGORY_TEXT_QUERIES[category] ?? category,
+            includedTypes: category === 'hospital' ? ['hospital'] : undefined,
+            strictTypeFiltering: category === 'hospital',
+          },
+        ];
+
+  const responses = await Promise.all(variants.map((variant) => requestTextSearch(category, variant, params)));
+
+  const dedupedPlaces = new Map<string, PlaceResult>();
+  responses.forEach((response) => {
+    response.places?.forEach((place) => {
+      if (place?.id && !dedupedPlaces.has(place.id)) {
+        dedupedPlaces.set(place.id, place as PlaceResult);
+      }
+    });
+  });
+
+  if (!dedupedPlaces.size) {
+    return [];
+  }
+
+  return toSafeZones(category, params.location, Array.from(dedupedPlaces.values()));
 };
 
 export const fetchGoogleSafeZones = async (
