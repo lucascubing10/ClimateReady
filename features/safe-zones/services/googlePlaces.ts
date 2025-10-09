@@ -2,11 +2,6 @@ import type { Coordinates, SafeZone, SafeZoneCategory } from '../types';
 
 const DEBUG_LOG_PREFIX = '[SafeZones][GooglePlaces]';
 
-const CATEGORY_TEXT_QUERIES: Record<SafeZoneCategory, string> = {
-  hospital: 'hospital emergency room',
-  shelter: 'emergency shelter',
-};
-
 const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
   hospital: ['hospital'],
   shelter: [
@@ -36,40 +31,44 @@ const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
 
 interface TextSearchVariant {
   textQuery: string;
-  includedTypes?: string[];
-  strictTypeFiltering?: boolean;
+  filterTypes?: string[];
 }
 
 const SHELTER_TEXT_VARIANTS: TextSearchVariant[] = [
   {
     textQuery: 'official emergency shelter',
-    includedTypes: ['shelter'],
-    strictTypeFiltering: true,
+    filterTypes: ['shelter'],
   },
   {
     textQuery: 'public safety shelter',
-    includedTypes: ['local_government_office', 'city_hall', 'civil_defense'],
-    strictTypeFiltering: true,
+    filterTypes: ['local_government_office', 'city_hall', 'civil_defense'],
   },
   {
     textQuery: 'community center shelter',
-    includedTypes: ['community_center'],
-    strictTypeFiltering: true,
+    filterTypes: ['community_center'],
   },
   {
     textQuery: 'place of worship shelter',
-    includedTypes: ['place_of_worship', 'church', 'synagogue', 'mosque'],
-    strictTypeFiltering: true,
+    filterTypes: ['place_of_worship', 'church', 'synagogue', 'mosque'],
   },
   {
     textQuery: 'school emergency shelter',
-    includedTypes: ['school', 'primary_school', 'secondary_school', 'university'],
-    strictTypeFiltering: true,
+    filterTypes: ['school', 'primary_school', 'secondary_school', 'university'],
   },
   {
     textQuery: 'disaster relief center',
-    includedTypes: ['local_government_office', 'community_center'],
-    strictTypeFiltering: true,
+    filterTypes: ['local_government_office', 'community_center'],
+  },
+];
+
+const HOSPITAL_TEXT_VARIANTS: TextSearchVariant[] = [
+  {
+    textQuery: 'emergency hospital',
+    filterTypes: ['hospital'],
+  },
+  {
+    textQuery: 'hospital emergency room',
+    filterTypes: ['hospital'],
   },
 ];
 
@@ -136,36 +135,27 @@ const buildTextSearchPayload = (
   variant: TextSearchVariant,
   location: Coordinates,
   radiusMeters: number,
-): Record<string, unknown> => {
-  const payload: Record<string, unknown> = {
-    textQuery: variant.textQuery,
-    languageCode: 'en',
-    regionCode: 'US',
-    locationBias: {
-      circle: {
-        center: {
-          latitude: location.lat,
-          longitude: location.lng,
-        },
-        radius: radiusMeters,
+): Record<string, unknown> => ({
+  textQuery: variant.textQuery,
+  languageCode: 'en',
+  regionCode: 'US',
+  locationBias: {
+    circle: {
+      center: {
+        latitude: location.lat,
+        longitude: location.lng,
       },
+      radius: radiusMeters,
     },
-    maxResultCount: 20,
-    strictTypeFiltering: variant.strictTypeFiltering ?? false,
-  };
-
-  if (variant.includedTypes?.length) {
-    payload.includedTypes = variant.includedTypes;
-  }
-
-  return payload;
-};
+  },
+  maxResultCount: 20,
+});
 
 const requestTextSearch = async (
   category: SafeZoneCategory,
   variant: TextSearchVariant,
   params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
-): Promise<PlacesNewApiResponse> => {
+): Promise<PlaceResult[]> => {
   const { apiKey, location, radiusMeters, signal } = params;
   const payload = buildTextSearchPayload(variant, location, radiusMeters);
 
@@ -173,7 +163,6 @@ const requestTextSearch = async (
     category,
     endpoint: PLACES_TEXT_SEARCH_URL,
     textQuery: variant.textQuery,
-    includedTypes: variant.includedTypes,
     radiusMeters,
   });
 
@@ -211,10 +200,7 @@ const requestTextSearch = async (
       category,
       endpoint: PLACES_TEXT_SEARCH_URL,
       status: response.status,
-      body: {
-        ...payload,
-        locationBias: undefined,
-      },
+      body: payload,
       response: parsedBody ?? rawBody,
     });
 
@@ -254,15 +240,43 @@ const requestTextSearch = async (
   }
 
   const payloadResponse = (await response.json()) as PlacesNewApiResponse;
+  const places = payloadResponse.places ?? [];
 
   logDebug('received response', {
     category,
     textQuery: variant.textQuery,
-    includedTypes: variant.includedTypes,
-    count: payloadResponse.places?.length ?? 0,
+    initialCount: places.length,
   });
 
-  return payloadResponse;
+  if (!places.length) {
+    return [];
+  }
+
+  if (!variant.filterTypes?.length) {
+    return places;
+  }
+
+  const filterSet = new Set(variant.filterTypes);
+  const filtered = places.filter((place) => {
+    const matches = place.types?.some((type) => filterSet.has(type)) ?? false;
+    if (!matches) {
+      logDebug('variant filtered place', {
+        category,
+        textQuery: variant.textQuery,
+        placeId: place.id,
+        types: place.types,
+      });
+    }
+    return matches;
+  });
+
+  logDebug('variant kept places', {
+    category,
+    textQuery: variant.textQuery,
+    keptCount: filtered.length,
+  });
+
+  return filtered;
 };
 
 const toSafeZones = (
@@ -313,21 +327,15 @@ const fetchCategory = async (
   const variants: TextSearchVariant[] =
     category === 'shelter'
       ? SHELTER_TEXT_VARIANTS
-      : [
-          {
-            textQuery: CATEGORY_TEXT_QUERIES[category] ?? category,
-            includedTypes: category === 'hospital' ? ['hospital'] : undefined,
-            strictTypeFiltering: category === 'hospital',
-          },
-        ];
+      : HOSPITAL_TEXT_VARIANTS;
 
   const responses = await Promise.all(variants.map((variant) => requestTextSearch(category, variant, params)));
 
   const dedupedPlaces = new Map<string, PlaceResult>();
-  responses.forEach((response) => {
-    response.places?.forEach((place) => {
+  responses.forEach((places) => {
+    places.forEach((place) => {
       if (place?.id && !dedupedPlaces.has(place.id)) {
-        dedupedPlaces.set(place.id, place as PlaceResult);
+        dedupedPlaces.set(place.id, place);
       }
     });
   });
