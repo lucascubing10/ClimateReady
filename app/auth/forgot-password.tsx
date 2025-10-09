@@ -148,21 +148,14 @@ export default function ForgotPasswordScreen() {
               <View style={styles.successContainer}>
                 <Ionicons name="checkmark-circle-outline" size={64} color={PRIMARY} />
                 <Text style={styles.header}>Email Sent</Text>
-                <Text style={styles.subtitle}>
+                <Text style={[styles.subtitle, { marginBottom: 32 }]}>
                   If an account exists for {email}, you'll receive a password reset link at this email address.
                 </Text>
-                
                 <CustomButton
                   title="Back to Login"
                   onPress={() => router.push('/auth/login')}
                   style={styles.button}
                 />
-                
-                <Link href={'/auth/login'} asChild>
-                  <TouchableOpacity style={styles.linkButton}>
-                    <Text style={styles.linkText}>Back to Login</Text>
-                  </TouchableOpacity>
-                </Link>
               </View>
             </Animated.View>
           ) : (
