@@ -130,6 +130,16 @@ const fetchCategory = async (
       parsedBody = null;
     }
 
+    if (__DEV__) {
+      console.warn('[SafeZones][GooglePlaces] request failed', {
+        category,
+        endpoint,
+        status: response.status,
+        body: bodyPayload,
+        response: parsedBody ?? rawBody,
+      });
+    }
+
     const detailsArray =
       typeof parsedBody === 'object' && parsedBody && 'error' in parsedBody
         ? ((parsedBody as Record<string, any>).error?.details as Array<Record<string, any>> | undefined)
