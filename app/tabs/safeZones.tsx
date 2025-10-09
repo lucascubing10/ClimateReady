@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
@@ -39,6 +40,8 @@ const SafeZonesScreen: React.FC = () => {
   const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
 
   const filtersWidthAnim = useRef(new Animated.Value(0)).current;
+  const { width: viewportWidth } = useWindowDimensions();
+  const shouldReserveSpace = Platform.OS === 'web' && viewportWidth >= 1200;
 
   const {
     isLoading,
@@ -242,7 +245,7 @@ const SafeZonesScreen: React.FC = () => {
 
         {Platform.OS !== 'web' ? (
           <Pressable
-            style={[styles.locateButton, filtersOpen ? styles.locateButtonShifted : null]}
+            style={[styles.locateButton, filtersOpen && shouldReserveSpace ? styles.locateButtonShifted : null]}
             onPress={handleLocateMe}
             accessibilityLabel="Locate me"
           >
@@ -258,19 +261,22 @@ const SafeZonesScreen: React.FC = () => {
         ) : null}
       </View>
 
-      <View
-        style={[
-          styles.filterDrawerContainer,
-          {
-            width: filtersOpen
-              ? FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 8
-              : FILTER_HANDLE_WIDTH + 8,
-          },
-        ]}
-        pointerEvents="box-none"
-      >
+      <View style={styles.filterDrawerContainer} pointerEvents="box-none">
         <Animated.View
-          style={[styles.filterDrawer, { width: filtersWidthAnim }]}
+          style={[
+            styles.filterDrawer,
+            {
+              width: filtersWidthAnim,
+              transform: [
+                {
+                  translateX: filtersWidthAnim.interpolate({
+                    inputRange: [0, FILTER_PANEL_WIDTH],
+                    outputRange: [FILTER_PANEL_WIDTH + 12, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
           pointerEvents={filtersOpen ? 'auto' : 'none'}
         >
           {filtersCard}
@@ -303,7 +309,7 @@ const SafeZonesScreen: React.FC = () => {
         renderItem={renderSafeZone}
         contentContainerStyle={[
           styles.listContent,
-          filtersOpen ? styles.listContentWithDrawer : null,
+          filtersOpen && shouldReserveSpace ? styles.listContentWithDrawer : null,
         ]}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListEmptyComponent={renderEmptyState}
@@ -447,6 +453,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     zIndex: 20,
+    width: FILTER_HANDLE_WIDTH + 8,
+    height: 'auto',
+    overflow: 'visible',
   },
   filterDrawer: {
     overflow: 'hidden',
@@ -456,6 +465,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 14,
     elevation: 4,
+    position: 'absolute',
+    top: 0,
+    right: FILTER_HANDLE_WIDTH + 8,
   },
   filterDrawerHandle: {
     width: FILTER_HANDLE_WIDTH,
