@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   FlatList,
   ListRenderItem,
   Platform,
@@ -27,10 +29,16 @@ import {
   RADIUS_OPTIONS,
 } from '@/features/safe-zones/constants';
 
+const FILTER_PANEL_WIDTH = 280;
+const FILTER_HANDLE_WIDTH = 36;
+
 const SafeZonesScreen: React.FC = () => {
   const mapRef = useRef<SafeZoneMapHandle | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState<boolean>(false);
+
+  const filtersWidthAnim = useRef(new Animated.Value(0)).current;
 
   const {
     isLoading,
@@ -55,6 +63,15 @@ const SafeZonesScreen: React.FC = () => {
       mapRef.current?.focusOnLocation(userLocation, radiusKm);
     }
   }, [mapReady, radiusKm, userLocation]);
+
+  useEffect(() => {
+    Animated.timing(filtersWidthAnim, {
+      toValue: filtersOpen ? FILTER_PANEL_WIDTH : 0,
+      duration: 220,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [filtersOpen, filtersWidthAnim]);
 
   const handleLocateMe = useCallback(async () => {
     if (!userLocation) {
@@ -105,6 +122,10 @@ const SafeZonesScreen: React.FC = () => {
     ({ item }) => <SafeZoneCard zone={item} onPressLocate={handleSelectZone} />,
     [handleSelectZone],
   );
+
+  const toggleFilters = useCallback(() => {
+    setFiltersOpen((prev) => !prev);
+  }, []);
 
   const keyExtractor = useCallback((item: SafeZone) => item.id, []);
 
@@ -220,7 +241,11 @@ const SafeZonesScreen: React.FC = () => {
         />
 
         {Platform.OS !== 'web' ? (
-          <Pressable style={styles.locateButton} onPress={handleLocateMe} accessibilityLabel="Locate me">
+          <Pressable
+            style={[styles.locateButton, filtersOpen ? styles.locateButtonShifted : null]}
+            onPress={handleLocateMe}
+            accessibilityLabel="Locate me"
+          >
             <Ionicons name="navigate" size={22} color="#2563eb" />
           </Pressable>
         ) : null}
@@ -233,7 +258,26 @@ const SafeZonesScreen: React.FC = () => {
         ) : null}
       </View>
 
-      <View style={Platform.OS === 'web' ? styles.filtersWrapperWeb : styles.filtersWrapper}>{filtersCard}</View>
+      <View style={styles.filterDrawerContainer} pointerEvents="box-none">
+        <Animated.View
+          style={[styles.filterDrawer, { width: filtersWidthAnim }]}
+          pointerEvents={filtersOpen ? 'auto' : 'none'}
+        >
+          {filtersCard}
+        </Animated.View>
+        <Pressable
+          style={styles.filterDrawerHandle}
+          onPress={toggleFilters}
+          accessibilityRole="button"
+          accessibilityLabel={filtersOpen ? 'Collapse filters' : 'Expand filters'}
+        >
+          <Ionicons
+            name={filtersOpen ? 'chevron-forward' : 'chevron-back'}
+            size={18}
+            color="#2563eb"
+          />
+        </Pressable>
+      </View>
 
       {error ? (
         <View style={styles.errorBanner}>
@@ -246,7 +290,7 @@ const SafeZonesScreen: React.FC = () => {
         data={filteredSafeZones}
         keyExtractor={keyExtractor}
         renderItem={renderSafeZone}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, filtersOpen ? styles.listContentWithDrawer : null]}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListEmptyComponent={renderEmptyState}
         ListHeaderComponent={hasSafeZones ? <Text style={styles.listHeader}>Nearby Safe Zones</Text> : null}
@@ -267,17 +311,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e2e8f0',
     marginBottom: 12,
-  },
-  filtersWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  filtersWrapperWeb: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 720,
   },
   filterCard: {
     backgroundColor: '#fff',
@@ -390,6 +423,44 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
+  locateButtonShifted: {
+    right: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 20,
+  },
+  filterDrawerContainer: {
+    position: 'absolute',
+    top: 88,
+    right: 0,
+    bottom: 108,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH,
+    paddingRight: 8,
+    zIndex: 20,
+  },
+  filterDrawer: {
+    overflow: 'hidden',
+    borderRadius: 18,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  filterDrawerHandle: {
+    width: FILTER_HANDLE_WIDTH,
+    height: 120,
+    marginLeft: 8,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 4,
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 23, 42, 0.08)',
@@ -406,6 +477,9 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 12,
     gap: 12,
+  },
+  listContentWithDrawer: {
+    paddingRight: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 24,
   },
   listHeader: {
     fontSize: 18,
