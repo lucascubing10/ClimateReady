@@ -258,7 +258,17 @@ const SafeZonesScreen: React.FC = () => {
         ) : null}
       </View>
 
-      <View style={styles.filterDrawerContainer} pointerEvents="box-none">
+      <View
+        style={[
+          styles.filterDrawerContainer,
+          {
+            width: filtersOpen
+              ? FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 8
+              : FILTER_HANDLE_WIDTH + 8,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
         <Animated.View
           style={[styles.filterDrawer, { width: filtersWidthAnim }]}
           pointerEvents={filtersOpen ? 'auto' : 'none'}
@@ -287,10 +297,11 @@ const SafeZonesScreen: React.FC = () => {
       ) : null}
 
       <FlatList
+        style={[styles.list, filtersOpen ? styles.listShifted : null]}
         data={filteredSafeZones}
         keyExtractor={keyExtractor}
         renderItem={renderSafeZone}
-        contentContainerStyle={[styles.listContent, filtersOpen ? styles.listContentWithDrawer : null]}
+        contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListEmptyComponent={renderEmptyState}
         ListHeaderComponent={hasSafeZones ? <Text style={styles.listHeader}>Nearby Safe Zones</Text> : null}
@@ -424,17 +435,14 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   locateButtonShifted: {
-    right: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 20,
+    right: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 24,
   },
   filterDrawerContainer: {
     position: 'absolute',
     top: 88,
-    right: 0,
-    bottom: 108,
+    right: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    width: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH,
-    paddingRight: 8,
     zIndex: 20,
   },
   filterDrawer: {
@@ -473,13 +481,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1e293b',
   },
+  list: {
+    flex: 1,
+  },
+  listShifted: {
+    marginRight: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 16,
+  },
   listContent: {
     padding: 16,
     paddingTop: 12,
     gap: 12,
-  },
-  listContentWithDrawer: {
-    paddingRight: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 24,
   },
   listHeader: {
     fontSize: 18,
