@@ -1,5 +1,30 @@
 import type { Coordinates, SafeZone, SafeZoneCategory } from '../types';
 
+const DEBUG_LOG_PREFIX = '[SafeZones][GooglePlaces]';
+
+const CATEGORY_TEXT_QUERIES: Record<SafeZoneCategory, string> = {
+  hospital: 'hospital emergency room',
+  shelter: 'emergency shelter',
+};
+
+const CATEGORY_ALLOWED_TYPES: Record<SafeZoneCategory, string[]> = {
+  hospital: ['hospital'],
+  shelter: ['civil_defense', 'shelter', 'local_government_office', 'city_hall', 'community_center'],
+};
+
+const shouldLogDebug = typeof __DEV__ !== 'undefined' ? __DEV__ : true;
+
+const logDebug = (message: string, payload?: Record<string, unknown>) => {
+  if (!shouldLogDebug) {
+    return;
+  }
+  if (payload) {
+    console.log(`${DEBUG_LOG_PREFIX} ${message}`, payload);
+  } else {
+    console.log(`${DEBUG_LOG_PREFIX} ${message}`);
+  }
+};
+
 type PlacesApiErrorCode =
   | 'PLACES_API_DISABLED'
   | 'PLACES_API_DEPRECATED_SETTING'
@@ -42,16 +67,22 @@ interface PlacesNewApiResponse {
   }>;
 }
 
-const PLACES_NEARBY_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
-const getRequestPayload = (
+const fetchCategory = async (
   category: SafeZoneCategory,
-  location: Coordinates,
-  radiusMeters: number,
-) => {
-  const basePayload: Record<string, unknown> = {
-    locationRestriction: {
+  params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
+): Promise<SafeZone[]> => {
+  const { apiKey, location, radiusMeters, signal } = params;
+  const endpoint = PLACES_TEXT_SEARCH_URL;
+
+  const textQuery = CATEGORY_TEXT_QUERIES[category] ?? category;
+
+  const bodyPayload = {
+    textQuery,
+    languageCode: 'en',
+    regionCode: 'US',
+    locationBias: {
       circle: {
         center: {
           latitude: location.lat,
@@ -61,45 +92,15 @@ const getRequestPayload = (
       },
     },
     maxResultCount: 20,
-    rankPreference: 'DISTANCE',
+    strictTypeFiltering: false,
   };
 
-  if (category === 'hospital') {
-    return {
-      ...basePayload,
-      includedTypes: ['hospital'],
-    };
-  }
-
-  return {
-    ...basePayload,
-    includedTypes: ['point_of_interest'],
-  };
-};
-
-const fetchCategory = async (
-  category: SafeZoneCategory,
-  params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
-): Promise<SafeZone[]> => {
-  const { apiKey, location, radiusMeters, signal } = params;
-  const isShelter = category === 'shelter';
-
-  const endpoint = isShelter ? PLACES_TEXT_SEARCH_URL : PLACES_NEARBY_SEARCH_URL;
-  const bodyPayload = isShelter
-    ? {
-        textQuery: 'emergency shelter',
-        locationBias: {
-          circle: {
-            center: {
-              latitude: location.lat,
-              longitude: location.lng,
-            },
-            radius: radiusMeters,
-          },
-        },
-        maxResultCount: 20,
-      }
-    : getRequestPayload(category, location, radiusMeters);
+  logDebug('sending request', {
+    category,
+    endpoint,
+    textQuery,
+    radiusMeters,
+  });
 
   const response = await fetch(`${endpoint}?key=${apiKey}`, {
     method: 'POST',
@@ -115,6 +116,7 @@ const fetchCategory = async (
         'places.nationalPhoneNumber',
         'places.internationalPhoneNumber',
         'places.websiteUri',
+        'places.types',
       ].join(','),
     },
     body: JSON.stringify(bodyPayload),
@@ -130,15 +132,16 @@ const fetchCategory = async (
       parsedBody = null;
     }
 
-    if (__DEV__) {
-      console.warn('[SafeZones][GooglePlaces] request failed', {
-        category,
-        endpoint,
-        status: response.status,
-        body: bodyPayload,
-        response: parsedBody ?? rawBody,
-      });
-    }
+    console.warn(`${DEBUG_LOG_PREFIX} request failed`, {
+      category,
+      endpoint,
+      status: response.status,
+      body: {
+        ...bodyPayload,
+        locationBias: undefined,
+      },
+      response: parsedBody ?? rawBody,
+    });
 
     const detailsArray =
       typeof parsedBody === 'object' && parsedBody && 'error' in parsedBody
@@ -177,12 +180,25 @@ const fetchCategory = async (
 
   const payload = (await response.json()) as PlacesNewApiResponse;
 
+  logDebug('received response', {
+    category,
+    count: payload.places?.length ?? 0,
+  });
+
   if (!payload.places?.length) {
     return [];
   }
 
+  const allowedTypes = new Set(CATEGORY_ALLOWED_TYPES[category]);
+
   return payload.places
     .filter((place): place is NonNullable<typeof payload.places>[number] => Boolean(place?.id))
+    .filter((place) => {
+      if (!allowedTypes.size || !place.types?.length) {
+        return true;
+      }
+      return place.types.some((type) => allowedTypes.has(type));
+    })
     .map((place) => ({
       id: place.id,
       name: place.displayName?.text ?? 'Unknown safe zone',
