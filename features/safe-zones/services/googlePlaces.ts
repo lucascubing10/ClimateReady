@@ -43,6 +43,7 @@ interface PlacesNewApiResponse {
 }
 
 const PLACES_NEARBY_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchNearby';
+const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
 const getRequestPayload = (
   category: SafeZoneCategory,
@@ -72,7 +73,7 @@ const getRequestPayload = (
 
   return {
     ...basePayload,
-    includedTypes: ['shelter', 'civil_defense', 'local_government_office'],
+    includedTypes: ['point_of_interest'],
   };
 };
 
@@ -81,7 +82,26 @@ const fetchCategory = async (
   params: Omit<FetchGoogleSafeZonesParams, 'categories'>,
 ): Promise<SafeZone[]> => {
   const { apiKey, location, radiusMeters, signal } = params;
-  const response = await fetch(`${PLACES_NEARBY_SEARCH_URL}?key=${apiKey}`, {
+  const isShelter = category === 'shelter';
+
+  const endpoint = isShelter ? PLACES_TEXT_SEARCH_URL : PLACES_NEARBY_SEARCH_URL;
+  const bodyPayload = isShelter
+    ? {
+        textQuery: 'emergency shelter',
+        locationBias: {
+          circle: {
+            center: {
+              latitude: location.lat,
+              longitude: location.lng,
+            },
+            radius: radiusMeters,
+          },
+        },
+        maxResultCount: 20,
+      }
+    : getRequestPayload(category, location, radiusMeters);
+
+  const response = await fetch(`${endpoint}?key=${apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -97,7 +117,7 @@ const fetchCategory = async (
         'places.websiteUri',
       ].join(','),
     },
-    body: JSON.stringify(getRequestPayload(category, location, radiusMeters)),
+    body: JSON.stringify(bodyPayload),
     signal,
   });
 
