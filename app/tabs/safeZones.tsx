@@ -297,11 +297,14 @@ const SafeZonesScreen: React.FC = () => {
       ) : null}
 
       <FlatList
-        style={[styles.list, filtersOpen ? styles.listShifted : null]}
+        style={styles.list}
         data={filteredSafeZones}
         keyExtractor={keyExtractor}
         renderItem={renderSafeZone}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          filtersOpen ? styles.listContentWithDrawer : null,
+        ]}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={refresh} />}
         ListEmptyComponent={renderEmptyState}
         ListHeaderComponent={hasSafeZones ? <Text style={styles.listHeader}>Nearby Safe Zones</Text> : null}
@@ -484,13 +487,13 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  listShifted: {
-    marginRight: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 16,
-  },
   listContent: {
     padding: 16,
     paddingTop: 12,
     gap: 12,
+  },
+  listContentWithDrawer: {
+    paddingRight: FILTER_PANEL_WIDTH + FILTER_HANDLE_WIDTH + 24,
   },
   listHeader: {
     fontSize: 18,
