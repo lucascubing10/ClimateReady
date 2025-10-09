@@ -72,8 +72,7 @@ const getRequestPayload = (
 
   return {
     ...basePayload,
-    includedTypes: ['point_of_interest'],
-    keyword: 'emergency shelter',
+    includedTypes: ['shelter', 'civil_defense', 'local_government_office'],
   };
 };
 
