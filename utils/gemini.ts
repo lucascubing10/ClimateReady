@@ -1,12 +1,7 @@
 // utils/gemini.ts
-// Utility to call Gemini AI API for personalized toolkit recommendations
-
-
-// Set your Gemini API key in your environment as GEMINI_API_KEY (e.g., in .env or build config)
-// Example .env:
-// GEMINI_API_KEY=your-key-here
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCim4U3-17VLcv97b2DtR2PlFHhSA27AAk';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDPH96vhOGD7SiYV_jmnpd1BKCD7yDIb8o'
+// 'AIzaSyCim4U3-17VLcv97b2DtR2PlFHhSA27AAk';
 
 export async function getPersonalizedToolkit(profile: any, disasterType?: string): Promise<string[]> {
   if (!GEMINI_API_KEY) throw new Error('Gemini API key not set');

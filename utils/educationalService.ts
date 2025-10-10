@@ -21,7 +21,7 @@ const API_KEY = GEMINI_API_KEY;
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 const predefinedTopics = [
     "Emergency Water Purification",
