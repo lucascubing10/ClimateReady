@@ -1,30 +1,19 @@
 import React, { useEffect, useState, useCallback, JSX, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator,
-  Dimensions,
-  StyleSheet,
-  RefreshControl
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, RefreshControl} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { 
-  FadeInUp, 
-  FadeInRight,
-  SlideInDown,
-  ZoomIn,
-  BounceIn,
-  LightSpeedInLeft,
-  FlipInYLeft
-} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn,BounceIn,LightSpeedInLeft,FlipInYLeft} from 'react-native-reanimated';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+
+//only for testing push notifications
+import { registerForPushNotificationsAsync } from '../utils/registerPushNotifications';
+
+
 import { getUserProfile } from '@/utils/userProfile';
 import { getPersonalizedToolkit } from '@/utils/gemini';
 import { getEducationalProgress } from '@/utils/educationalData';
@@ -38,6 +27,7 @@ import { ensurePermissionsAsync, ensureAndroidChannelAsync, sendLocalNotificatio
 const { width } = Dimensions.get('window');
 
 // Color palette
+
 const PRIMARY = '#5ba24f';
 const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'];
 const YELLOW = '#fac609';
@@ -229,6 +219,23 @@ export default function HomeScreen() {
   const router = useRouter();
   const lastTriggerHashRef = React.useRef<string | null>(null);
 
+  
+  // Push notification registration for testing
+  useEffect(() => {
+    const registerNotifications = async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        console.log('🔥 Got device token:', token);
+        // Token sync with Firestore happens inside AuthContext.
+      } else {
+        console.log('Push notifications unavailable in this environment.');
+      }
+    };
+
+    registerNotifications();
+  }, []);
+
+  
   // Greeting logic with emoji
   useEffect(() => {
     const hour = new Date().getHours();

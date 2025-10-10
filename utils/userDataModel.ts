@@ -40,6 +40,8 @@ export interface UserProfile {
   updatedAt: number; // timestamp
   lastLoginAt?: number; // timestamp
   profileCompleteness?: number; // percentage of profile completion
+  pushToken?: string; // Expo push token for remote notifications
+  pushTokenUpdatedAt?: number; // timestamp when token last synced with backend
   
   // Flags for tracking completion of important sections
   hasCompletedOnboarding?: boolean;
@@ -181,6 +183,8 @@ export const createEmptyUserProfile = (email: string, firstName: string, lastNam
     profileCompleteness: 20, // Basic profile is 20% complete with just name and email
     hasCompletedOnboarding: false,
     hasAddedEmergencyContact: false,
-    hasAddedMedicalInfo: false
+    hasAddedMedicalInfo: false,
+    pushToken: undefined,
+    pushTokenUpdatedAt: undefined
   };
 };
