@@ -1,22 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { GameResult } from '@/utils/gameStorage';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
 interface FireGameProps {
   scenario: any;
+  difficulty: number;
   onGameEnd: (result: Omit<GameResult, 'id'>) => void;
 }
 
-const FireGame: React.FC<FireGameProps> = ({ scenario, onGameEnd }) => {
-  const [timeLeft, setTimeLeft] = useState(45);
+const FireGame: React.FC<FireGameProps> = ({ scenario, difficulty, onGameEnd }) => {
+  const initialTime = 55 - (difficulty * 5);
+  const [timeLeft, setTimeLeft] = useState(initialTime);
   const [score, setScore] = useState(0);
   const [message, setMessage] = useState('You smell smoke! The fire alarm is blaring. What is your first move?');
   const [stage, setStage] = useState(0);
 
+  const smokeOpacity = useSharedValue(0);
+
+  const smokeStyle = useAnimatedStyle(() => ({
+    opacity: smokeOpacity.value,
+  }));
+
   useEffect(() => {
     if (stage === 0) return;
+
+    smokeOpacity.value = withTiming(0.6, { duration: 10000 });
+
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -33,15 +45,17 @@ const FireGame: React.FC<FireGameProps> = ({ scenario, onGameEnd }) => {
 
   const handleAction = (isCorrect: boolean) => {
     if (isCorrect) {
-      setScore(prev => prev + 50);
+      setScore(prev => prev + 50 + (difficulty * 5));
       if (stage === 0) {
         setMessage('Correct! You feel the door. It\'s cool. What next?');
         setStage(1);
       } else {
+        smokeOpacity.value = withTiming(0, { duration: 1000 });
         setMessage('You escaped safely! Well done!');
         setTimeout(() => endGame(true), 2000);
       }
     } else {
+      smokeOpacity.value = withTiming(1, { duration: 500 });
       setMessage('A blast of heat hits you. Wrong choice!');
       setTimeout(() => endGame(false), 2000);
     }
@@ -53,13 +67,13 @@ const FireGame: React.FC<FireGameProps> = ({ scenario, onGameEnd }) => {
       scenarioType: scenario.type,
       score,
       victory,
-      timeSpent: 45 - timeLeft,
+      timeSpent: initialTime - timeLeft,
       actionsTaken: stage + 1,
       healthRemaining: victory ? 100 : 20,
       objectivesCompleted: victory ? 2 : stage,
       totalObjectives: 2,
       date: new Date().toISOString(),
-      difficulty: 3,
+      difficulty: difficulty,
     };
     onGameEnd(result);
   };
@@ -94,6 +108,7 @@ const FireGame: React.FC<FireGameProps> = ({ scenario, onGameEnd }) => {
 
   return (
     <View style={styles.container}>
+      <Animated.View style={[styles.smokeOverlay, smokeStyle]} pointerEvents="none" />
       <View style={styles.header}>
         <Text style={styles.scenarioTitle}>{scenario.title}</Text>
         <Text style={styles.timer}>Time: {timeLeft}s</Text>
@@ -118,12 +133,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#c0392b',
     padding: 16,
   },
+  smokeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'black',
+    zIndex: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
     paddingTop: 40,
+    zIndex: 2,
   },
   scenarioTitle: {
     fontSize: 20,
@@ -142,6 +163,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 2,
   },
   message: {
     color: 'white',
@@ -168,6 +190,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     left: 16,
+    zIndex: 3,
   },
   quitButtonText: {
     color: 'white',

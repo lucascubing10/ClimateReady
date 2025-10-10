@@ -1,26 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { GameResult } from '@/utils/gameStorage';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 
 const { width, height } = Dimensions.get('window');
 
 interface MedicalGameProps {
   scenario: any;
+  difficulty: number;
   onGameEnd: (result: Omit<GameResult, 'id'>) => void;
 }
 
-const MedicalGame: React.FC<MedicalGameProps> = ({ scenario, onGameEnd }) => {
-  const [timeLeft, setTimeLeft] = useState(60);
+const MedicalGame: React.FC<MedicalGameProps> = ({ scenario, difficulty, onGameEnd }) => {
+  const initialTime = 70 - (difficulty * 10);
+  const [timeLeft, setTimeLeft] = useState(initialTime);
   const [score, setScore] = useState(0);
   const [message, setMessage] = useState('Someone has collapsed! They are not breathing.');
   const [action, setAction] = useState('');
+  const [isGameOver, setIsGameOver] = useState(false);
+
+  const heartRate = useSharedValue(1);
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartRate.value }],
+  }));
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          endGame(false);
+          if (!isGameOver) {
+            endGame(false);
+          }
           return 0;
         }
         return prev - 1;
@@ -28,33 +39,42 @@ const MedicalGame: React.FC<MedicalGameProps> = ({ scenario, onGameEnd }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isGameOver]);
 
   const handleAction = (choice: string) => {
+    if (isGameOver) return;
     setAction(choice);
     if (choice === 'cpr') {
-      setScore(100);
+      setScore(100 + (difficulty * 10));
       setMessage('You started CPR. You are giving them a chance to survive until help arrives.');
-      setTimeout(() => endGame(true), 2000);
+      heartRate.value = withRepeat(
+        withSequence(
+          withTiming(1.2, { duration: 300 }),
+          withTiming(1, { duration: 300 })
+        ), -1, true
+      );
+      setTimeout(() => endGame(true), 4000);
     } else {
       setMessage('That was not the right immediate action.');
+      heartRate.value = withTiming(0, { duration: 1000 });
       setTimeout(() => endGame(false), 2000);
     }
   };
 
   const endGame = (victory: boolean) => {
+    setIsGameOver(true);
     const result: Omit<GameResult, 'id'> = {
       scenarioTitle: scenario.title,
       scenarioType: scenario.type,
       score,
       victory,
-      timeSpent: 60 - timeLeft,
+      timeSpent: initialTime - timeLeft,
       actionsTaken: 1,
       healthRemaining: victory ? 100 : 0,
       objectivesCompleted: victory ? 1 : 0,
       totalObjectives: 1,
       date: new Date().toISOString(),
-      difficulty: 3,
+      difficulty: difficulty,
     };
     onGameEnd(result);
   };
@@ -68,6 +88,7 @@ const MedicalGame: React.FC<MedicalGameProps> = ({ scenario, onGameEnd }) => {
       </View>
 
       <View style={styles.gameArea}>
+        <Animated.Text style={[styles.heart, heartStyle]}>❤️</Animated.Text>
         <Text style={styles.message}>{message}</Text>
         {action === '' && (
           <View style={styles.actionsContainer}>
@@ -121,6 +142,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  heart: {
+    fontSize: 100,
+    marginBottom: 20,
   },
   message: {
     color: 'white',

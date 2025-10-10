@@ -4,9 +4,10 @@ import { GameResult } from '@/utils/gameStorage';
 
 const { width, height } = Dimensions.get('window');
 
-interface EarthquakeGameProps {
+export interface EarthquakeGameProps {
   scenario: any;
-  onGameEnd: (result: Omit<GameResult, 'id'>) => void;
+  difficulty: number;
+  onGameEnd: (result: Omit<GameResult, 'id'>) => Promise<void>;
 }
 
 const EarthquakeGame: React.FC<EarthquakeGameProps> = ({ scenario, onGameEnd }) => {

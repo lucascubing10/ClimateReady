@@ -161,17 +161,17 @@ export default function SimulationsScreen() {
   if (gameMode === 'ai-game') {
     switch (selectedScenario.type) {
       case 'earthquake':
-        return <EarthquakeGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <EarthquakeGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       case 'fire':
-        return <FireGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <FireGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       case 'flood':
-        return <FloodGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <FloodGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       case 'hurricane':
-        return <HurricaneGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <HurricaneGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       case 'medical':
-        return <MedicalGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <MedicalGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       case 'tsunami':
-        return <TsunamiGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+        return <TsunamiGame scenario={selectedScenario} difficulty={selectedDifficulty} onGameEnd={handleGameEnd} />;
       default:
         setGameMode('menu');
         return null;
