@@ -1,7 +1,7 @@
 // Screen: Allows the user to configure what medical details are shared with emergency
 // contacts when they trigger the SOS flow. The toggles write to local storage via
 // `saveSOSSettings`, while the preview helps users understand exactly what will be sent.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -32,9 +32,36 @@ const calculateAge = (birthday: string): number => {
 
 export default function SOSSettingsScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof returnTo === 'string' && returnTo.length > 0) {
+      try {
+        const decoded = decodeURIComponent(returnTo);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+      }
+    }
+    return undefined;
+  }, [returnTo]);
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (decodedReturnTo) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    router.replace('/tabs/settings');
+  }, [router, decodedReturnTo]);
 
   // Load settings on mount
   // On mount we hydrate the screen with the most recent settings from
@@ -68,7 +95,7 @@ export default function SOSSettingsScreen() {
     
     if (success) {
       Alert.alert('Success', 'SOS settings saved successfully.');
-      router.back();
+      handleBack();
     } else {
       Alert.alert('Error', 'Could not save settings. Please try again.');
     }
@@ -79,7 +106,17 @@ export default function SOSSettingsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{ title: 'SOS Settings', headerShown: true }} />
+        <Stack.Screen 
+          options={{ 
+            title: 'SOS Settings', 
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="chevron-back" size={24} color="#1f2937" />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0284c7" />
           <Text style={styles.loadingText}>Loading settings...</Text>
@@ -93,7 +130,17 @@ export default function SOSSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'SOS Settings', headerShown: true }} />
+      <Stack.Screen 
+        options={{ 
+          title: 'SOS Settings', 
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+              <Ionicons name="chevron-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Emergency Information Sharing</Text>
@@ -265,6 +312,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  headerButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    marginLeft: 12,
   },
   content: {
     flex: 1,

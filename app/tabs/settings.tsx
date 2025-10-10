@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -84,9 +84,17 @@ export default function SettingsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const pathname = usePathname();
   const { userProfile, logout } = useAuth();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
   const [darkMode, setDarkMode] = useState(false);
+
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/settings';
+  }, [pathname]);
 
   const decodedReturnTo = useMemo(() => {
     if (typeof returnTo === 'string' && returnTo.length > 0) {
@@ -190,11 +198,21 @@ export default function SettingsScreen() {
           />
           <SettingsItem
             label="SOS Settings"
-            onPress={() => router.push('/tabs/sos-settings' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/sos-settings',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
           <SettingsItem
             label="SOS History"
-            onPress={() => router.push('/tabs/sos-history' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/sos-history',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
           <SettingsItem
             label="Share Blood Type"

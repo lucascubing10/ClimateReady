@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -21,9 +21,37 @@ interface SOSHistoryItem {
 }
 
 export default function SOSHistoryScreen() {
+  const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [historyItems, setHistoryItems] = useState<SOSHistoryItem[]>([]);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof returnTo === 'string' && returnTo.length > 0) {
+      try {
+        const decoded = decodeURIComponent(returnTo);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+      }
+    }
+    return undefined;
+  }, [returnTo]);
+
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (decodedReturnTo) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    router.replace('/tabs/settings');
+  }, [router, decodedReturnTo]);
 
   useEffect(() => {
     const loadSOSHistory = async () => {
@@ -135,7 +163,17 @@ export default function SOSHistoryScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{ title: 'SOS History', headerShown: true }} />
+        <Stack.Screen 
+          options={{ 
+            title: 'SOS History', 
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="chevron-back" size={24} color="#1f2937" />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0284c7" />
           <Text style={styles.loadingText}>Loading your SOS history...</Text>
@@ -146,7 +184,17 @@ export default function SOSHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'SOS History', headerShown: true }} />
+      <Stack.Screen 
+        options={{ 
+          title: 'SOS History', 
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+              <Ionicons name="chevron-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       
       {historyItems.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -183,6 +231,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#6b7280',
+  },
+  headerButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    marginLeft: 12,
   },
   listContainer: {
     padding: 16,
