@@ -93,7 +93,7 @@ type FloatingActionButtonProps = {
   onPress: () => void;
   icon: string;
   color?: string;
-  
+
 };
 
 const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
@@ -104,7 +104,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const scaleAnim = useState(new Animated.Value(1))[0];
 
   const handlePress = () => {
-    Vibration.vibrate([0, 500, 200, 500]);
+    Vibration.vibrate(100);
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.9,
@@ -133,22 +133,22 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 };
 
 // Badge Unlock Animation Component
-const BadgeUnlockAnimation = ({ 
-  badge, 
-  visible, 
-  onClose 
-}: { 
-  badge: Badge; 
-  visible: boolean; 
-  onClose: () => void 
+const BadgeUnlockAnimation = ({
+  badge,
+  visible,
+  onClose
+}: {
+  badge: Badge;
+  visible: boolean;
+  onClose: () => void
 }) => {
   const scaleAnim = useState(new Animated.Value(0))[0];
   const opacityAnim = useState(new Animated.Value(0))[0];
-  
+
 
   useEffect(() => {
-    Vibration.vibrate([0, 500, 200, 500]);
     if (visible) {
+        Vibration.vibrate(100); // Use a simple vibration
       Animated.parallel([
         Animated.spring(scaleAnim, {
           toValue: 1,
@@ -171,50 +171,61 @@ const BadgeUnlockAnimation = ({
   if (!visible) return null;
 
   return (
-    <View style={styles.badgeAnimationOverlay}>
-      {/* Confetti Background Animation */}
-      <LottieView
-        source={require('@/assets/animations/confetti.json')}
-        autoPlay
-        loop={false}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-      />
-      
-      <Animated.View 
-        style={[
-          styles.badgeAnimationContainer,
-          {
-            opacity: opacityAnim,
-            transform: [{ scale: scaleAnim }]
-          }
-        ]}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        }}
       >
-        <View style={styles.badgeAnimationContent}>
-          {/* Badge Icon */}
-          <View style={[styles.badgeIconContainer, { backgroundColor: badge.color }]}>
-            <Text style={styles.badgeIcon}>
-              {badge.icon}
-            </Text>
+        {/* Confetti Background Animation */}
+        <LottieView
+          source={require('@/assets/animations/confetti.json')}
+          autoPlay
+          loop={false}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+        <Animated.View
+          style={[
+            styles.badgeAnimationContainer,
+            {
+              opacity: opacityAnim,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}
+        >
+          <View style={styles.badgeAnimationContent}>
+            {/* Badge Icon */}
+            <View style={[styles.badgeIconContainer, { backgroundColor: badge.color }]}>
+              <Text style={styles.badgeIcon}>
+                {badge.icon}
+              </Text>
+            </View>
+            {/* Badge Text */}
+            <View style={styles.badgeTextContainer}>
+              <Text style={styles.badgeUnlockTitle}>Badge Unlocked! 🎉</Text>
+              <Text style={styles.badgeName}>{badge.name}</Text>
+              <Text style={styles.badgeDescription}>{badge.description}</Text>
+            </View>
+            {/* Close Button */}
+            <TouchableOpacity
+              style={styles.badgeCloseButton}
+              onPress={onClose}
+            >
+              <Text style={styles.badgeCloseText}>Continue</Text>
+            </TouchableOpacity>
           </View>
-          
-          {/* Badge Text */}
-          <View style={styles.badgeTextContainer}>
-            <Text style={styles.badgeUnlockTitle}>Badge Unlocked! 🎉</Text>
-            <Text style={styles.badgeName}>{badge.name}</Text>
-            <Text style={styles.badgeDescription}>{badge.description}</Text>
-          </View>
-          
-          {/* Close Button */}
-          <TouchableOpacity 
-            style={styles.badgeCloseButton}
-            onPress={onClose}
-          >
-            <Text style={styles.badgeCloseText}>Continue</Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-    </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
 
@@ -236,17 +247,14 @@ export default function ToolkitScreen() {
   const [storageError, setStorageError] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"synced" | "syncing" | "offline">("synced");
-  
+
   // Badge Animation States
   const [showBadgeAnimation, setShowBadgeAnimation] = useState(false);
   const [unlockedBadge, setUnlockedBadge] = useState<Badge | null>(null);
   const [previousEarnedBadges, setPreviousEarnedBadges] = useState<string[]>([]);
 
   // Animation values
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(30))[0];
   const progressAnim = useState(new Animated.Value(0))[0];
-  const headerScale = useState(new Animated.Value(0.8))[0];
 
   const categories = [
     {
@@ -349,7 +357,7 @@ export default function ToolkitScreen() {
   const loadProgress = useCallback(async () => {
     setLoading(true);
     setStorageError(false);
-    
+
     try {
       if (isLoggedIn && user) {
         const userProgress = await firestoreService.getUserProgress();
@@ -423,13 +431,13 @@ export default function ToolkitScreen() {
   // Updated toggle function with badge tracking
   const toggleItemCompletion = async (itemId: string, category?: string) => {
     const isCompleted = completedItems.includes(itemId);
-    
+
     // Store current badges before update
     const currentBadges = [...earnedBadges];
-    
+
     // Update state immediately for better UX
-    setCompletedItems(prev => 
-      isCompleted 
+    setCompletedItems(prev =>
+      isCompleted
         ? prev.filter(id => id !== itemId)
         : [...prev, itemId]
     );
@@ -454,9 +462,9 @@ export default function ToolkitScreen() {
         } else {
           updatedCompleted.push(itemId);
         }
-        
+
         await AsyncStorage.setItem('completedItems', JSON.stringify(updatedCompleted));
-        
+
         if (category) {
           await updateChecklistItem(category, itemId, !isCompleted);
         }
@@ -539,7 +547,7 @@ export default function ToolkitScreen() {
         setCustomItems(updatedItems);
       }
     } catch (error) {
-      console.error("Error deleting custom item:", error);
+      console.error("Error deleting custom item in deleteCustomItem:", error);
       setSyncStatus("offline");
       Alert.alert("Error", "Failed to delete custom item");
     }
@@ -548,6 +556,7 @@ export default function ToolkitScreen() {
   // Load AI toolkit
   useEffect(() => {
     (async () => {
+      console.log("useEffect: Loading AI toolkit for disaster:", activeDisaster);
       setAiLoading(true);
       let userProfile = await AsyncStorage.getItem("householdProfile");
       let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
@@ -556,18 +565,22 @@ export default function ToolkitScreen() {
       if (parsedProfile?.householdCompleted) {
         const cached = await getAiRecommendation();
         if (cached) {
+          console.log("AI Toolkit: Loaded from cache.");
           setPersonalizedToolkit(JSON.parse(cached));
           setAiLoading(false);
           return;
         }
         try {
+          console.log("AI Toolkit: Fetching new recommendations.");
           const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
           setPersonalizedToolkit(recommendations);
           await saveAiRecommendation(JSON.stringify(recommendations));
         } catch (error) {
+          console.error("AI Toolkit: Error fetching recommendations:", error);
           setPersonalizedToolkit([]);
         }
       } else {
+        console.log("AI Toolkit: Household profile not complete.");
         setPersonalizedToolkit([]);
       }
       setAiLoading(false);
@@ -577,31 +590,14 @@ export default function ToolkitScreen() {
   // Load progress when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      console.log("useFocusEffect: Screen focused, loading progress.");
       loadProgress();
     }, [loadProgress])
   );
 
   // Animate mount
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 1000,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerScale, {
-        toValue: 1,
-        duration: 800,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
+    
   }, []);
 
   const getPriorityColor = (priority: string) => {
@@ -641,7 +637,7 @@ export default function ToolkitScreen() {
   // Sync status indicator
   const renderSyncStatus = () => {
     let icon, color, text;
-    
+
     switch (syncStatus) {
       case "synced":
         icon = "checkmark-circle";
@@ -684,6 +680,8 @@ export default function ToolkitScreen() {
     );
   }
 
+  console.log("Rendering return statement of ToolkitScreen");
+
   return (
     <View style={styles.container} pointerEvents="box-none">
       {/* Background Elements */}
@@ -696,12 +694,12 @@ export default function ToolkitScreen() {
       <Animated.View
         style={[
           styles.content,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          { opacity: 1, transform: [{ translateY: 0 }] },
         ]}
       >
         {/* Header */}
         <Animated.View
-          style={[styles.header, { transform: [{ scale: headerScale }] }]}
+          style={[styles.header, { transform: [{ scale: 1 }] }]}
         >
           <View>
             <Text style={styles.greeting}>Emergency Preparedness</Text>
@@ -987,13 +985,10 @@ export default function ToolkitScreen() {
               <Animated.View
                 key={action.label}
                 style={{
-                  opacity: fadeAnim,
+                  opacity: 1,
                   transform: [
                     {
-                      translateX: fadeAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [50 * (index + 1), 0],
-                      }),
+                      translateX: 0,
                     },
                   ],
                 }}
@@ -1112,7 +1107,7 @@ export default function ToolkitScreen() {
                               style={[
                                 styles.completionIndicator,
                                 isCompleted &&
-                                  styles.completionIndicatorCompleted,
+                                styles.completionIndicatorCompleted,
                               ]}
                             >
                               {isCompleted && (
@@ -1294,7 +1289,7 @@ export default function ToolkitScreen() {
                             style={[
                               styles.completionIndicator,
                               isCompleted &&
-                                styles.completionIndicatorCompleted,
+                              styles.completionIndicatorCompleted,
                             ]}
                           >
                             {isCompleted && (
@@ -1388,7 +1383,7 @@ export default function ToolkitScreen() {
                     style={[
                       styles.categoryButton,
                       selectedCategory === category.id &&
-                        styles.categoryButtonSelected,
+                      styles.categoryButtonSelected,
                     ]}
                   >
                     <Text style={styles.categoryIcon}>{category.icon}</Text>
@@ -1396,7 +1391,7 @@ export default function ToolkitScreen() {
                       style={[
                         styles.categoryText,
                         selectedCategory === category.id &&
-                          styles.categoryTextSelected,
+                        styles.categoryTextSelected,
                       ]}
                     >
                       {category.name}
@@ -1441,7 +1436,7 @@ export default function ToolkitScreen() {
                             style={[
                               styles.completionIndicator,
                               isCompleted &&
-                                styles.completionIndicatorCompleted,
+                              styles.completionIndicatorCompleted,
                             ]}
                           >
                             {isCompleted && (
@@ -1591,12 +1586,6 @@ export default function ToolkitScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Badge Unlock Animation */}
-      <BadgeUnlockAnimation
-        badge={unlockedBadge!}
-        visible={showBadgeAnimation}
-        onClose={() => setShowBadgeAnimation(false)}
-      />
     </View>
   );
 }
@@ -2069,7 +2058,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -2082,7 +2071,7 @@ const styles = StyleSheet.create({
   },
   badgeAnimationContainer: {
     width: '80%',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 24,
     padding: 24,
     alignItems: 'center',

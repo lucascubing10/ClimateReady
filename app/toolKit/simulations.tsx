@@ -11,19 +11,25 @@ import {
   Modal,
   Animated
 } from 'react-native';
-import { EnhancedDisasterGame } from '@/components/game/EnhancedDisasterGame';
+import EvacuationDashGame from '@/components/game/EvacuationDashGame';
+import EarthquakeGame from '@/components/game/EarthquakeGame';
+import FireGame from '@/components/game/FireGame';
+import FloodGame from '@/components/game/FloodGame';
+import HurricaneGame from '@/components/game/HurricaneGame';
+import MedicalGame from '@/components/game/MedicalGame';
+import TsunamiGame from '@/components/game/TsunamiGame';
 import { GameStorage, GameResult } from '@/utils/gameStorage';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
-type GameMode = 'menu' | 'ai-game' | 'traditional' | 'results';
-type ScenarioType = 'earthquake' | 'fire' | 'flood' | 'hurricane' | 'medical' | 'tsunami';
+type GameMode = 'menu' | 'ai-game' | 'traditional' | 'results' | 'evacuation-dash';
+type ScenarioType = 'earthquake' | 'fire' | 'flood' | 'hurricane' | 'medical' | 'tsunami' | 'evacuation-dash';
 
 export default function SimulationsScreen() {
   const [gameMode, setGameMode] = useState<GameMode>('menu');
-  const [selectedScenario, setSelectedScenario] = useState<ScenarioType>('earthquake');
+  const [selectedScenario, setSelectedScenario] = useState<any>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<number>(3);
   const [gameStats, setGameStats] = useState({
     totalGames: 0,
@@ -45,9 +51,13 @@ export default function SimulationsScreen() {
     setRecentGames(recent.slice(0, 3));
   };
 
-  const startAIGame = (scenario: ScenarioType) => {
+  const startAIGame = (scenario: { type: ScenarioType; title: string; description: string; color: string }) => {
     setSelectedScenario(scenario);
-    setShowDifficultyModal(true);
+    if (scenario.type === 'evacuation-dash') {
+      setGameMode('evacuation-dash');
+    } else {
+      setShowDifficultyModal(true);
+    }
   };
 
   const confirmAIGame = () => {
@@ -55,7 +65,10 @@ export default function SimulationsScreen() {
     setGameMode('ai-game');
   };
 
-  const handleGameEnd = () => {
+  const handleGameEnd = async (result: Omit<GameResult, 'id'>) => {
+    if (result && result.scenarioTitle) {
+      await GameStorage.saveGameResult(result);
+    }
     loadGameStats(); // Refresh stats after game ends
     setGameMode('results');
   };
@@ -67,7 +80,8 @@ export default function SimulationsScreen() {
       flood: '🌊',
       hurricane: '🌀',
       medical: '🏥',
-      tsunami: '🌊'
+      tsunami: '🌊',
+      'evacuation-dash': '🏃‍♂️'
     };
     return icons[type];
   };
@@ -79,7 +93,8 @@ export default function SimulationsScreen() {
       flood: '#3498db',
       hurricane: '#2980b9',
       medical: '#e74c3c',
-      tsunami: '#1abc9c'
+      tsunami: '#1abc9c',
+      'evacuation-dash': '#4caf50'
     };
     return colors[type];
   };
@@ -90,6 +105,12 @@ export default function SimulationsScreen() {
 
   // AI Game Scenarios
   const aiScenarios: { type: ScenarioType; title: string; description: string; color: string }[] = [
+    {
+      type: 'evacuation-dash',
+      title: 'Evacuation Dash',
+      description: 'A real-time decision simulator for evacuating from a disaster zone.',
+      color: '#4caf50'
+    },
     {
       type: 'earthquake',
       title: 'Earthquake Response',
@@ -128,15 +149,33 @@ export default function SimulationsScreen() {
     }
   ];
 
-  if (gameMode === 'ai-game') {
+  if (gameMode === 'evacuation-dash') {
     return (
-      <EnhancedDisasterGame
-        scenarioType={selectedScenario}
-        difficulty={selectedDifficulty}
+      <EvacuationDashGame
+        scenario={selectedScenario}
         onGameEnd={handleGameEnd}
-        onExit={() => setGameMode('menu')}
       />
     );
+  }
+
+  if (gameMode === 'ai-game') {
+    switch (selectedScenario.type) {
+      case 'earthquake':
+        return <EarthquakeGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      case 'fire':
+        return <FireGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      case 'flood':
+        return <FloodGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      case 'hurricane':
+        return <HurricaneGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      case 'medical':
+        return <MedicalGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      case 'tsunami':
+        return <TsunamiGame scenario={selectedScenario} onGameEnd={handleGameEnd} />;
+      default:
+        setGameMode('menu');
+        return null;
+    }
   }
 
   if (gameMode === 'results') {
@@ -240,7 +279,7 @@ export default function SimulationsScreen() {
                   styles.scenarioCard,
                   { borderLeftColor: scenario.color }
                 ]}
-                onPress={() => startAIGame(scenario.type)}
+                onPress={() => startAIGame(scenario)}
               >
                 <View style={styles.scenarioHeader}>
                   <Text style={styles.scenarioIcon}>{getScenarioIcon(scenario.type)}</Text>
