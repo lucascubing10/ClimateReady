@@ -33,7 +33,7 @@ function RootLayoutNav() {
         checkAuthState();
         
         if (isLoggedIn && user) {
-          router.replace('/tabs/' as any);
+          router.replace('/landing' as any);
         } else {
           router.replace('/auth/login' as any);
         }
