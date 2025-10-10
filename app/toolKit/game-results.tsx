@@ -39,7 +39,8 @@ export default function GameResultsScreen() {
       flood: '🌊',
       hurricane: '🌀',
       medical: '🏥',
-      tsunami: '🌊'
+      tsunami: '🌊',
+      'evacuation-dash': '🏃‍♂️'
     };
     return icons[type] || '🎮';
   };

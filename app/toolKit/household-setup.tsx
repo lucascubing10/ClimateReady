@@ -1,16 +1,38 @@
 // app/(tabs)/toolkit/household-setup.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Modal } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Alert, 
+  ActivityIndicator, 
+  Modal,
+  Dimensions 
+} from 'react-native';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
 import { Picker } from '@react-native-picker/picker';
 import { UserProfile } from '../../utils/userDataModel';
 import { getUserDocument } from '../../firebaseConfig';
-import { useAuth } from '../../context/AuthContext'; // If you have an auth context
+import { useAuth } from '../../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { saveAiRecommendation, saveCustomItems } from '../../utils/storage';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
+
+const { width } = Dimensions.get('window');
+
+// Color palette matching your app
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'] as const;
+const YELLOW = '#fac609';
+const ORANGE = '#e5793a';
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
 
 export default function HouseholdSetupScreen() {
   const [household, setHousehold] = useState({
@@ -24,7 +46,7 @@ export default function HouseholdSetupScreen() {
     riskProfile: [] as string[],
   });
 
-  const { user } = useAuth ? useAuth() : { user: null }; // fallback if no context
+  const { user } = useAuth ? useAuth() : { user: null };
 
   // Fetch householdType from Firestore on mount
   useEffect(() => {
@@ -87,22 +109,6 @@ export default function HouseholdSetupScreen() {
   };
 
   const [profileSaved, setProfileSaved] = useState(false);
-
-  const saveProfile = async () => {
-    setProfileSaved(true);
-
-    await AsyncStorage.setItem('householdProfile', JSON.stringify({ ...household, householdCompleted: true }));
-
-    // Clear cached AI recommendation and custom toolkit so they will be refreshed
-    await saveAiRecommendation('');
-    await saveCustomItems([]);
-
-    setTimeout(() => {
-      setProfileSaved(false);
-      router.replace('/tabs/toolKit');
-    }, 2000);
-  };
-
   const [regionPickerVisible, setRegionPickerVisible] = useState(false);
   const [loadingLocation, setLoadingLocation] = useState(false);
 
@@ -152,31 +158,101 @@ export default function HouseholdSetupScreen() {
     setLoadingLocation(false);
   };
 
-  const goBack = () => router.back();
+  const saveProfile = async () => {
+    setProfileSaved(true);
+
+    await AsyncStorage.setItem('householdProfile', JSON.stringify({ ...household, householdCompleted: true }));
+
+    // Clear cached AI recommendation and custom toolkit so they will be refreshed
+    await saveAiRecommendation('');
+    await saveCustomItems([]);
+
+    setTimeout(() => {
+      setProfileSaved(false);
+      router.replace('/tabs/toolKit');
+    }, 2000);
+  };
+
+  const goBack = () => router.navigate('/tabs/toolKit');
+
+  // Custom Button Component
+  const CustomButton = ({ title, onPress, style, isLoading = false, variant = 'primary' }: any) => {
+    if (variant === 'secondary') {
+      return (
+        <TouchableOpacity 
+          style={[styles.secondaryButton, style]} 
+          onPress={onPress}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={PRIMARY} />
+          ) : (
+            <Text style={styles.secondaryButtonText}>{title}</Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.primaryButton, style]} 
+        onPress={onPress}
+        disabled={isLoading}
+      >
+        <LinearGradient
+          colors={PRIMARY_GRADIENT}
+          style={styles.buttonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.primaryButtonText}>{title}</Text>
+          )}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <>
       <ScrollView style={styles.container}>
-        {/* Header with Back Button */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#6366f1" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Household Profile</Text>
+        {/* Background Elements */}
+        <View style={styles.backgroundElements}>
+          <View style={[styles.bgCircle, styles.bgCircle1]} />
+          <View style={[styles.bgCircle, styles.bgCircle2]} />
+          <View style={[styles.bgCircle, styles.bgCircle3]} />
         </View>
-        <Text style={styles.subtitle}>Customize your preparedness plan</Text>
+
+        {/* Header with Back Button */}
+        <Animated.View 
+          entering={FadeInUp.duration(600)}
+          style={styles.header}
+        >
+          <TouchableOpacity onPress={goBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.title}>Household Profile</Text>
+            <Text style={styles.subtitle}>Customize your preparedness plan</Text>
+          </View>
+        </Animated.View>
 
         {/* Household Type */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Household Type</Text>
-          <View style={styles.pickerWrapper}>
+        <Animated.View 
+          entering={FadeInUp.duration(600).delay(200)}
+          style={styles.card}
+        >
+          <Text style={styles.cardTitle}>Household Type</Text>
+          <View style={styles.pickerContainer}>
             <Picker
               selectedValue={household.householdType}
               onValueChange={(itemValue) =>
                 setHousehold(prev => ({ ...prev, householdType: itemValue }))
               }
               style={styles.picker}
-              dropdownIconColor="#2e7d32"
+              dropdownIconColor={PRIMARY}
             >
               <Picker.Item label="Select household type" value="" />
               {householdTypeOptions.map(type => (
@@ -184,17 +260,19 @@ export default function HouseholdSetupScreen() {
               ))}
             </Picker>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Family Members */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Family Members</Text>
+        <Animated.View 
+          entering={FadeInUp.duration(600).delay(300)}
+          style={styles.card}
+        >
+          <Text style={styles.cardTitle}>Family Members</Text>
           {['adults', 'children', 'elderly', 'pets'].map((type) => (
             <View key={type} style={styles.counterRow}>
               <Text style={styles.counterLabel}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
-                {type === 'elderly' && ' (65+)'
-}
+                {type === 'elderly' && ' (65+)'}
               </Text>
               <View style={styles.counter}>
                 <TouchableOpacity 
@@ -219,12 +297,15 @@ export default function HouseholdSetupScreen() {
               </View>
             </View>
           ))}
-        </View>
+        </Animated.View>
 
         {/* Special Needs */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Special Needs</Text>
-          <Text style={styles.sectionDescription}>Select any special needs in your household</Text>
+        <Animated.View 
+          entering={FadeInUp.duration(600).delay(400)}
+          style={styles.card}
+        >
+          <Text style={styles.cardTitle}>Special Needs</Text>
+          <Text style={styles.cardDescription}>Select any special needs in your household</Text>
           <View style={styles.chipContainer}>
             {specialNeedsOptions.map(need => (
               <TouchableOpacity
@@ -244,42 +325,38 @@ export default function HouseholdSetupScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Location & Risks */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Location & Risks</Text>
+        <Animated.View 
+          entering={FadeInUp.duration(600).delay(500)}
+          style={styles.card}
+        >
+          <Text style={styles.cardTitle}>Location & Risks</Text>
+          
           <Text style={styles.label}>Your Region</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={styles.regionContainer}>
             <TouchableOpacity
-              style={[styles.input, { flex: 1 }]}
+              style={styles.regionInput}
               onPress={() => setRegionPickerVisible(true)}
             >
-              <Text style={styles.inputText}>
+              <Text style={styles.regionInputText}>
                 {household.region || 'Select your region'}
               </Text>
+              <Ionicons name="chevron-down" size={20} color="#9ca3af" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={{
-                backgroundColor: '#e8f5e8',
-                borderRadius: 8,
-                padding: 10,
-                marginLeft: 8,
-                borderWidth: 1,
-                borderColor: '#2e7d32',
-              }}
+            
+            <CustomButton
+              title="Use GPS"
               onPress={handleUseGPS}
-              disabled={loadingLocation}
-            >
-              {loadingLocation ? (
-                <ActivityIndicator color="#2e7d32" />
-              ) : (
-                <Text style={{ color: '#2e7d32', fontWeight: '600' }}>Use GPS</Text>
-              )}
-            </TouchableOpacity>
+              isLoading={loadingLocation}
+              variant="secondary"
+              style={styles.gpsButton}
+            />
           </View>
+
           {regionPickerVisible && (
-            <View style={styles.pickerWrapper}>
+            <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={household.region}
                 onValueChange={(itemValue) => {
@@ -287,7 +364,7 @@ export default function HouseholdSetupScreen() {
                   setRegionPickerVisible(false);
                 }}
                 style={styles.picker}
-                dropdownIconColor="#2e7d32"
+                dropdownIconColor={PRIMARY}
               >
                 <Picker.Item label="Select your region" value="" />
                 {regionOptions.map(region => (
@@ -317,40 +394,34 @@ export default function HouseholdSetupScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-          <Text style={styles.saveButtonText}>Save Household Profile</Text>
-        </TouchableOpacity>
+        <Animated.View 
+          entering={FadeInUp.duration(600).delay(600)}
+          style={styles.saveButtonContainer}
+        >
+          <CustomButton
+            title="Save Household Profile"
+            onPress={saveProfile}
+            style={styles.saveButton}
+          />
+        </Animated.View>
       </ScrollView>
-      {/* Fun AI Loading Animation Modal */}
+
+      {/* Loading Modal */}
       <Modal visible={profileSaved} transparent animationType="fade">
-        <View style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.15)',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 20,
-            padding: 32,
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.15,
-            shadowRadius: 16,
-            elevation: 10
-          }}>
-            <ActivityIndicator size="large" color="#7c3aed" />
-            <Text style={{ marginTop: 20, fontSize: 18, fontWeight: '700', color: '#7c3aed', textAlign: 'center' }}>
-              Personalizing your toolkit...
-            </Text>
-            <Text style={{ marginTop: 8, fontSize: 14, color: '#6366f1', textAlign: 'center' }}>
+        <View style={styles.modalOverlay}>
+          <Animated.View 
+            entering={ZoomIn.duration(400)}
+            style={styles.modalContent}
+          >
+            <ActivityIndicator size="large" color={PRIMARY} />
+            <Text style={styles.modalTitle}>Personalizing your toolkit...</Text>
+            <Text style={styles.modalSubtitle}>
               Our AI is preparing recommendations just for you!
             </Text>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </>
@@ -360,102 +431,143 @@ export default function HouseholdSetupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
-    padding: 16,
+    backgroundColor: BG,
+    paddingHorizontal: 20,
+  },
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
+  },
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
+  },
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
+  },
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 60,
+    marginBottom: 24,
   },
   backButton: {
-    marginRight: 8,
-    padding: 4,
-    borderRadius: 8,
-    backgroundColor: "#ede9fe",
+    marginRight: 16,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#e8f5e8',
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#6366f1",
-    textAlign: "left",
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
-    textAlign: "left",
-    marginBottom: 24,
+    color: '#6b7280',
+    lineHeight: 22,
   },
-  section: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
     marginBottom: 8,
   },
-  sectionDescription: {
+  cardDescription: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    color: '#6b7280',
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  pickerWrapper: {
+  pickerContainer: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f8f9fa',
-    marginVertical: 8,
+    backgroundColor: '#f9fafb',
   },
   picker: {
-    height: 48,
-    width: '100%',
-    color: '#333',
-    backgroundColor: '#f8f9fa',
+    height: 50,
+    color: '#1f2937',
   },
   counterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    paddingVertical: 4,
   },
   counterLabel: {
     fontSize: 16,
-    color: '#333',
+    color: '#374151',
     fontWeight: '500',
   },
   counter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   counterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#e8f5e8',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   counterButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2e7d32',
+    color: PRIMARY,
   },
   counterValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    minWidth: 20,
+    color: '#1f2937',
+    minWidth: 24,
     textAlign: 'center',
   },
   chipContainer: {
@@ -464,53 +576,125 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#f9fafb',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#e5e7eb',
   },
   chipSelected: {
     backgroundColor: '#e8f5e8',
-    borderColor: '#2e7d32',
+    borderColor: PRIMARY,
   },
   chipText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6b7280',
+    fontWeight: '500',
   },
   chipTextSelected: {
-    color: '#2e7d32',
-    fontWeight: '500',
+    color: PRIMARY,
+    fontWeight: '600',
   },
   label: {
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    color: '#374151',
+    fontWeight: '600',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  regionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: '#f8f9fa',
+  regionInput: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  inputText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  saveButton: {
-    backgroundColor: '#2e7d32',
+    borderColor: '#e5e7eb',
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
-    marginVertical: 16,
   },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 18,
+  regionInputText: {
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  gpsButton: {
+    paddingHorizontal: 16,
+  },
+  primaryButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: '#e8f5e8',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: PRIMARY,
+  },
+  secondaryButtonText: {
+    color: PRIMARY,
+    fontSize: 14,
     fontWeight: '600',
+  },
+  saveButtonContainer: {
+    marginVertical: 24,
+  },
+  saveButton: {
+    width: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
+    marginHorizontal: 20,
+  },
+  modalTitle: {
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: '700',
+    color: PRIMARY,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#6366f1',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
