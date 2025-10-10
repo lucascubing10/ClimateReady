@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback, JSX, useRef  } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, RefreshControl} from 'react-native';
+import React, { useEffect, useState, useCallback, JSX, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, RefreshControl } from 'react-native';
 import { useFocusEffect, useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn,BounceIn,LightSpeedInLeft,FlipInYLeft} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight, SlideInDown, ZoomIn, BounceIn, LightSpeedInLeft, FlipInYLeft } from 'react-native-reanimated';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -47,39 +47,39 @@ const quickActions: {
   gradient: string[];
   screen: 'safe-zone' | 'toolkit' | 'community' | 'mock-alerts';
 }[] = [
-  {
-    title: 'Safe Zones',
-    subtitle: 'Find nearby shelters',
-    icon: <Ionicons name="map" size={24} color="#fff" />,
-    bgColor: PRIMARY,
-    gradient: PRIMARY_GRADIENT,
-    screen: 'safe-zone',
-  },
-  {
-    title: 'Toolkit',
-    subtitle: 'Emergency checklists',
-    icon: <Feather name="package" size={24} color="#fff" />,
-    bgColor: YELLOW,
-    gradient: YELLOW_GRADIENT,
-    screen: 'toolkit',
-  },
-  {
-    title: 'Community',
-    subtitle: 'Connect with others',
-    icon: <Ionicons name="people" size={24} color="#fff" />,
-    bgColor: ORANGE,
-    gradient: ORANGE_GRADIENT,
-    screen: 'community',
-  },
-  {
-    title: 'Mock Alerts',
-    subtitle: 'Test alert notifications',
-    icon: <Ionicons name="warning" size={24} color="#fff" />,
-    bgColor: RED,
-    gradient: RED_GRADIENT,
-    screen: 'mock-alerts',
-  },
-];
+    {
+      title: 'Safe Zones',
+      subtitle: 'Find nearby shelters',
+      icon: <Ionicons name="map" size={24} color="#fff" />,
+      bgColor: PRIMARY,
+      gradient: PRIMARY_GRADIENT,
+      screen: 'safe-zone',
+    },
+    {
+      title: 'Toolkit',
+      subtitle: 'Emergency checklists',
+      icon: <Feather name="package" size={24} color="#fff" />,
+      bgColor: YELLOW,
+      gradient: YELLOW_GRADIENT,
+      screen: 'toolkit',
+    },
+    {
+      title: 'Community',
+      subtitle: 'Connect with others',
+      icon: <Ionicons name="people" size={24} color="#fff" />,
+      bgColor: ORANGE,
+      gradient: ORANGE_GRADIENT,
+      screen: 'community',
+    },
+    {
+      title: 'Mock Alerts',
+      subtitle: 'Test alert notifications',
+      icon: <Ionicons name="warning" size={24} color="#fff" />,
+      bgColor: RED,
+      gradient: RED_GRADIENT,
+      screen: 'mock-alerts',
+    },
+  ];
 
 // Alerts will be sourced from forecast triggers; no hardcoded alerts
 
@@ -128,34 +128,34 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
   return (
     <View style={[styles.progressRingContainer, { width: size, height: size }]}>
       {/* Background Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingBackground,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Progress Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingFill,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
             borderLeftColor: PRIMARY,
             borderBottomColor: PRIMARY,
             transform: [{ rotate: `${-45 + (progress * 3.6)}deg` }],
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Center Content */}
       <View style={styles.progressRingContent}>
         <Text style={styles.progressRingPercent}>{Math.round(progress)}%</Text>
@@ -168,7 +168,7 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
 
 // Modern Badge Component
 const Badge = ({ count, style }: any) => (
-  <Animated.View 
+  <Animated.View
     entering={BounceIn.duration(600)}
     style={[styles.badge, style]}
   >
@@ -178,7 +178,7 @@ const Badge = ({ count, style }: any) => (
 
 // Progress Item Component
 const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any) => (
-  <Animated.View 
+  <Animated.View
     entering={FadeInRight.duration(500)}
     style={styles.progressItem}
   >
@@ -191,9 +191,9 @@ const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any)
         <Text style={styles.progressItemSubtitle}>{subtitle}</Text>
       </View>
     </View>
-    <ProgressRing 
-      progress={progress} 
-      size={60} 
+    <ProgressRing
+      progress={progress}
+      size={60}
       strokeWidth={6}
     />
   </Animated.View>
@@ -218,7 +218,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const lastTriggerHashRef = React.useRef<string | null>(null);
-  
+
   const pathname = usePathname();
 
   // Push notification registration for testing
@@ -236,7 +236,7 @@ export default function HomeScreen() {
     registerNotifications();
   }, []);
 
-  
+
   // Greeting logic with emoji
   useEffect(() => {
     const hour = new Date().getHours();
@@ -245,8 +245,20 @@ export default function HomeScreen() {
     else setGreeting('Good Evening 🌙');
   }, []);
 
-  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
-  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb';
+  const GOOGLE_API_KEY =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.GOOGLE_MAPS_API_KEY ??
+    '';
+  const OPENWEATHERMAP_API_KEY =
+    process.env.OPENWEATHER_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.openWeatherApiKey ??
+    '';
+
+  useEffect(() => {
+    if (!GOOGLE_API_KEY || !OPENWEATHERMAP_API_KEY) {
+      console.warn('Missing Google Maps or OpenWeather API key. Check your .env configuration.');
+    }
+  }, [GOOGLE_API_KEY, OPENWEATHERMAP_API_KEY]);
 
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
@@ -299,13 +311,13 @@ export default function HomeScreen() {
       );
       const data = await res.json();
 
-  const triggers = evaluateForecast(data, defaultThresholds);
-  const now = Date.now();
-  // Capture current time once so we can ignore any forecast buckets that already happened
+      const triggers = evaluateForecast(data, defaultThresholds);
+      const now = Date.now();
+      // Capture current time once so we can ignore any forecast buckets that already happened
       const nowIso = new Date(now).toISOString();
 
       // Group triggers by time block (collapse multiple conditions into one alert per time)
-      const severityRank = (s: 'low'|'medium'|'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
+      const severityRank = (s: 'low' | 'medium' | 'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
       const bucketKeyFrom = (at: string) => {
         const d = new Date(at);
         if (isNaN(d.getTime())) return at;
@@ -318,7 +330,7 @@ export default function HomeScreen() {
         return d.toISOString();
       };
 
-      type Group = { at: string; byType: Map<string, { t: any; severity: 'low'|'medium'|'high' }> };
+      type Group = { at: string; byType: Map<string, { t: any; severity: 'low' | 'medium' | 'high' }> };
       const groups = new Map<string, Group>();
       for (const t of triggers) {
         const sev = computeSeverity(t.type, t.value, t.threshold);
@@ -346,7 +358,7 @@ export default function HomeScreen() {
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
         .map(g => {
           const entries = Array.from(g.byType.values());
-          let maxSev: 'low'|'medium'|'high' = 'low';
+          let maxSev: 'low' | 'medium' | 'high' = 'low';
           for (const it of entries) if (severityRank(it.severity) > severityRank(maxSev)) maxSev = it.severity;
 
           const atDate = new Date(g.at);
@@ -370,9 +382,9 @@ export default function HomeScreen() {
 
           const title = entries.length > 1 ? 'Weather Alert' : (
             entries[0].t.type === 'rain' ? 'Heavy Rain Forecast' :
-            entries[0].t.type === 'wind' ? 'High Wind Forecast' :
-            entries[0].t.type === 'temp-high' ? 'High Temperature Forecast' :
-            'Low Temperature Forecast'
+              entries[0].t.type === 'wind' ? 'High Wind Forecast' :
+                entries[0].t.type === 'temp-high' ? 'High Temperature Forecast' :
+                  'Low Temperature Forecast'
           );
 
           return {
@@ -452,10 +464,10 @@ export default function HomeScreen() {
     try {
       setRefreshing(true);
 
-    // Import all checklist sources and storage
-    const { getUserProgress } = await import('@/utils/storage');
-    const { checklistItems } = await import('@/utils/checklistData');
-    const { getCustomItems } = await import('@/utils/storage');
+      // Import all checklist sources and storage
+      const { getUserProgress } = await import('@/utils/storage');
+      const { checklistItems } = await import('@/utils/checklistData');
+      const { getCustomItems } = await import('@/utils/storage');
 
       // Get all checklist items (predefined, custom)
       const predefinedItems = checklistItems || [];
@@ -667,21 +679,21 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Animated Background Elements */}
       <View style={styles.backgroundElements}>
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1000)}
-          style={[styles.bgCircle, styles.bgCircle1]} 
+          style={[styles.bgCircle, styles.bgCircle1]}
         />
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1200).delay(200)}
-          style={[styles.bgCircle, styles.bgCircle2]} 
+          style={[styles.bgCircle, styles.bgCircle2]}
         />
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1400).delay(400)}
-          style={[styles.bgCircle, styles.bgCircle3]} 
+          style={[styles.bgCircle, styles.bgCircle3]}
         />
       </View>
 
-      <Animated.View 
+      <Animated.View
         style={styles.content}
         entering={SlideInDown.duration(800)}
       >
@@ -689,13 +701,13 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View>
-              <Animated.Text 
+              <Animated.Text
                 entering={FadeInUp.duration(600)}
                 style={styles.greeting}
               >
                 {greeting}
               </Animated.Text>
-              <Animated.Text 
+              <Animated.Text
                 entering={FadeInUp.duration(600).delay(200)}
                 style={styles.subtitle}
               >
@@ -709,7 +721,7 @@ export default function HomeScreen() {
                   <Badge count={alerts.length} style={styles.notificationBadge} />
                 )}
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => {
                   const current = typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs';
@@ -742,10 +754,10 @@ export default function HomeScreen() {
                 </View>
               ) : weather ? (
                 <View style={styles.weatherContent}>
-                  <MaterialCommunityIcons 
-                    name={getWeatherIcon(weather.condition)} 
-                    size={36} 
-                    color="#fff" 
+                  <MaterialCommunityIcons
+                    name={getWeatherIcon(weather.condition)}
+                    size={36}
+                    color="#fff"
                   />
                   <View style={styles.weatherText}>
                     <Text style={styles.weatherTitle}>
@@ -765,7 +777,7 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
