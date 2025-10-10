@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -22,36 +22,47 @@ interface SOSHistoryItem {
 
 export default function SOSHistoryScreen() {
   const router = useRouter();
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const pathname = usePathname();
+  const searchParams = useLocalSearchParams();
+  const rawReturnToParam = Array.isArray(searchParams.returnTo)
+    ? searchParams.returnTo[0]
+    : (searchParams.returnTo as string | undefined);
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [historyItems, setHistoryItems] = useState<SOSHistoryItem[]>([]);
 
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/sos-history';
+  }, [pathname]);
+
   const decodedReturnTo = useMemo(() => {
-    if (typeof returnTo === 'string' && returnTo.length > 0) {
+    if (typeof rawReturnToParam === 'string' && rawReturnToParam.length > 0) {
       try {
-        const decoded = decodeURIComponent(returnTo);
+        const decoded = decodeURIComponent(rawReturnToParam);
         return decoded.startsWith('/') ? decoded : `/${decoded}`;
       } catch (error) {
-        return returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+        return rawReturnToParam.startsWith('/') ? rawReturnToParam : `/${rawReturnToParam}`;
       }
     }
     return undefined;
-  }, [returnTo]);
+  }, [rawReturnToParam]);
 
   const handleBack = useCallback(() => {
+    if (decodedReturnTo && decodedReturnTo !== currentPath) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
     if (router.canGoBack()) {
       router.back();
       return;
     }
 
-    if (decodedReturnTo) {
-      router.replace(decodedReturnTo as any);
-      return;
-    }
-
     router.replace('/tabs/settings');
-  }, [router, decodedReturnTo]);
+  }, [router, decodedReturnTo, currentPath]);
 
   useEffect(() => {
     const loadSOSHistory = async () => {

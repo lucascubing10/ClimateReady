@@ -83,7 +83,10 @@ const SettingsItem = ({
 export default function SettingsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const searchParams = useLocalSearchParams();
+  const rawReturnToParam = Array.isArray(searchParams.returnTo)
+    ? searchParams.returnTo[0]
+    : (searchParams.returnTo as string | undefined);
   const pathname = usePathname();
   const { userProfile, logout } = useAuth();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
@@ -97,18 +100,23 @@ export default function SettingsScreen() {
   }, [pathname]);
 
   const decodedReturnTo = useMemo(() => {
-    if (typeof returnTo === 'string' && returnTo.length > 0) {
+    if (typeof rawReturnToParam === 'string' && rawReturnToParam.length > 0) {
       try {
-        const decoded = decodeURIComponent(returnTo);
+        const decoded = decodeURIComponent(rawReturnToParam);
         return decoded.startsWith('/') ? decoded : `/${decoded}`;
       } catch (error) {
-        return returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+        return rawReturnToParam.startsWith('/') ? rawReturnToParam : `/${rawReturnToParam}`;
       }
     }
     return undefined;
-  }, [returnTo]);
+  }, [rawReturnToParam]);
 
   const handleBack = useCallback(() => {
+    if (decodedReturnTo && decodedReturnTo !== currentPath) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
     if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
       navigation.goBack();
       return;
@@ -119,13 +127,8 @@ export default function SettingsScreen() {
       return;
     }
 
-    if (decodedReturnTo) {
-      router.replace(decodedReturnTo as any);
-      return;
-    }
-
     router.replace('/tabs');
-  }, [navigation, router, decodedReturnTo]);
+  }, [navigation, router, decodedReturnTo, currentPath]);
 
   // Load SOS settings and dark mode when the screen loads
   useEffect(() => {
