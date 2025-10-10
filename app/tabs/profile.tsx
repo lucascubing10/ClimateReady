@@ -253,7 +253,7 @@ export default function ProfileScreen() {
               style={styles.headerButton}
               onPress={() => {
                 console.log("Navigating to settings page");
-                router.push('/settings' as any);
+                router.push('/tabs/settings' as any);
               }}
               activeOpacity={0.7}
             >

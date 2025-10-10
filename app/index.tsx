@@ -529,7 +529,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
-                onPress={() => router.push('/settings')}
+                onPress={() => router.push('/tabs/settings')}
               >
                 <Ionicons name="settings" size={24} color="#1f2937" />
               </TouchableOpacity>
