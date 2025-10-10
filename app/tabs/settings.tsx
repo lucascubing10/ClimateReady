@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -82,9 +82,42 @@ const SettingsItem = ({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { userProfile, logout } = useAuth();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
   const [darkMode, setDarkMode] = useState(false);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof returnTo === 'string' && returnTo.length > 0) {
+      try {
+        const decoded = decodeURIComponent(returnTo);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+      }
+    }
+    return undefined;
+  }, [returnTo]);
+
+  const handleBack = useCallback(() => {
+    if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (decodedReturnTo) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    router.replace('/tabs');
+  }, [navigation, router, decodedReturnTo]);
 
   // Load SOS settings and dark mode when the screen loads
   useEffect(() => {
@@ -126,7 +159,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="chevron-back" size={24} color="#1f2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>

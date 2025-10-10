@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, JSX } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator,Dimensions,StyleSheet,RefreshControl} from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -224,6 +224,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const pathname = usePathname();
 
   
   // Push notification registration for testing
@@ -529,7 +530,13 @@ export default function HomeScreen() {
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.iconButton}
-                onPress={() => router.push('/tabs/settings')}
+                onPress={() => {
+                  const current = typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs';
+                  router.push({
+                    pathname: '/tabs/settings',
+                    params: { returnTo: encodeURIComponent(current) },
+                  });
+                }}
               >
                 <Ionicons name="settings" size={24} color="#1f2937" />
               </TouchableOpacity>
