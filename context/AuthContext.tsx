@@ -11,6 +11,7 @@ import {
 import { auth, createUserDocument, getUserDocument, updateUserDocument } from '../firebaseConfig';
 import { UserProfile, createEmptyUserProfile } from '../utils/userDataModel';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { syncPushTokenForUser } from '../utils/registerPushNotifications';
 
 interface AuthContextType {
   user: User | null;
@@ -68,6 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Store authentication state in AsyncStorage
           await AsyncStorage.setItem('user_authenticated', 'true');
+
+          // Ensure the current device push token is stored for this user
+          try {
+            await syncPushTokenForUser(firebaseUser.uid);
+          } catch (error) {
+            console.error('Error syncing push notification token:', error);
+          }
         } catch (error) {
           console.error('Error fetching user profile:', error);
           // Set a minimal profile to prevent indefinite loading
@@ -110,6 +118,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Set the user profile in the context state
       setUserProfile(userProfile);
+
+      try {
+        await syncPushTokenForUser(firebaseUser.uid);
+      } catch (error) {
+        console.error('Error syncing push notification token after registration:', error);
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -128,6 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const docSnapshot = await getUserDocument(userCredential.user.uid);
       if (docSnapshot.exists()) {
         setUserProfile(docSnapshot.data() as UserProfile);
+      }
+
+      try {
+        await syncPushTokenForUser(userCredential.user.uid);
+      } catch (error) {
+        console.error('Error syncing push notification token after login:', error);
       }
     } catch (error: any) {
       console.error('Login error:', error);
