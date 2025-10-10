@@ -42,7 +42,6 @@ yarn-error.*
 *.pem
 
 # local env files
-# Existing ignores...
 
 
 # typescript
