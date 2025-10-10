@@ -291,6 +291,7 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // --- Notification pipeline: fetch forecast, derive alerts, and push local notifications
   // Fetch 3-hour forecast and raise alerts if thresholds exceeded
   const fetchForecastAndAlert = useCallback(async (latitude: number, longitude: number) => {
     try {
