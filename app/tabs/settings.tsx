@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../context/AuthContext';
-import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } from '../utils/sos/sosService';
+import { useAuth } from '../../context/AuthContext';
+import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } from '../../utils/sos/sosService';
 
 const PRIMARY = '#5ba24f';
 const SECONDARY = '#0284c7';
@@ -12,12 +12,12 @@ const DANGER = '#dc2626';
 const CARD_BG = '#ffffff';
 
 // Settings Section Component
-const SettingsSection = ({ 
-  title, 
-  icon, 
-  color = PRIMARY, 
-  children 
-}: { 
+const SettingsSection = ({
+  title,
+  icon,
+  color = PRIMARY,
+  children,
+}: {
   title: string;
   icon: string;
   color?: string;
@@ -26,28 +26,26 @@ const SettingsSection = ({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <View style={[styles.iconContainer, { backgroundColor: color }]}>
+  <View style={[styles.iconContainer, { backgroundColor: color }]}>
           <Ionicons name={icon as any} color="#fff" size={20} />
         </View>
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
-      <View style={styles.sectionContent}>
-        {children}
-      </View>
+      <View style={styles.sectionContent}>{children}</View>
     </View>
   );
 };
 
 // Settings Item Component
-const SettingsItem = ({ 
-  label, 
-  value, 
-  onPress, 
-  icon, 
+const SettingsItem = ({
+  label,
+  value,
+  onPress,
+  icon,
   showArrow = true,
   switchValue,
-  onToggle
-}: { 
+  onToggle,
+}: {
   label: string;
   value?: string;
   onPress?: () => void;
@@ -57,8 +55,8 @@ const SettingsItem = ({
   onToggle?: (value: boolean) => void;
 }) => {
   return (
-    <TouchableOpacity 
-      style={styles.settingItem} 
+    <TouchableOpacity
+      style={styles.settingItem}
       onPress={onPress}
       disabled={!onPress && !onToggle}
     >
@@ -84,9 +82,53 @@ const SettingsItem = ({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const searchParams = useLocalSearchParams();
+  const rawReturnToParam = Array.isArray(searchParams.returnTo)
+    ? searchParams.returnTo[0]
+    : (searchParams.returnTo as string | undefined);
+  const pathname = usePathname();
   const { userProfile, logout } = useAuth();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
   const [darkMode, setDarkMode] = useState(false);
+
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/settings';
+  }, [pathname]);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof rawReturnToParam === 'string' && rawReturnToParam.length > 0) {
+      try {
+        const decoded = decodeURIComponent(rawReturnToParam);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return rawReturnToParam.startsWith('/') ? rawReturnToParam : `/${rawReturnToParam}`;
+      }
+    }
+    return undefined;
+  }, [rawReturnToParam]);
+
+  const handleBack = useCallback(() => {
+    if (decodedReturnTo && decodedReturnTo !== currentPath) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    if (navigation && typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/tabs');
+  }, [navigation, router, decodedReturnTo, currentPath]);
 
   // Load SOS settings and dark mode when the screen loads
   useEffect(() => {
@@ -108,7 +150,7 @@ export default function SettingsScreen() {
   const toggleSOSSetting = async (key: keyof SOSSettings) => {
     const newSettings = {
       ...sosSettings,
-      [key]: !sosSettings[key]
+      [key]: !sosSettings[key],
     };
     setSOSSettings(newSettings);
     await saveSOSSettings(newSettings);
@@ -127,15 +169,18 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Stack.Screen options={{ 
-        title: 'Settings',
-        headerShown: true,
-      }} />
-      
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Ionicons name="chevron-back" size={24} color="#1f2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.content}>
         {/* Account Settings */}
         <SettingsSection title="Account" icon="person" color={PRIMARY}>
-          <SettingsItem 
+          <SettingsItem
             label="View & Edit Profile"
             icon="person-circle"
             onPress={() => router.push('/tabs/profile' as any)}
@@ -146,84 +191,67 @@ export default function SettingsScreen() {
             onPress={() => router.push('/auth/forgot-password' as any)}
           />
         </SettingsSection>
-        
+
         {/* SOS Emergency Settings */}
         <SettingsSection title="SOS Emergency" icon="alert-circle" color={DANGER}>
-          <SettingsItem 
+          <SettingsItem
             label="Emergency Contacts"
             value={`${userProfile?.emergencyContacts?.length || 0} contacts added`}
             onPress={() => router.push('/tabs/profile-edit/emergency-contacts' as any)}
           />
-          <SettingsItem 
+          <SettingsItem
             label="SOS Settings"
-            onPress={() => router.push('/tabs/sos-settings' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/sos-settings',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
-          <SettingsItem 
-            label="SOS History" 
-            onPress={() => router.push('/tabs/sos-history' as any)}
+          <SettingsItem
+            label="SOS History"
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/sos-history',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
-          <SettingsItem 
-            label="Share Blood Type" 
+          <SettingsItem
+            label="Share Blood Type"
             switchValue={sosSettings.shareBloodType}
             onToggle={() => toggleSOSSetting('shareBloodType')}
           />
-          <SettingsItem 
-            label="Share Medical Conditions" 
+          <SettingsItem
+            label="Share Medical Conditions"
             switchValue={sosSettings.shareMedicalConditions}
             onToggle={() => toggleSOSSetting('shareMedicalConditions')}
           />
-          <SettingsItem 
-            label="Share Medications" 
+          <SettingsItem
+            label="Share Medications"
             switchValue={sosSettings.shareMedications}
             onToggle={() => toggleSOSSetting('shareMedications')}
           />
         </SettingsSection>
-        
+
         {/* App Settings */}
         <SettingsSection title="App Settings" icon="settings" color={SECONDARY}>
-          <SettingsItem 
-            label="Notifications" 
-            onPress={() => {}}
-          />
-          <SettingsItem 
-            label="Dark Mode" 
-            switchValue={darkMode}
-            onToggle={toggleDarkMode}
-          />
-          <SettingsItem 
-            label="Location Services" 
-            onPress={() => {}}
-          />
-          <SettingsItem 
-            label="Language" 
-            value="English"
-            onPress={() => {}}
-          />
+          <SettingsItem label="Notifications" onPress={() => {}} />
+          <SettingsItem label="Dark Mode" switchValue={darkMode} onToggle={toggleDarkMode} />
+          <SettingsItem label="Location Services" onPress={() => {}} />
+          <SettingsItem label="Language" value="English" onPress={() => {}} />
         </SettingsSection>
-        
+
         {/* About & Support */}
         <SettingsSection title="About & Support" icon="information-circle" color="#6b7280">
-          <SettingsItem 
-            label="Privacy Policy" 
-            onPress={() => {}}
-          />
-          <SettingsItem 
-            label="Terms of Service" 
-            onPress={() => {}}
-          />
-          <SettingsItem 
-            label="Help & Support" 
-            onPress={() => {}}
-          />
-          <SettingsItem 
-            label="About ClimateReady" 
-            value="Version 1.0.0"
-            onPress={() => {}}
-          />
+          <SettingsItem label="Privacy Policy" onPress={() => {}} />
+          <SettingsItem label="Terms of Service" onPress={() => {}} />
+          <SettingsItem label="Help & Support" onPress={() => {}} />
+          <SettingsItem label="About ClimateReady" value="Version 1.0.0" onPress={() => {}} />
         </SettingsSection>
-        
+
         {/* Sign Out */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.signOutButton}
           onPress={() => {
             logout();
@@ -241,7 +269,29 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#dcefdd', // match BG from home
+    backgroundColor: '#dcefdd',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    paddingTop: 8,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#ffffffcc',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  headerSpacer: {
+    width: 36,
   },
   content: {
     flex: 1,

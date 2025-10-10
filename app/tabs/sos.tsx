@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +29,7 @@ import {
 export default function SOSScreen() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const params = useLocalSearchParams();
   const autoActivate = params.autoActivate === 'true';
   const [isSOSActive, setIsSOSActive] = useState(false);
@@ -36,6 +37,12 @@ export default function SOSScreen() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const locationSubscription = useRef<any>(null);
   const [locationUpdateCount, setLocationUpdateCount] = useState(0);
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/sos';
+  }, [pathname]);
 
   // Check if SOS is already active when screen loads
   useEffect(() => {
@@ -353,12 +360,18 @@ export default function SOSScreen() {
 
   // Navigate to SOS settings
   const goToSettings = () => {
-    router.push('/tabs/sos-settings');
+    router.push({
+      pathname: '/tabs/sos-settings',
+      params: { returnTo: encodeURIComponent(currentPath) },
+    } as any);
   };
   
   // Navigate to SOS history
   const goToHistory = () => {
-    router.push('/tabs/sos-history');
+    router.push({
+      pathname: '/tabs/sos-history',
+      params: { returnTo: encodeURIComponent(currentPath) },
+    } as any);
   };
 
   if (loading) {

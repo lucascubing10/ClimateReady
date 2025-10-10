@@ -12,7 +12,7 @@ import {
   Dimensions
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfile } from '../../utils/userDataModel';
@@ -123,6 +123,7 @@ const ProfileSection = ({
 export default function ProfileScreen() {
   const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -253,7 +254,11 @@ export default function ProfileScreen() {
               style={styles.headerButton}
               onPress={() => {
                 console.log("Navigating to settings page");
-                router.push('/settings' as any);
+                const current = typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs/profile';
+                router.push({
+                  pathname: '/tabs/settings',
+                  params: { returnTo: encodeURIComponent(current) },
+                } as any);
               }}
               activeOpacity={0.7}
             >

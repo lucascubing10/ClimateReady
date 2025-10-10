@@ -1,18 +1,9 @@
 // Screen: Allows the user to configure what medical details are shared with emergency
 // contacts when they trigger the SOS flow. The toggles write to local storage via
 // `saveSOSSettings`, while the preview helps users understand exactly what will be sent.
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Switch,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert
-} from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { useRouter, Stack, useLocalSearchParams, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -32,9 +23,47 @@ const calculateAge = (birthday: string): number => {
 
 export default function SOSSettingsScreen() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useLocalSearchParams();
+  const rawReturnToParam = Array.isArray(searchParams.returnTo)
+    ? searchParams.returnTo[0]
+    : (searchParams.returnTo as string | undefined);
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
+
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/sos-settings';
+  }, [pathname]);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof rawReturnToParam === 'string' && rawReturnToParam.length > 0) {
+      try {
+        const decoded = decodeURIComponent(rawReturnToParam);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return rawReturnToParam.startsWith('/') ? rawReturnToParam : `/${rawReturnToParam}`;
+      }
+    }
+    return undefined;
+  }, [rawReturnToParam]);
+
+  const handleBack = useCallback(() => {
+    if (decodedReturnTo && decodedReturnTo !== currentPath) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/tabs/settings');
+  }, [router, decodedReturnTo, currentPath]);
 
   // Load settings on mount
   // On mount we hydrate the screen with the most recent settings from
@@ -47,7 +76,7 @@ export default function SOSSettingsScreen() {
       setSettings(savedSettings);
       setLoading(false);
     };
-    
+
     loadSettings();
   }, []);
 
@@ -65,21 +94,31 @@ export default function SOSSettingsScreen() {
   const handleSaveSettings = async () => {
     setLoading(true);
     const success = await saveSOSSettings(settings);
-    
+
     if (success) {
       Alert.alert('Success', 'SOS settings saved successfully.');
-      router.back();
+      handleBack();
     } else {
       Alert.alert('Error', 'Could not save settings. Please try again.');
     }
-    
+
     setLoading(false);
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{ title: 'SOS Settings', headerShown: true }} />
+        <Stack.Screen
+          options={{
+            title: 'SOS Settings',
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="chevron-back" size={24} color="#1f2937" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0284c7" />
           <Text style={styles.loadingText}>Loading settings...</Text>
@@ -93,15 +132,25 @@ export default function SOSSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'SOS Settings', headerShown: true }} />
-      
+      <Stack.Screen
+        options={{
+          title: 'SOS Settings',
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+              <Ionicons name="chevron-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+
       <ScrollView style={styles.content}>
         <Text style={styles.title}>Emergency Information Sharing</Text>
         <Text style={styles.description}>
           Configure what information is shared with your emergency contacts when you activate SOS.
           Your name and location will always be shared.
         </Text>
-        
+
         <View style={styles.messagePreviewContainer}>
           <Text style={styles.previewTitle}>Emergency Message Preview</Text>
           <View style={styles.messagePreview}>
@@ -110,17 +159,17 @@ export default function SOSSettingsScreen() {
               {'\n\n'}
               {settings.shareAge && userProfile?.birthday ? `Age: ${calculateAge(userProfile.birthday)}\n` : ''}
               {settings.shareBloodType && userProfile?.medicalInfo?.bloodType ? `Blood Type: ${userProfile.medicalInfo.bloodType}\n` : ''}
-              {settings.shareMedicalConditions && userProfile?.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0 ? 
+              {settings.shareMedicalConditions && userProfile?.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0 ?
                 `Medical Conditions: ${userProfile.medicalInfo.conditions.join(', ')}\n` : ''}
-              {settings.shareAllergies && userProfile?.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0 ? 
+              {settings.shareAllergies && userProfile?.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0 ?
                 `Allergies: ${userProfile.medicalInfo.allergies.join(', ')}\n` : ''}
-              {settings.shareMedications && userProfile?.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0 ? 
+              {settings.shareMedications && userProfile?.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0 ?
                 `Medications: ${userProfile.medicalInfo.medications.join(', ')}\n` : ''}
               {settings.shareNotes && userProfile?.medicalInfo?.notes ? `Notes: ${userProfile.medicalInfo.notes}` : ''}
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.settingsContainer}>
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
@@ -137,13 +186,13 @@ export default function SOSSettingsScreen() {
               thumbColor={settings.shareBloodType ? '#0284c7' : '#f4f4f5'}
             />
           </View>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Allergies</Text>
               <Text style={styles.settingDescription}>
-                {userProfile?.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0 
-                  ? `${userProfile.medicalInfo.allergies.length} allergy(s) set` 
+                {userProfile?.medicalInfo?.allergies && userProfile.medicalInfo.allergies.length > 0
+                  ? `${userProfile.medicalInfo.allergies.length} allergy(s) set`
                   : 'Not set'}
               </Text>
             </View>
@@ -155,13 +204,13 @@ export default function SOSSettingsScreen() {
               thumbColor={settings.shareAllergies ? '#0284c7' : '#f4f4f5'}
             />
           </View>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Medical Conditions</Text>
               <Text style={styles.settingDescription}>
-                {userProfile?.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0 
-                  ? `${userProfile.medicalInfo.conditions.length} condition(s) set` 
+                {userProfile?.medicalInfo?.conditions && userProfile.medicalInfo.conditions.length > 0
+                  ? `${userProfile.medicalInfo.conditions.length} condition(s) set`
                   : 'Not set'}
               </Text>
             </View>
@@ -173,13 +222,13 @@ export default function SOSSettingsScreen() {
               thumbColor={settings.shareMedicalConditions ? '#0284c7' : '#f4f4f5'}
             />
           </View>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Medications</Text>
               <Text style={styles.settingDescription}>
-                {userProfile?.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0 
-                  ? `${userProfile.medicalInfo.medications.length} medication(s) set` 
+                {userProfile?.medicalInfo?.medications && userProfile.medicalInfo.medications.length > 0
+                  ? `${userProfile.medicalInfo.medications.length} medication(s) set`
                   : 'Not set'}
               </Text>
             </View>
@@ -191,7 +240,7 @@ export default function SOSSettingsScreen() {
               thumbColor={settings.shareMedications ? '#0284c7' : '#f4f4f5'}
             />
           </View>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Medical Notes</Text>
@@ -207,7 +256,7 @@ export default function SOSSettingsScreen() {
               thumbColor={settings.shareNotes ? '#0284c7' : '#f4f4f5'}
             />
           </View>
-          
+
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>Share Age</Text>
@@ -224,7 +273,7 @@ export default function SOSSettingsScreen() {
             />
           </View>
         </View>
-        
+
         {!hasMedicalInfo && (
           <View style={styles.warningContainer}>
             <Ionicons name="alert-circle-outline" size={24} color="#dc2626" />
@@ -232,7 +281,7 @@ export default function SOSSettingsScreen() {
               You haven't added any medical information to your profile yet.
               Adding this information can help emergency responders provide better care.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addInfoButton}
               onPress={() => router.push('/tabs/profile-edit/medical-info')}
             >
@@ -241,14 +290,14 @@ export default function SOSSettingsScreen() {
           </View>
         )}
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.saveButton}
           onPress={handleSaveSettings}
           disabled={loading}
         >
           <Text style={styles.saveButtonText}>Save Settings</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.infoContainer}>
           <Ionicons name="information-circle-outline" size={20} color="#6b7280" />
           <Text style={styles.infoText}>
@@ -265,6 +314,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  headerButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    marginLeft: 12,
   },
   content: {
     flex: 1,
