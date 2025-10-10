@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, JSX } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator,Dimensions,StyleSheet,RefreshControl} from 'react-native';
+import React, { useEffect, useState, useCallback, JSX, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, RefreshControl} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
@@ -21,6 +21,8 @@ import { GameStorage } from '@/utils/gameStorage';
 import { getEarnedBadges } from '@/utils/badges';
 import { getCustomItems, getAiRecommendation } from '@/utils/storage';
 import LottieView from 'lottie-react-native';
+import { evaluateForecast, defaultThresholds } from '@/utils/alerts/weatherThresholds';
+import { ensurePermissionsAsync, ensureAndroidChannelAsync, sendLocalNotification } from '@/utils/notifications';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +34,8 @@ const YELLOW = '#fac609';
 const YELLOW_GRADIENT = ['#fac609', '#e6b408'];
 const ORANGE = '#e5793a';
 const ORANGE_GRADIENT = ['#e5793a', '#d4692a'];
+const RED = '#ef4444';
+const RED_GRADIENT = ['#ef4444', '#dc2626'];
 const BG = '#dcefdd';
 const CARD_BG = '#ffffff';
 
@@ -41,7 +45,7 @@ const quickActions: {
   icon: JSX.Element;
   bgColor: string;
   gradient: string[];
-  screen: 'safe-zone' | 'toolkit' | 'community';
+  screen: 'safe-zone' | 'toolkit' | 'community' | 'mock-alerts';
 }[] = [
   {
     title: 'Safe Zones',
@@ -61,34 +65,23 @@ const quickActions: {
   },
   {
     title: 'Community',
-    subtitle: 'Connect & share',
+    subtitle: 'Connect with others',
     icon: <Ionicons name="people" size={24} color="#fff" />,
     bgColor: ORANGE,
     gradient: ORANGE_GRADIENT,
     screen: 'community',
   },
+  {
+    title: 'Mock Alerts',
+    subtitle: 'Test alert notifications',
+    icon: <Ionicons name="warning" size={24} color="#fff" />,
+    bgColor: RED,
+    gradient: RED_GRADIENT,
+    screen: 'mock-alerts',
+  },
 ];
 
-const mockAlerts = [
-  {
-    id: '1',
-    type: 'warning',
-    title: 'Heat Wave Warning',
-    description: 'Excessive heat expected. Temperatures may reach 40°C.',
-    severity: 'high',
-    timestamp: '2 hours ago',
-    icon: '🔥',
-  },
-  {
-    id: '2',
-    type: 'watch',
-    title: 'Air Quality Advisory',
-    description: 'Unhealthy air quality due to wildfire smoke.',
-    severity: 'medium',
-    timestamp: '5 hours ago',
-    icon: '💨',
-  },
-];
+// Alerts will be sourced from forecast triggers; no hardcoded alerts
 
 interface WeatherData {
   temperature: number;
@@ -224,6 +217,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const lastTriggerHashRef = React.useRef<string | null>(null);
 
   
   // Push notification registration for testing
@@ -248,7 +242,6 @@ export default function HomeScreen() {
     if (hour < 12) setGreeting('Good Morning 🌅');
     else if (hour < 17) setGreeting('Good Afternoon ☀️');
     else setGreeting('Good Evening 🌙');
-    setAlerts(mockAlerts);
   }, []);
 
   const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
@@ -297,6 +290,135 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // Fetch 3-hour forecast and raise alerts if thresholds exceeded
+  const fetchForecastAndAlert = useCallback(async (latitude: number, longitude: number) => {
+    try {
+      const res = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`
+      );
+      const data = await res.json();
+
+  const triggers = evaluateForecast(data, defaultThresholds);
+  const now = Date.now();
+  // Capture current time once so we can ignore any forecast buckets that already happened
+      const nowIso = new Date(now).toISOString();
+
+      // Group triggers by time block (collapse multiple conditions into one alert per time)
+      const severityRank = (s: 'low'|'medium'|'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
+      const bucketKeyFrom = (at: string) => {
+        const d = new Date(at);
+        if (isNaN(d.getTime())) return at;
+
+        // Normalize to the nearest 3-hour block (UTC)
+        const hours = d.getUTCHours();
+        const rounded = Math.floor(hours / 3) * 3;
+        d.setUTCHours(rounded, 0, 0, 0);
+
+        return d.toISOString();
+      };
+
+      type Group = { at: string; byType: Map<string, { t: any; severity: 'low'|'medium'|'high' }> };
+      const groups = new Map<string, Group>();
+      for (const t of triggers) {
+        const sev = computeSeverity(t.type, t.value, t.threshold);
+        const key = bucketKeyFrom(t.at);
+        const bucketTime = new Date(key).getTime();
+
+        if (__DEV__) {
+          console.log('[alerts]', 'bucket', key, 'vs now', nowIso);
+        }
+
+        if (!Number.isNaN(bucketTime) && bucketTime <= now) {
+          // Skip past forecast buckets so reloads don't resurface stale alerts
+          continue;
+        }
+        const g = groups.get(key) ?? { at: key, byType: new Map() };
+        const existing = g.byType.get(t.type);
+        if (!existing || severityRank(sev) > severityRank(existing.severity)) {
+          g.byType.set(t.type, { t, severity: sev });
+        }
+        groups.set(key, g);
+      }
+
+      // Build one alert per time bucket, aggregating messages and choosing max severity
+      const aggregated = Array.from(groups.values())
+        .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+        .map(g => {
+          const entries = Array.from(g.byType.values());
+          let maxSev: 'low'|'medium'|'high' = 'low';
+          for (const it of entries) if (severityRank(it.severity) > severityRank(maxSev)) maxSev = it.severity;
+
+          const atDate = new Date(g.at);
+          const atLabel = isNaN(atDate.getTime())
+            ? g.at
+            : atDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          const lines = entries.map(({ t }) => {
+            if (t.type === 'rain') return `Heavy rain ~ ${t.value}mm/3h (≥ ${t.threshold}mm)`;
+            if (t.type === 'wind') return `High wind ${t.value} m/s (≥ ${t.threshold} m/s)`;
+            if (t.type === 'temp-high') return `High temp ${t.value}°C (≥ ${t.threshold}°C)`;
+            return `Low temp ${t.value}°C (≤ ${t.threshold}°C)`;
+          });
+
+          // Choose icon: multi-hazard -> warning, else type-specific
+          let icon = '⚠️';
+          if (entries.length === 1) {
+            const t = entries[0].t;
+            icon = t.type === 'rain' ? '🌧️' : t.type === 'wind' ? '💨' : t.type === 'temp-high' ? '🔥' : '❄️';
+          }
+
+          const title = entries.length > 1 ? 'Weather Alert' : (
+            entries[0].t.type === 'rain' ? 'Heavy Rain Forecast' :
+            entries[0].t.type === 'wind' ? 'High Wind Forecast' :
+            entries[0].t.type === 'temp-high' ? 'High Temperature Forecast' :
+            'Low Temperature Forecast'
+          );
+
+          return {
+            id: `grp-${g.at}`,
+            type: 'group',
+            title,
+            description: lines.join(' • '),
+            severity: maxSev,
+            timestamp: atLabel,
+            icon,
+          };
+        });
+
+      // Update UI alerts (limit to top 5)
+      const mapped = aggregated.slice(0, 5);
+      setAlerts(mapped);
+
+      if (!aggregated.length) {
+        lastTriggerHashRef.current = null;
+        return;
+      }
+
+      const granted = await ensurePermissionsAsync();
+      if (!granted) return;
+      await ensureAndroidChannelAsync();
+
+      // Use first 1–2 grouped alerts for notification summary
+      const notifBody = mapped.length > 0
+        ? mapped.slice(0, 2).map(a => a.description).join(' • ')
+        : 'Upcoming weather conditions exceed your thresholds.';
+
+      // Build hash from aggregated buckets and their types/values
+      const hash = JSON.stringify(
+        Array.from(groups.values()).map(g => {
+          const parts = Array.from(g.byType.values()).map(({ t }) => `${t.type}:${t.value}`);
+          return `${g.at}|${parts.sort().join(',')}`;
+        }).sort()
+      );
+      if (hash !== lastTriggerHashRef.current) {
+        await sendLocalNotification('Weather alert', notifBody);
+        lastTriggerHashRef.current = hash;
+      }
+    } catch (e) {
+      console.warn('Forecast check failed:', e);
+    }
+  }, []);
+
   // Get user's location and fetch weather
   const getLocationAndWeather = useCallback(async () => {
     try {
@@ -310,19 +432,19 @@ export default function HomeScreen() {
         return;
       }
       let location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
+      const { latitude, longitude } = location.coords;
+      setUserLocation({ latitude, longitude });
 
-      await fetchWeatherData(location.coords.latitude, location.coords.longitude);
+      await fetchWeatherData(latitude, longitude);
+      // Also check forecast thresholds and notify locally if needed
+      fetchForecastAndAlert(latitude, longitude);
 
     } catch (error) {
       console.error('Error getting location:', error);
       setLocationError('Unable to get location');
       setIsLoadingWeather(false);
     }
-  }, [fetchWeatherData]);
+  }, [fetchWeatherData, fetchForecastAndAlert]);
 
   // Enhanced progress calculation with real-time data
   const refreshProgress = useCallback(async () => {
@@ -435,19 +557,65 @@ export default function HomeScreen() {
     getLocationAndWeather();
   }, []);
 
+  // Periodically re-check forecast so alerts disappear when conditions normalize
+  useEffect(() => {
+    if (!userLocation) return;
+    const id = setInterval(() => {
+      fetchForecastAndAlert(userLocation.latitude, userLocation.longitude);
+    }, 10 * 60 * 1000); // every 10 minutes
+    return () => clearInterval(id);
+  }, [userLocation, fetchForecastAndAlert]);
+
   const onRefresh = useCallback(() => {
     refreshProgress();
     getLocationAndWeather();
   }, [refreshProgress, getLocationAndWeather]);
 
-  const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
+  const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community' | 'mock-alerts') => {
     const routeMap: Record<typeof screen, string> = {
       'safe-zone': '/safe-zone',
       'toolkit': '/toolkit',
       'community': '/community',
+      'mock-alerts': '/mock-alerts',
     };
     router.push(routeMap[screen] as any);
   };
+
+  // DEV: inject sample alerts to test severity color mapping (yellow/orange/red)
+  const injectSeverityTestAlerts = useCallback(() => {
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setAlerts([
+      {
+        id: 'rain-low',
+        type: 'rain',
+        title: 'Light Rain Forecast',
+        description: 'Rain ~ 6mm in 3h (threshold 5mm)',
+        severity: 'low',
+        timestamp: now,
+        icon: '🌧️',
+      },
+      {
+        id: 'wind-medium',
+        type: 'wind',
+        title: 'Wind Picking Up',
+        description: 'Winds up to 17 m/s (threshold 12 m/s)',
+        severity: 'medium',
+        timestamp: 'in 3h',
+        icon: '💨',
+      },
+      {
+        id: 'temp-high',
+        type: 'temp-high',
+        title: 'High Temperature Forecast',
+        description: 'Up to 45°C (threshold 35°C)',
+        severity: 'high',
+        timestamp: 'in 6h',
+        icon: '🔥',
+      },
+    ] as any[]);
+  }, []);
+
+  const clearAlertsManually = useCallback(() => setAlerts([]), []);
 
   // Get weather icon based on condition
   const getWeatherIcon = (condition: string) => {
@@ -475,10 +643,23 @@ export default function HomeScreen() {
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high': return ORANGE_GRADIENT;
-      case 'medium': return YELLOW_GRADIENT;
+      case 'high': return RED_GRADIENT;      // Red for highest severity
+      case 'medium': return ORANGE_GRADIENT; // Orange for medium
+      case 'low': return YELLOW_GRADIENT;    // Yellow for low
       default: return PRIMARY_GRADIENT;
     }
+  };
+
+  const computeSeverity = (type: string, value: number, threshold: number): 'low' | 'medium' | 'high' => {
+    let diff = 0;
+    if (type === 'temp-low') {
+      diff = threshold - value;
+    } else {
+      diff = value - threshold;
+    }
+    if (diff >= 10) return 'high';
+    if (diff >= 5) return 'medium';
+    return 'low';
   };
 
   return (
@@ -585,6 +766,21 @@ export default function HomeScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {__DEV__ && (
+            <Card style={styles.devCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.devTitle}>Dev: Test alert colors</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  <TouchableOpacity onPress={injectSeverityTestAlerts} style={styles.devBtn}>
+                    <Text style={styles.devBtnText}>Show test alerts</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={clearAlertsManually} style={[styles.devBtn, { backgroundColor: '#ef4444' }]}>
+                    <Text style={styles.devBtnText}>Clear</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Card>
+          )}
           {/* Alerts Section */}
           {alerts.length > 0 && (
             <Animated.View entering={LightSpeedInLeft.duration(500)}>
@@ -630,7 +826,12 @@ export default function HomeScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
             </View>
-            <View style={styles.quickActions}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.quickActions}
+              contentContainerStyle={styles.quickActionsScroll}
+            >
               {quickActions.map((action, index) => (
                 <Animated.View
                   key={action.title}
@@ -640,6 +841,7 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     onPress={() => navigateToScreen(action.screen)}
                     style={styles.quickActionTouchable}
+                    activeOpacity={0.85}
                   >
                     <LinearGradient
                       colors={action.gradient as [ColorValue, ColorValue, ...ColorValue[]]}
@@ -654,7 +856,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 </Animated.View>
               ))}
-            </View>
+            </ScrollView>
           </Animated.View>
 
           {/* Progress Section */}
@@ -957,13 +1159,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 24,
   },
+  quickActionsScroll: {
+    paddingHorizontal: 4,
+    paddingBottom: 4,
+  },
   quickActionContainer: {
-    flex: 1,
-    marginHorizontal: 6,
+    width: Math.min(width * 0.30, 220),
+    marginRight: 16,
   },
   quickActionTouchable: {
     borderRadius: 20,
@@ -1147,5 +1351,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
+  },
+  // Dev tester styles
+  devCard: {
+    padding: 12,
+    marginBottom: 16,
+    backgroundColor: '#fff7ed', // light orange background
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+  },
+  devTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#9a3412',
+  },
+  devBtn: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  devBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
   },
 });
