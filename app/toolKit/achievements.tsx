@@ -144,7 +144,7 @@ export default function AchievementsScreen() {
     <View style={styles.container}>
       {/* Header with Back Button */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.push('/tabs/toolKit')} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#6366f1" />
         </TouchableOpacity>
         <Text style={styles.title}>Achievements</Text>

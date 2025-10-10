@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, JSX } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator,Dimensions,StyleSheet} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator,Dimensions,StyleSheet,RefreshControl} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn,BounceIn,LightSpeedInLeft,FlipInYLeft} from 'react-native-reanimated';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -19,9 +19,8 @@ import { getPersonalizedToolkit } from '@/utils/gemini';
 import { getEducationalProgress } from '@/utils/educationalData';
 import { GameStorage } from '@/utils/gameStorage';
 import { getEarnedBadges } from '@/utils/badges';
-// import { getCustomItems, getAiRecommendation } from '@/utils/persistedData';
-// If the correct file is 'storage.ts', update as below:
 import { getCustomItems, getAiRecommendation } from '@/utils/storage';
+import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -104,9 +103,9 @@ interface WeatherData {
 // Reusable Card Component
 const Card = ({ children, style, gradient, onPress }: any) => {
   const content = (
-    <View style={[styles.card, style]}>
+    <Animated.View style={[styles.card, style]}>
       {children}
-    </View>
+    </Animated.View>
   );
 
   if (gradient) {
@@ -128,43 +127,84 @@ const Card = ({ children, style, gradient, onPress }: any) => {
   return content;
 };
 
-// Badge Component
-const Badge = ({ count, style }: any) => (
-  <View style={[styles.badge, style]}>
-    <Text style={styles.badgeText}>{count}</Text>
-  </View>
-);
-
-// Progress Component
-const ProgressRing = ({ progress, size = 60, strokeWidth = 6 }: any) => {
+// Modern Progress Ring Component
+const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: any) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <View style={[styles.progressRingContainer, { width: size, height: size }]}>
-      <View style={styles.progressRingBackground} />
-      <Animated.View
+      {/* Background Circle */}
+      <View 
         style={[
-          styles.progressRingFill,
-          {
-            width: size,
-            height: size,
+          styles.progressRingBackground,
+          { 
+            width: size, 
+            height: size, 
             borderRadius: size / 2,
             borderWidth: strokeWidth,
-            borderColor: PRIMARY,
-            borderTopColor: 'transparent',
-            borderRightColor: 'transparent',
-            transform: [{ rotate: '-45deg' }],
-          },
-        ]}
+          }
+        ]} 
       />
-      <View style={styles.progressRingText}>
+      
+      {/* Progress Circle */}
+      <View 
+        style={[
+          styles.progressRingFill,
+          { 
+            width: size, 
+            height: size, 
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderLeftColor: PRIMARY,
+            borderBottomColor: PRIMARY,
+            transform: [{ rotate: `${-45 + (progress * 3.6)}deg` }],
+          }
+        ]} 
+      />
+      
+      {/* Center Content */}
+      <View style={styles.progressRingContent}>
         <Text style={styles.progressRingPercent}>{Math.round(progress)}%</Text>
+        {label && <Text style={styles.progressRingLabel}>{label}</Text>}
+        {value && <Text style={styles.progressRingValue}>{value}</Text>}
       </View>
     </View>
   );
 };
+
+// Modern Badge Component
+const Badge = ({ count, style }: any) => (
+  <Animated.View 
+    entering={BounceIn.duration(600)}
+    style={[styles.badge, style]}
+  >
+    <Text style={styles.badgeText}>{count}</Text>
+  </Animated.View>
+);
+
+// Progress Item Component
+const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any) => (
+  <Animated.View 
+    entering={FadeInRight.duration(500)}
+    style={styles.progressItem}
+  >
+    <View style={styles.progressItemLeft}>
+      <View style={[styles.progressIcon, { backgroundColor: `${color}20` }]}>
+        {icon}
+      </View>
+      <View style={styles.progressText}>
+        <Text style={styles.progressItemTitle}>{title}</Text>
+        <Text style={styles.progressItemSubtitle}>{subtitle}</Text>
+      </View>
+    </View>
+    <ProgressRing 
+      progress={progress} 
+      size={60} 
+      strokeWidth={6}
+    />
+  </Animated.View>
+);
 
 export default function HomeScreen() {
   const [greeting, setGreeting] = useState('');
@@ -174,18 +214,19 @@ export default function HomeScreen() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
-  const [prepProgress, setPrepProgress] = useState({ completed: 0, total: 0, percent: 0 });
-  const [learningProgress, setLearningProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [prepProgress, setPrepProgress] = useState({ completed: 0, total: 12, percent: 0 });
+  const [learningProgress, setLearningProgress] = useState({ completed: 0, total: 8, percent: 0 });
   const [gameStats, setGameStats] = useState({ bestScore: 0, totalGames: 0, victories: 0 });
   const [badgesCount, setBadgesCount] = useState(0);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [customItems, setCustomItems] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  
   // Push notification registration for testing
-
   useEffect(() => {
     const registerNotifications = async () => {
       const token = await registerForPushNotificationsAsync();
@@ -200,24 +241,24 @@ export default function HomeScreen() {
     registerNotifications();
   }, []);
 
-  // Greeting logic
+  
+  // Greeting logic with emoji
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good Morning');
-    else if (hour < 17) setGreeting('Good Afternoon');
-    else setGreeting('Good Evening');
+    if (hour < 12) setGreeting('Good Morning 🌅');
+    else if (hour < 17) setGreeting('Good Afternoon ☀️');
+    else setGreeting('Good Evening 🌙');
     setAlerts(mockAlerts);
   }, []);
 
-  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI'; // Replace with your Google API key
-  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb'; // Replace with your OpenWeatherMap API key
+  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
+  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb';
 
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
     try {
       setIsLoadingWeather(true);
 
-      // 1. Get city/region name from Google Geocoding API
       let locationName = '';
       try {
         const geoRes = await fetch(
@@ -226,22 +267,14 @@ export default function HomeScreen() {
         const geoData = await geoRes.json();
         if (geoData.status === 'OK' && geoData.results.length > 0) {
           const address = geoData.results[0].address_components;
-          const cityObj = address.find((c: any) =>
-            c.types.includes('locality')
-          );
-          const regionObj = address.find((c: any) =>
-            c.types.includes('administrative_area_level_1')
-          );
-          const countryObj = address.find((c: any) =>
-            c.types.includes('country')
-          );
-          locationName = cityObj?.long_name || regionObj?.long_name || countryObj?.long_name || '';
+          const cityObj = address.find((c: any) => c.types.includes('locality'));
+          const regionObj = address.find((c: any) => c.types.includes('administrative_area_level_1'));
+          locationName = cityObj?.long_name || regionObj?.long_name || '';
         }
       } catch (e) {
         locationName = '';
       }
 
-      // 2. Fetch weather from OpenWeatherMap API
       const weatherRes = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${OPENWEATHERMAP_API_KEY}&units=metric`
       );
@@ -270,7 +303,6 @@ export default function HomeScreen() {
       setIsLoadingWeather(true);
       setLocationError(null);
 
-      // Request permission and get current location
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setLocationError('Permission to access location was denied');
@@ -283,7 +315,6 @@ export default function HomeScreen() {
         longitude: location.coords.longitude,
       });
 
-      // Use real coordinates for weather
       await fetchWeatherData(location.coords.latitude, location.coords.longitude);
 
     } catch (error) {
@@ -293,18 +324,60 @@ export default function HomeScreen() {
     }
   }, [fetchWeatherData]);
 
-  // Fetch all progress data on focus and mount
+  // Enhanced progress calculation with real-time data
   const refreshProgress = useCallback(async () => {
     try {
-      const toolkit = await import('@/utils/storage');
-      const userProgress = await toolkit.getUserProgress();
-      console.log('HomeScreen userProgress:', userProgress);
+      setRefreshing(true);
+
+    // Import all checklist sources and storage
+    const { getUserProgress } = await import('@/utils/storage');
+    const { checklistItems } = await import('@/utils/checklistData');
+    const { getCustomItems } = await import('@/utils/storage');
+
+      // Get all checklist items (predefined, custom)
+      const predefinedItems = checklistItems || [];
+      const customItems = await getCustomItems();
+
+      // Get completed items from user progress
+      const userProgress = await getUserProgress();
+      const completedIds = Array.isArray(userProgress.completedItems)
+        ? userProgress.completedItems
+        : [];
+
+      // Fallback: get AI toolkit items using getPersonalizedToolkit (returns array of names)
+      let aiItems: { id: string; name: string }[] = [];
+      try {
+        // Use points and level as a simple profile for AI toolkit
+        const profile = {
+          points: userProgress.points || 0,
+          level: userProgress.level || 1
+        };
+        const aiToolkitNames = await getPersonalizedToolkit(profile);
+        aiItems = Array.isArray(aiToolkitNames)
+          ? aiToolkitNames.map((name, idx) => ({ id: `ai-${idx}`, name }))
+          : [];
+      } catch (err) {
+        aiItems = [];
+      }
+
+      const allItems = [
+        ...predefinedItems,
+        ...(Array.isArray(customItems) ? customItems : []),
+        ...(Array.isArray(aiItems) ? aiItems : [])
+      ];
+
+      // Calculate accurate progress
+      const totalItems = allItems.length;
+      const completedItems = allItems.filter(item => completedIds.includes(item.id)).length;
+      const prepPercent = totalItems > 0 ? Math.min(100, (completedItems / totalItems) * 100) : 0;
+
       setPrepProgress({
-        completed: Array.isArray(userProgress.completedItems) ? userProgress.completedItems.length : 0,
-        total: userProgress.totalItems ?? 0,
-        percent: userProgress.percent ?? 0
+        completed: completedItems,
+        total: totalItems,
+        percent: prepPercent
       });
 
+      // Calculate learning progress (unchanged)
       const completedContent = userProgress.completedLearning || [];
       const eduProgress = getEducationalProgress(completedContent);
       setLearningProgress({
@@ -313,6 +386,7 @@ export default function HomeScreen() {
         percent: eduProgress.percentage
       });
 
+      // Get game stats (unchanged)
       const stats = await GameStorage.getStats();
       setGameStats({
         bestScore: stats.bestScore,
@@ -320,21 +394,27 @@ export default function HomeScreen() {
         victories: stats.victories
       });
 
+      // Calculate badges (unchanged)
       const earned = getEarnedBadges({
-        completedItems: userProgress.completedItems,
-        totalPoints: userProgress.points
+        completedItems: completedIds,
+        totalPoints: userProgress.points || 0
       });
       setBadgesCount(earned.length);
 
-      // AI Tip (optional)
-      
+      // Get AI tip (unchanged)
+      const aiRecommendation = await getAiRecommendation();
+      setAiTip(aiRecommendation);
+
     } catch (error) {
-      // Handle errors gracefully
+      console.error('Error refreshing progress:', error);
+      // Set default values
       setPrepProgress({ completed: 0, total: 0, percent: 0 });
       setLearningProgress({ completed: 0, total: 0, percent: 0 });
       setGameStats({ bestScore: 0, totalGames: 0, victories: 0 });
       setBadgesCount(0);
       setAiTip(null);
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -348,15 +428,17 @@ export default function HomeScreen() {
     const loadPersistedData = async () => {
       const customItems = await getCustomItems();
       setCustomItems(customItems);
-
-      const aiRecommendation = await getAiRecommendation();
-      setAiTip(aiRecommendation);
     };
 
     loadPersistedData();
     refreshProgress();
     getLocationAndWeather();
   }, []);
+
+  const onRefresh = useCallback(() => {
+    refreshProgress();
+    getLocationAndWeather();
+  }, [refreshProgress, getLocationAndWeather]);
 
   const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community') => {
     const routeMap: Record<typeof screen, string> = {
@@ -401,11 +483,20 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Background Elements */}
+      {/* Animated Background Elements */}
       <View style={styles.backgroundElements}>
-        <View style={[styles.bgCircle, styles.bgCircle1]} />
-        <View style={[styles.bgCircle, styles.bgCircle2]} />
-        <View style={[styles.bgCircle, styles.bgCircle3]} />
+        <Animated.View 
+          entering={ZoomIn.duration(1000)}
+          style={[styles.bgCircle, styles.bgCircle1]} 
+        />
+        <Animated.View 
+          entering={ZoomIn.duration(1200).delay(200)}
+          style={[styles.bgCircle, styles.bgCircle2]} 
+        />
+        <Animated.View 
+          entering={ZoomIn.duration(1400).delay(400)}
+          style={[styles.bgCircle, styles.bgCircle3]} 
+        />
       </View>
 
       <Animated.View 
@@ -416,8 +507,18 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.greeting}>{greeting}</Text>
-              <Text style={styles.subtitle}>Stay prepared, stay safe</Text>
+              <Animated.Text 
+                entering={FadeInUp.duration(600)}
+                style={styles.greeting}
+              >
+                {greeting}
+              </Animated.Text>
+              <Animated.Text 
+                entering={FadeInUp.duration(600).delay(200)}
+                style={styles.subtitle}
+              >
+                Stay prepared, stay safe
+              </Animated.Text>
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.iconButton}>
@@ -436,7 +537,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Weather Card */}
-          <Animated.View entering={FadeInUp.duration(600)}>
+          <Animated.View entering={FadeInUp.duration(600).delay(300)}>
             <Card gradient={PRIMARY_GRADIENT} style={styles.weatherCard}>
               {isLoadingWeather ? (
                 <View style={styles.weatherLoading}>
@@ -480,10 +581,13 @@ export default function HomeScreen() {
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
           {/* Alerts Section */}
           {alerts.length > 0 && (
-            <Animated.View entering={FadeInUp.duration(500)}>
+            <Animated.View entering={LightSpeedInLeft.duration(500)}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Active Alerts</Text>
                 <Badge count={alerts.length} />
@@ -492,7 +596,7 @@ export default function HomeScreen() {
                 {alerts.map((alert, index) => (
                   <Animated.View
                     key={alert.id}
-                    entering={FadeInRight.delay(index * 100).duration(500)}
+                    entering={FlipInYLeft.delay(index * 150).duration(600)}
                   >
                     <Card style={styles.alertCard}>
                       <LinearGradient
@@ -510,7 +614,7 @@ export default function HomeScreen() {
                         <View style={styles.alertSeverity}>
                           <View style={[
                             styles.severityDot,
-                            { backgroundColor: alert.severity === 'high' ? '#fff' : alert.severity === 'medium' ? '#fff' : '#fff' }
+                            { backgroundColor: alert.severity === 'high' ? '#fff' : '#fff' }
                           ]} />
                         </View>
                       </LinearGradient>
@@ -522,7 +626,7 @@ export default function HomeScreen() {
           )}
 
           {/* Quick Actions */}
-          <Animated.View entering={FadeInUp.delay(100).duration(500)}>
+          <Animated.View entering={FadeInUp.delay(200).duration(500)}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
             </View>
@@ -530,7 +634,7 @@ export default function HomeScreen() {
               {quickActions.map((action, index) => (
                 <Animated.View
                   key={action.title}
-                  entering={ZoomIn.delay(200 + index * 100).duration(500)}
+                  entering={ZoomIn.delay(300 + index * 100).duration(500)}
                   style={styles.quickActionContainer}
                 >
                   <TouchableOpacity
@@ -554,64 +658,49 @@ export default function HomeScreen() {
           </Animated.View>
 
           {/* Progress Section */}
-          <Animated.View entering={FadeInUp.delay(200).duration(500)}>
+          <Animated.View entering={FadeInUp.delay(400).duration(500)}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Your Progress</Text>
+              <TouchableOpacity onPress={refreshProgress}>
+                <Ionicons name="refresh" size={20} color={PRIMARY} />
+              </TouchableOpacity>
             </View>
             <Card style={styles.progressCard}>
-              <LinearGradient colors={['#fff', '#f8fafc']} style={styles.progressContent}>
-                {/* Preparedness */}
-                <View style={styles.progressHeader}>
-                  <View>
-                    <Text style={styles.progressTitle}>Preparedness</Text>
-                    <Text style={styles.progressSubtitle}>
-                      {prepProgress.completed} of {prepProgress.total} tasks completed
-                    </Text>
-                  </View>
-                  <ProgressRing progress={prepProgress.percent} />
-                </View>
-                {/* Learning */}
-                <View style={styles.progressHeader}>
-                  <View>
-                    <Text style={styles.progressTitle}>Learning</Text>
-                    <Text style={styles.progressSubtitle}>
-                      {learningProgress.completed} of {learningProgress.total} modules
-                    </Text>
-                  </View>
-                  <ProgressRing progress={learningProgress.percent} />
-                </View>
-                {/* Game */}
-                <View style={styles.progressHeader}>
-                  <View>
-                    <Text style={styles.progressTitle}>Training Game</Text>
-                    <Text style={styles.progressSubtitle}>
-                      Best Score: {gameStats.bestScore} | Games: {gameStats.totalGames} | Wins: {gameStats.victories}
-                    </Text>
-                  </View>
-                  <Ionicons name="game-controller" size={32} color={PRIMARY} />
-                </View>
-                {/* Badges */}
-                <View style={styles.progressHeader}>
-                  <View>
-                    <Text style={styles.progressTitle}>Badges</Text>
-                    <Text style={styles.progressSubtitle}>
-                      {badgesCount} earned
-                    </Text>
-                  </View>
-                  <Ionicons name="trophy" size={32} color={ORANGE} />
-                </View>
-                {/* AI Tip */}
-                {aiTip && (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={{ color: PRIMARY, fontWeight: '600' }}>{aiTip}</Text>
-                  </View>
-                )}
-              </LinearGradient>
+              <View style={styles.progressContent}>
+                <ProgressItem
+                  title="Preparedness"
+                  subtitle={`${prepProgress.completed}/${prepProgress.total} tasks`}
+                  progress={prepProgress.percent}
+                  icon={<Feather name="check-circle" size={20} color={PRIMARY} />}
+                  color={PRIMARY}
+                />
+                <ProgressItem
+                  title="Learning"
+                  subtitle={`${learningProgress.completed}/${learningProgress.total} modules`}
+                  progress={learningProgress.percent}
+                  icon={<Ionicons name="book" size={20} color={YELLOW} />}
+                  color={YELLOW}
+                />
+                <ProgressItem
+                  title="Training Game"
+                  subtitle={`${gameStats.victories} wins • ${gameStats.totalGames} games`}
+                  progress={gameStats.totalGames > 0 ? (gameStats.victories / gameStats.totalGames) * 100 : 0}
+                  icon={<Ionicons name="game-controller" size={20} color={ORANGE} />}
+                  color={ORANGE}
+                />
+                <ProgressItem
+                  title="Badges"
+                  subtitle={`${badgesCount} earned`}
+                  progress={badgesCount > 0 ? (badgesCount / 10) * 100 : 0} // Assuming 10 total badges
+                  icon={<Ionicons name="trophy" size={20} color="#8B5CF6" />}
+                  color="#8B5CF6"
+                />
+              </View>
             </Card>
           </Animated.View>
 
           {/* Hero Section */}
-          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+          <Animated.View entering={FadeInUp.delay(600).duration(500)}>
             <Card style={styles.heroCard}>
               <LinearGradient colors={PRIMARY_GRADIENT as [ColorValue, ColorValue, ...ColorValue[]]} style={styles.heroGradient}>
                 <View style={styles.heroContent}>
@@ -793,19 +882,26 @@ const styles = StyleSheet.create({
   },
   badge: {
     backgroundColor: ORANGE,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    minWidth: 20,
+    minWidth: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   badgeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   alertsContainer: {
     gap: 12,
+    marginBottom: 24,
   },
   alertCard: {
     borderRadius: 16,
@@ -914,77 +1010,98 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     overflow: 'hidden',
+    backgroundColor: '#fff',
   },
   progressContent: {
-    padding: 24,
+    padding: 20,
+    gap: 16,
   },
-  progressHeader: {
+  progressItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingVertical: 8,
   },
-  progressTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  progressItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  progressIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  progressText: {
+    flex: 1,
+  },
+  progressItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  progressSubtitle: {
-    fontSize: 14,
+  progressItemSubtitle: {
+    fontSize: 13,
     color: '#6b7280',
   },
   progressRingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
   },
   progressRingBackground: {
     position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
-    backgroundColor: '#f1f5f9',
+    borderColor: '#e5e7eb',
   },
   progressRingFill: {
     position: 'absolute',
+    borderColor: 'transparent',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
   },
-  progressRingText: {
+  progressRingContent: {
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressRingPercent: {
     fontSize: 14,
-    fontWeight: '700',
-    color: PRIMARY,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    backgroundColor: '#f8fafc',
-    borderRadius: 16,
-    padding: 8,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 12,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 8,
-  },
-  statNumber: {
-    fontSize: 20,
     fontWeight: '800',
     color: '#1f2937',
-    marginTop: 4,
-    marginBottom: 2,
   },
-  statLabel: {
-    fontSize: 12,
+  progressRingLabel: {
+    fontSize: 10,
     color: '#6b7280',
-    fontWeight: '600',
+    marginTop: 2,
+  },
+  progressRingValue: {
+    fontSize: 9,
+    color: '#9ca3af',
+    marginTop: 1,
+  },
+  aiTipCard: {
+    borderRadius: 16,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  aiTipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  aiTipIcon: {
+    marginRight: 12,
+  },
+  aiTipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    lineHeight: 20,
   },
   heroCard: {
     borderRadius: 24,
@@ -1027,10 +1144,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: CARD_BG,
     borderRadius: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 3,
   },
 });

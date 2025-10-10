@@ -129,7 +129,7 @@ export default function EducationScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push('/tabs/toolKit')}>
           <Ionicons name="arrow-back" size={24} color="#6366f1" />
         </TouchableOpacity>
         <Text style={styles.title}>Educational Resources</Text>
