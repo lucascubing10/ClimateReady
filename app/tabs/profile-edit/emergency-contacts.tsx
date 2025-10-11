@@ -433,12 +433,6 @@ export default function EditEmergencyContactsScreen() {
               </Text>
             </View>
             
-            <Button
-              title="Back to Profile"
-              onPress={() => router.push('/tabs/profile' as any)}
-              variant="outline"
-              style={styles.saveButton}
-            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -495,9 +489,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#6b7280',
     fontSize: 14,
-  },
-  saveButton: {
-    marginBottom: 16,
   },
   noContactsText: {
     textAlign: 'center',
