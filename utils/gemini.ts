@@ -1,7 +1,9 @@
 // utils/gemini.ts
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDPH96vhOGD7SiYV_jmnpd1BKCD7yDIb8o'
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'AIzaSyCiuL5VrLx4aUqB5-CXRTf0xo_CtgcrMA8'
 // 'AIzaSyCim4U3-17VLcv97b2DtR2PlFHhSA27AAk';
+
+const DEBUG_GEMINI = false;
 
 export async function getPersonalizedToolkit(profile: any, disasterType?: string): Promise<string[]> {
   if (!GEMINI_API_KEY) throw new Error('Gemini API key not set');
@@ -17,19 +19,21 @@ export async function getPersonalizedToolkit(profile: any, disasterType?: string
     generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
   };
 
+  if (DEBUG_GEMINI) console.log('[Gemini] Prompt:', prompt);
+
   try {
-    console.log('[Gemini] Prompt:', prompt); // <-- LOG PROMPT
     const res = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
     if (!res.ok) {
-      console.error('[Gemini] API error:', res.status, await res.text());
+      const errText = await res.text();
+      if (DEBUG_GEMINI) console.error('[Gemini] API error:', res.status, errText);
       throw new Error('Gemini API error');
     }
     const data = await res.json();
-    console.log('[Gemini] Response:', data); // <-- LOG RESPONSE
+    if (DEBUG_GEMINI) console.log('[Gemini] Response:', data);
     // Try to extract JSON array from response
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     try {
@@ -41,7 +45,7 @@ export async function getPersonalizedToolkit(profile: any, disasterType?: string
     // fallback: return lines
     return text.split('\n').map((l: string) => l.trim()).filter(Boolean);
   } catch (err) {
-    console.error('[Gemini] API call failed:', err);
+    if (DEBUG_GEMINI) console.error('[Gemini] API call failed:', err);
     return [];
   }
 }

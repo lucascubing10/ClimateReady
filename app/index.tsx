@@ -210,6 +210,8 @@ const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any)
 );
 
 export default function HomeScreen() {
+  // Remove any direct calls to getPersonalizedToolkit here to prevent duplicate requests.
+  // The Toolkit screen will fetch on demand after the household page is completed.
   const [greeting, setGreeting] = useState('');
   const [progress, setProgress] = useState<any>(null);
   const [badges, setBadges] = useState<any[]>([]);
