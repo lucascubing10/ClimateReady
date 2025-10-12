@@ -226,13 +226,13 @@ export default function ForgotPasswordScreen() {
                 />
               </Animated.View>
               
-              {/* Back to Login Link */}
+              {/* Cancel Button */}
               <Animated.View 
                 entering={FadeInUp.duration(600).delay(1000)}
                 style={styles.backLinkContainer}
               >
                 <TouchableOpacity style={styles.backLink} onPress={handleCancel}>
-                  <Ionicons name="close" size={16} color={PRIMARY} />
+                  <Ionicons name="close" size={16} color={PRIMARY} style={styles.backLinkIcon} />
                   <Text style={styles.backLinkText}>Cancel</Text>
                 </TouchableOpacity>
               </Animated.View>
@@ -357,18 +357,28 @@ const styles = StyleSheet.create({
   },
   backLinkContainer: {
     alignItems: 'center',
+    width: '100%',
   },
   backLink: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: PRIMARY,
+    backgroundColor: 'rgba(91, 162, 79, 0.08)',
+    width: '100%',
   },
   backLinkText: {
     color: PRIMARY,
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: 4,
+    marginLeft: 8,
+  },
+  backLinkIcon: {
+    marginRight: 4,
   },
   successContainer: {
     alignItems: 'center',
