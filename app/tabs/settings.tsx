@@ -10,12 +10,21 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } from '../../utils/sos/sosService';
 import { useLocalization, LanguageCode } from '../../context/LocalizationContext';
 import Constants from 'expo-constants';
+import {
+  ALERT_TYPE_ORDER,
+  AlertPreferenceMap,
+  DEFAULT_ALERT_PREFERENCES,
+  getAlertPreferences,
+  countEnabledPreferences,
+} from '../../utils/alertPreferences';
+import { onAlertPreferencesUpdated } from '../../utils/eventBus';
 
 const PRIMARY = '#5ba24f';
 const SECONDARY = '#0284c7';
@@ -112,9 +121,21 @@ export default function SettingsScreen() {
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
   const [darkMode, setDarkMode] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferenceMap>(DEFAULT_ALERT_PREFERENCES);
   const isTamil = language === 'ta';
+  const totalAlertTypes = ALERT_TYPE_ORDER.length;
 
   const appVersion = useMemo(() => Constants.expoConfig?.version ?? '1.0.0', []);
+  const alertSummary = useMemo(() => {
+    const enabledCount = countEnabledPreferences(alertPreferences);
+    if (enabledCount === 0) {
+      return t('settings.items.notificationsSummaryNone');
+    }
+    if (enabledCount === totalAlertTypes) {
+      return t('settings.items.notificationsSummaryAll');
+    }
+    return t('settings.items.notificationsSummarySome', { count: String(enabledCount) });
+  }, [alertPreferences, t, totalAlertTypes]);
 
   const currentPath = useMemo(() => {
     if (typeof pathname === 'string' && pathname.length > 0) {
@@ -168,6 +189,34 @@ export default function SettingsScreen() {
       setDarkMode(storedDark === 'true');
     };
     loadSettings();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const loadPreferences = async () => {
+        try {
+          const prefs = await getAlertPreferences();
+          if (isActive) {
+            setAlertPreferences(prefs);
+          }
+        } catch (error) {
+          console.warn('[SettingsScreen] Failed to load alert preferences', error);
+        }
+      };
+
+      loadPreferences();
+      return () => {
+        isActive = false;
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    const unsubscribe = onAlertPreferencesUpdated((prefs) => {
+      setAlertPreferences(prefs);
+    });
+    return unsubscribe;
   }, []);
 
   // Toggle a SOS setting
@@ -283,7 +332,11 @@ export default function SettingsScreen() {
 
         {/* App Settings */}
         <SettingsSection title={t('settings.sections.app')} icon="settings" color={SECONDARY}>
-          <SettingsItem label={t('settings.items.notifications')} onPress={() => {}} />
+          <SettingsItem
+            label={t('settings.items.notifications')}
+            value={alertSummary}
+            onPress={() => router.push('/tabs/alert-preferences' as any)}
+          />
           <SettingsItem
             label={t('settings.items.darkMode')}
             switchValue={darkMode}

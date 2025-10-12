@@ -154,6 +154,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="alert-preferences"
+          options={{
+            href: null, // Hidden screen for alert notification preferences
+          }}
+        />
+        <Tabs.Screen
           name="sos-history"
           options={{
             href: null, // Hide this tab from the bottom tab bar
