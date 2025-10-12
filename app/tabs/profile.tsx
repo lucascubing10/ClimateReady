@@ -155,7 +155,10 @@ export default function ProfileScreen() {
         router.push('/tabs/profile-edit/address' as any);
         break;
       case 'emergency contacts':
-        router.push('/tabs/profile-edit/emergency-contacts' as any);
+        router.push({
+          pathname: '/tabs/profile-edit/emergency-contacts',
+          params: { returnTo: encodeURIComponent(typeof pathname === 'string' ? pathname : '/tabs/profile') },
+        } as any);
         break;
       case 'medical info':
         router.push('/tabs/profile-edit/medical-info' as any);

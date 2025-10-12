@@ -163,10 +163,6 @@ export default function SOSHistoryScreen() {
           </View>
         </View>
         
-        <TouchableOpacity style={styles.viewDetailsButton}>
-          <Text style={styles.viewDetailsText}>View Details</Text>
-          <Ionicons name="chevron-forward" size={16} color="#0284c7" />
-        </TouchableOpacity>
       </View>
     );
   };
@@ -312,21 +308,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#4b5563',
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    marginTop: 4,
-  },
-  viewDetailsText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#0284c7',
-    marginRight: 4,
   },
   emptyContainer: {
     flex: 1,

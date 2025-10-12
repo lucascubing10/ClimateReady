@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import { View, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfileCompletionReminder from '../../components/ProfileCompletionReminder';
@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 // Layout: provides the bottom tab navigator and custom SOS FAB-style button.
 export default function TabsLayout() {
   const router = useRouter();
+  const pathname = usePathname();
   const { userProfile } = useAuth();
   const insets = useSafeAreaInsets();
   // Check if SOS is active
@@ -45,7 +46,15 @@ export default function TabsLayout() {
           { text: 'Cancel', style: 'cancel' },
           { 
             text: 'Add Contacts', 
-            onPress: () => router.push('/tabs/profile-edit/emergency-contacts') 
+            onPress: () =>
+              router.push({
+                pathname: '/tabs/profile-edit/emergency-contacts',
+                params: {
+                  returnTo: encodeURIComponent(
+                    typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs/sos'
+                  ),
+                },
+              })
           }
         ]
       );

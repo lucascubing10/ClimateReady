@@ -197,7 +197,12 @@ export default function SettingsScreen() {
           <SettingsItem
             label="Emergency Contacts"
             value={`${userProfile?.emergencyContacts?.length || 0} contacts added`}
-            onPress={() => router.push('/tabs/profile-edit/emergency-contacts' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/profile-edit/emergency-contacts',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
           <SettingsItem
             label="SOS Settings"
