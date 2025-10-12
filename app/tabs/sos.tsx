@@ -185,7 +185,18 @@ export default function SOSScreen() {
           'You need to add at least one emergency contact before using the SOS feature.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Add Contacts', onPress: () => router.push('/tabs/profile-edit/emergency-contacts') }
+            {
+              text: 'Add Contacts',
+              onPress: () =>
+                router.push({
+                  pathname: '/tabs/profile-edit/emergency-contacts',
+                  params: {
+                    returnTo: encodeURIComponent(
+                      typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs/sos'
+                    ),
+                  },
+                }),
+            }
           ]
         );
         return;

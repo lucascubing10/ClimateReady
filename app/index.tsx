@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue, TextStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { FadeInUp, FadeInRight,SlideInDown,ZoomIn,BounceIn,LightSpeedInLeft,FlipInYLeft} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight, SlideInDown, ZoomIn, BounceIn, LightSpeedInLeft, FlipInYLeft } from 'react-native-reanimated';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -142,34 +142,34 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
   return (
     <View style={[styles.progressRingContainer, { width: size, height: size }]}>
       {/* Background Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingBackground,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Progress Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingFill,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
             borderLeftColor: PRIMARY,
             borderBottomColor: PRIMARY,
             transform: [{ rotate: `${-45 + (progress * 3.6)}deg` }],
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Center Content */}
       <View style={styles.progressRingContent}>
         <Text style={styles.progressRingPercent}>{Math.round(progress)}%</Text>
@@ -182,7 +182,7 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
 
 // Modern Badge Component
 const Badge = ({ count, style }: any) => (
-  <Animated.View 
+  <Animated.View
     entering={BounceIn.duration(600)}
     style={[styles.badge, style]}
   >
@@ -215,9 +215,9 @@ const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY, titleS
         <Text style={[styles.progressItemSubtitle, subtitleStyle]}>{subtitle}</Text>
       </View>
     </View>
-    <ProgressRing 
-      progress={progress} 
-      size={60} 
+    <ProgressRing
+      progress={progress}
+      size={60}
       strokeWidth={6}
     />
   </Animated.View>
@@ -245,7 +245,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const lastTriggerHashRef = React.useRef<string | null>(null);
-  
+
   const pathname = usePathname();
 
   const quickActions = useMemo<QuickAction[]>(
@@ -307,8 +307,20 @@ export default function HomeScreen() {
     else setGreeting(t('home.greetings.evening'));
   }, [language, t]);
 
-  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
-  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb';
+  const GOOGLE_API_KEY =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.GOOGLE_MAPS_API_KEY ??
+    '';
+  const OPENWEATHERMAP_API_KEY =
+    process.env.OPENWEATHER_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.openWeatherApiKey ??
+    '';
+
+  useEffect(() => {
+    if (!GOOGLE_API_KEY || !OPENWEATHERMAP_API_KEY) {
+      console.warn('Missing Google Maps or OpenWeather API key. Check your .env configuration.');
+    }
+  }, [GOOGLE_API_KEY, OPENWEATHERMAP_API_KEY]);
 
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
@@ -417,7 +429,7 @@ export default function HomeScreen() {
       };
 
       // Group triggers by time block (collapse multiple conditions into one alert per time)
-      const severityRank = (s: 'low'|'medium'|'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
+      const severityRank = (s: 'low' | 'medium' | 'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
       const bucketKeyFrom = (at: string) => {
         const d = new Date(at);
         if (isNaN(d.getTime())) return at;
@@ -430,7 +442,7 @@ export default function HomeScreen() {
         return d.toISOString();
       };
 
-      type Group = { at: string; byType: Map<string, { t: any; severity: 'low'|'medium'|'high' }> };
+      type Group = { at: string; byType: Map<string, { t: any; severity: 'low' | 'medium' | 'high' }> };
       const groups = new Map<string, Group>();
       for (const t of filteredTriggers) {
         const sev = computeSeverity(t.type, t.value, t.threshold);
@@ -458,7 +470,7 @@ export default function HomeScreen() {
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
         .map(g => {
           const entries = Array.from(g.byType.values());
-          let maxSev: 'low'|'medium'|'high' = 'low';
+          let maxSev: 'low' | 'medium' | 'high' = 'low';
           for (const it of entries) if (severityRank(it.severity) > severityRank(maxSev)) maxSev = it.severity;
 
           const atDate = new Date(g.at);
@@ -564,10 +576,10 @@ export default function HomeScreen() {
     try {
       setRefreshing(true);
 
-    // Import all checklist sources and storage
-    const { getUserProgress } = await import('@/utils/storage');
-    const { checklistItems } = await import('@/utils/checklistData');
-    const { getCustomItems } = await import('@/utils/storage');
+      // Import all checklist sources and storage
+      const { getUserProgress } = await import('@/utils/storage');
+      const { checklistItems } = await import('@/utils/checklistData');
+      const { getCustomItems } = await import('@/utils/storage');
 
       // Get all checklist items (predefined, custom)
       const predefinedItems = checklistItems || [];
