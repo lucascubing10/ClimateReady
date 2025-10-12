@@ -240,11 +240,26 @@ export default function SettingsScreen() {
         {/* SOS Emergency Settings */}
         <SettingsSection title={t('settings.sections.sos')} icon="alert-circle" color={DANGER}>
           <SettingsItem
+
             label={t('settings.items.emergencyContacts')}
             value={t('settings.items.emergencyContactsValue', {
               count: String(userProfile?.emergencyContacts?.length || 0),
             })}
-            onPress={() => router.push('/tabs/profile-edit/emergency-contacts' as any)}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/profile-edit/emergency-contacts',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
+          />
+          <SettingsItem
+            label={t('settings.items.sosSettings')}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/profile-edit/emergency-contacts',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
           />
           <SettingsItem
             label={t('settings.items.sosSettings')}
