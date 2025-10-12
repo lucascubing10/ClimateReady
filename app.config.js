@@ -1,10 +1,25 @@
+const expoProjectId =
+  process.env.EXPO_PUBLIC_PROJECT_ID ?? process.env.EXPO_PROJECT_ID ?? null;
+
+const googleMapsApiKey =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+  process.env.VITE_GOOGLE_MAPS_API_KEY ??
+  process.env.GOOGLE_MAPS_API_KEY ??
+  null;
+
+if (!expoProjectId) {
+  console.warn(
+    "No EAS project ID found. Set EXPO_PUBLIC_PROJECT_ID or EXPO_PROJECT_ID to enable push notifications."
+  );
+}
+
 export default {
   expo: {
     name: 'ClimateReady',
     slug: 'climateready',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './assets/images/ClimateReadyV4.png',
+  icon: './assets/images/ClimateReady.png',
     scheme: 'climateready',
     userInterfaceStyle: 'automatic',
     newArchEnabled: true,
@@ -16,12 +31,25 @@ export default {
         NSLocationAlwaysUsageDescription: 'ClimateReady uses your location to provide accurate weather information and emergency alerts even when the app is in the background.',
         UIBackgroundModes: ['location', 'fetch']
       },
-      bundleIdentifier: 'com.yourcompany.climateready'
+      bundleIdentifier: 'com.yourcompany.climateready',
+      ...(googleMapsApiKey
+        ? {
+            config: {
+              googleMapsApiKey,
+            },
+          }
+        : {}),
     },
     android: {
+
+      "googleServicesFile": "./google-services.json",
+      
+      icon: './assets/images/ClimateReady.png',
       adaptiveIcon: {
-        foregroundImage: './assets/images/adaptive-icon.png',
-        backgroundColor: '#5ba24f'
+        foregroundImage: './assets/images/ClimateReady.png',
+        backgroundColor: '#ffffff'
+        //backgroundColor: '#5ba24f'
+
       },
       edgeToEdgeEnabled: true,
       permissions: [
@@ -29,7 +57,16 @@ export default {
         'ACCESS_FINE_LOCATION',
         'ACCESS_BACKGROUND_LOCATION'
       ],
-      package: 'com.yourcompany.climateready'
+      package: 'com.yourcompany.climateready',
+      ...(googleMapsApiKey
+        ? {
+            config: {
+              googleMaps: {
+                apiKey: googleMapsApiKey,
+              },
+            },
+          }
+        : {}),
     },
     web: {
       bundler: 'metro',

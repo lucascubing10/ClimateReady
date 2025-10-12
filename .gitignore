@@ -2,7 +2,14 @@
 
 .vscode/
 
-android/
+# Android native build artifacts
+android/.gradle/
+android/.cxx/
+android/local.properties
+android/**/build/
+android/**/.cxx/
+android/**/generated/
+android/**/intermediates/
 
 # dependencies
 node_modules/

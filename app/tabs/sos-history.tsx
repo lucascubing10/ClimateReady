@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -21,9 +21,48 @@ interface SOSHistoryItem {
 }
 
 export default function SOSHistoryScreen() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useLocalSearchParams();
+  const rawReturnToParam = Array.isArray(searchParams.returnTo)
+    ? searchParams.returnTo[0]
+    : (searchParams.returnTo as string | undefined);
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [historyItems, setHistoryItems] = useState<SOSHistoryItem[]>([]);
+
+  const currentPath = useMemo(() => {
+    if (typeof pathname === 'string' && pathname.length > 0) {
+      return pathname;
+    }
+    return '/tabs/sos-history';
+  }, [pathname]);
+
+  const decodedReturnTo = useMemo(() => {
+    if (typeof rawReturnToParam === 'string' && rawReturnToParam.length > 0) {
+      try {
+        const decoded = decodeURIComponent(rawReturnToParam);
+        return decoded.startsWith('/') ? decoded : `/${decoded}`;
+      } catch (error) {
+        return rawReturnToParam.startsWith('/') ? rawReturnToParam : `/${rawReturnToParam}`;
+      }
+    }
+    return undefined;
+  }, [rawReturnToParam]);
+
+  const handleBack = useCallback(() => {
+    if (decodedReturnTo && decodedReturnTo !== currentPath) {
+      router.replace(decodedReturnTo as any);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/tabs/settings');
+  }, [router, decodedReturnTo, currentPath]);
 
   useEffect(() => {
     const loadSOSHistory = async () => {
@@ -124,10 +163,6 @@ export default function SOSHistoryScreen() {
           </View>
         </View>
         
-        <TouchableOpacity style={styles.viewDetailsButton}>
-          <Text style={styles.viewDetailsText}>View Details</Text>
-          <Ionicons name="chevron-forward" size={16} color="#0284c7" />
-        </TouchableOpacity>
       </View>
     );
   };
@@ -135,7 +170,17 @@ export default function SOSHistoryScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <Stack.Screen options={{ title: 'SOS History', headerShown: true }} />
+        <Stack.Screen 
+          options={{ 
+            title: 'SOS History', 
+            headerShown: true,
+            headerLeft: () => (
+              <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+                <Ionicons name="chevron-back" size={24} color="#1f2937" />
+              </TouchableOpacity>
+            ),
+          }} 
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0284c7" />
           <Text style={styles.loadingText}>Loading your SOS history...</Text>
@@ -146,7 +191,17 @@ export default function SOSHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'SOS History', headerShown: true }} />
+      <Stack.Screen 
+        options={{ 
+          title: 'SOS History', 
+          headerShown: true,
+          headerLeft: () => (
+            <TouchableOpacity style={styles.headerButton} onPress={handleBack}>
+              <Ionicons name="chevron-back" size={24} color="#1f2937" />
+            </TouchableOpacity>
+          ),
+        }} 
+      />
       
       {historyItems.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -183,6 +238,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#6b7280',
+  },
+  headerButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    marginLeft: 12,
   },
   listContainer: {
     padding: 16,
@@ -247,21 +308,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#4b5563',
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    marginTop: 4,
-  },
-  viewDetailsText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#0284c7',
-    marginRight: 4,
   },
   emptyContainer: {
     flex: 1,

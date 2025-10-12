@@ -6,13 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   Image,
   ActivityIndicator,
   Dimensions
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { UserProfile } from '../../utils/userDataModel';
@@ -123,6 +123,8 @@ const ProfileSection = ({
 export default function ProfileScreen() {
   const { userProfile, logout, isLoading, reloadUserProfile } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -154,7 +156,10 @@ export default function ProfileScreen() {
         router.push('/tabs/profile-edit/address' as any);
         break;
       case 'emergency contacts':
-        router.push('/tabs/profile-edit/emergency-contacts' as any);
+        router.push({
+          pathname: '/tabs/profile-edit/emergency-contacts',
+          params: { returnTo: encodeURIComponent(typeof pathname === 'string' ? pathname : '/tabs/profile') },
+        } as any);
         break;
       case 'medical info':
         router.push('/tabs/profile-edit/medical-info' as any);
@@ -245,15 +250,19 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <LinearGradient
           colors={PRIMARY_GRADIENT}
-          style={styles.profileHeader}
+          style={[styles.profileHeader, { paddingTop: insets.top + 32 }]}
         >
           {/* Header Buttons */}
-          <View style={styles.headerButtonsContainer}>
+          <View style={[styles.headerButtonsContainer, { top: insets.top + 10 }]}>
             <TouchableOpacity 
               style={styles.headerButton}
               onPress={() => {
                 console.log("Navigating to settings page");
-                router.push('/settings' as any);
+                const current = typeof pathname === 'string' && pathname.length > 0 ? pathname : '/tabs/profile';
+                router.push({
+                  pathname: '/tabs/settings',
+                  params: { returnTo: encodeURIComponent(current) },
+                } as any);
               }}
               activeOpacity={0.7}
             >

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "438204560483",
+    "project_id": "climateready-40665",
+    "storage_bucket": "climateready-40665.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:438204560483:android:f5cb34f6312076035fb456",
+        "android_client_info": {
+          "package_name": "com.yourcompany.climateready"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVF7YAo1xHVn9plP1MZ4ebhH6RRheP114"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

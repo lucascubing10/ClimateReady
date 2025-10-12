@@ -1,30 +1,19 @@
-import React, { useEffect, useState, useCallback, JSX, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator,
-  Dimensions,
-  StyleSheet,
-  RefreshControl
-} from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useEffect, useState, useCallback, useMemo, JSX, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, StyleSheet, RefreshControl } from 'react-native';
+import { useFocusEffect, useRouter, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ColorValue } from 'react-native';
+import type { ColorValue, TextStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import Animated, { 
-  FadeInUp, 
-  FadeInRight,
-  SlideInDown,
-  ZoomIn,
-  BounceIn,
-  LightSpeedInLeft,
-  FlipInYLeft
-} from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInRight, SlideInDown, ZoomIn, BounceIn, LightSpeedInLeft, FlipInYLeft } from 'react-native-reanimated';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+
+//only for testing push notifications
+import { registerForPushNotificationsAsync } from '../utils/registerPushNotifications';
+ 
+
 import { getUserProfile } from '@/utils/userProfile';
 import { getPersonalizedToolkit } from '@/utils/gemini';
 import { getEducationalProgress } from '@/utils/educationalData';
@@ -34,10 +23,18 @@ import { getCustomItems, getAiRecommendation } from '@/utils/storage';
 import LottieView from 'lottie-react-native';
 import { evaluateForecast, defaultThresholds } from '@/utils/alerts/weatherThresholds';
 import { ensurePermissionsAsync, ensureAndroidChannelAsync, sendLocalNotification } from '@/utils/notifications';
+import {
+  AlertPreferenceMap,
+  DEFAULT_ALERT_PREFERENCES,
+  getAlertPreferences,
+} from '@/utils/alertPreferences';
+import { onAlertPreferencesUpdated } from '@/utils/eventBus';
+import { useLocalization } from '@/context/LocalizationContext';
 
 const { width } = Dimensions.get('window');
 
 // Color palette
+
 const PRIMARY = '#5ba24f';
 const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'];
 const YELLOW = '#fac609';
@@ -49,41 +46,48 @@ const RED_GRADIENT = ['#ef4444', '#dc2626'];
 const BG = '#dcefdd';
 const CARD_BG = '#ffffff';
 
-const quickActions: {
-  title: string;
-  subtitle: string;
+type QuickActionDefinition = {
+  titleKey: string;
+  subtitleKey: string;
   icon: JSX.Element;
   bgColor: string;
   gradient: string[];
   screen: 'safe-zone' | 'toolkit' | 'community' | 'mock-alerts';
-}[] = [
+};
+
+type QuickAction = QuickActionDefinition & {
+  title: string;
+  subtitle: string;
+};
+
+const quickActionDefinitions: QuickActionDefinition[] = [
   {
-    title: 'Safe Zones',
-    subtitle: 'Find nearby shelters',
+    titleKey: 'home.quickActions.safeZones.title',
+    subtitleKey: 'home.quickActions.safeZones.subtitle',
     icon: <Ionicons name="map" size={24} color="#fff" />,
     bgColor: PRIMARY,
     gradient: PRIMARY_GRADIENT,
     screen: 'safe-zone',
   },
   {
-    title: 'Toolkit',
-    subtitle: 'Emergency checklists',
+    titleKey: 'home.quickActions.toolkit.title',
+    subtitleKey: 'home.quickActions.toolkit.subtitle',
     icon: <Feather name="package" size={24} color="#fff" />,
     bgColor: YELLOW,
     gradient: YELLOW_GRADIENT,
     screen: 'toolkit',
   },
   {
-    title: 'Community',
-    subtitle: 'Connect with others',
+    titleKey: 'home.quickActions.community.title',
+    subtitleKey: 'home.quickActions.community.subtitle',
     icon: <Ionicons name="people" size={24} color="#fff" />,
     bgColor: ORANGE,
     gradient: ORANGE_GRADIENT,
     screen: 'community',
   },
   {
-    title: 'Mock Alerts',
-    subtitle: 'Test alert notifications',
+    titleKey: 'home.quickActions.mockAlerts.title',
+    subtitleKey: 'home.quickActions.mockAlerts.subtitle',
     icon: <Ionicons name="warning" size={24} color="#fff" />,
     bgColor: RED,
     gradient: RED_GRADIENT,
@@ -138,34 +142,34 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
   return (
     <View style={[styles.progressRingContainer, { width: size, height: size }]}>
       {/* Background Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingBackground,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Progress Circle */}
-      <View 
+      <View
         style={[
           styles.progressRingFill,
-          { 
-            width: size, 
-            height: size, 
+          {
+            width: size,
+            height: size,
             borderRadius: size / 2,
             borderWidth: strokeWidth,
             borderLeftColor: PRIMARY,
             borderBottomColor: PRIMARY,
             transform: [{ rotate: `${-45 + (progress * 3.6)}deg` }],
           }
-        ]} 
+        ]}
       />
-      
+
       {/* Center Content */}
       <View style={styles.progressRingContent}>
         <Text style={styles.progressRingPercent}>{Math.round(progress)}%</Text>
@@ -178,7 +182,7 @@ const ProgressRing = ({ progress, size = 70, strokeWidth = 8, label, value }: an
 
 // Modern Badge Component
 const Badge = ({ count, style }: any) => (
-  <Animated.View 
+  <Animated.View
     entering={BounceIn.duration(600)}
     style={[styles.badge, style]}
   >
@@ -186,8 +190,18 @@ const Badge = ({ count, style }: any) => (
   </Animated.View>
 );
 
+type ProgressItemProps = {
+  title: string;
+  subtitle: string;
+  progress: number;
+  icon: React.ReactNode;
+  color?: string;
+  titleStyle?: TextStyle;
+  subtitleStyle?: TextStyle;
+};
+
 // Progress Item Component
-const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any) => (
+const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY, titleStyle, subtitleStyle }: ProgressItemProps) => (
   <Animated.View 
     entering={FadeInRight.duration(500)}
     style={styles.progressItem}
@@ -197,13 +211,13 @@ const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any)
         {icon}
       </View>
       <View style={styles.progressText}>
-        <Text style={styles.progressItemTitle}>{title}</Text>
-        <Text style={styles.progressItemSubtitle}>{subtitle}</Text>
+        <Text style={[styles.progressItemTitle, titleStyle]}>{title}</Text>
+        <Text style={[styles.progressItemSubtitle, subtitleStyle]}>{subtitle}</Text>
       </View>
     </View>
-    <ProgressRing 
-      progress={progress} 
-      size={60} 
+    <ProgressRing
+      progress={progress}
+      size={60}
       strokeWidth={6}
     />
   </Animated.View>
@@ -212,10 +226,14 @@ const ProgressItem = ({ title, subtitle, progress, icon, color = PRIMARY }: any)
 export default function HomeScreen() {
   // Remove any direct calls to getPersonalizedToolkit here to prevent duplicate requests.
   // The Toolkit screen will fetch on demand after the household page is completed.
+
+  const { t, language } = useLocalization();
+  const isTamil = language === 'ta';
   const [greeting, setGreeting] = useState('');
   const [progress, setProgress] = useState<any>(null);
   const [badges, setBadges] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferenceMap>(DEFAULT_ALERT_PREFERENCES);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
@@ -231,16 +249,81 @@ export default function HomeScreen() {
   const router = useRouter();
   const lastTriggerHashRef = React.useRef<string | null>(null);
 
+  const pathname = usePathname();
+
+  const quickActions = useMemo<QuickAction[]>(
+    () =>
+      quickActionDefinitions.map((definition) => ({
+        ...definition,
+        title: t(definition.titleKey),
+        subtitle: t(definition.subtitleKey),
+      })),
+    [t]
+  );
+
+  // Push notification registration for testing
+  useEffect(() => {
+    const registerNotifications = async () => {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        console.log('🔥 Got device token:', token);
+        // Token sync with Firestore happens inside AuthContext.
+      } else {
+        console.log('Push notifications unavailable in this environment.');
+      }
+    };
+
+    registerNotifications();
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getAlertPreferences();
+        if (isActive) {
+          setAlertPreferences(prefs);
+        }
+      } catch (error) {
+        console.warn('[HomeScreen] Unable to load alert preferences', error);
+      }
+    };
+    loadPreferences();
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAlertPreferencesUpdated((prefs) => {
+      setAlertPreferences(prefs);
+    });
+    return unsubscribe;
+  }, []);
+
+  
   // Greeting logic with emoji
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good Morning 🌅');
-    else if (hour < 17) setGreeting('Good Afternoon ☀️');
-    else setGreeting('Good Evening 🌙');
-  }, []);
+    if (hour < 12) setGreeting(t('home.greetings.morning'));
+    else if (hour < 17) setGreeting(t('home.greetings.afternoon'));
+    else setGreeting(t('home.greetings.evening'));
+  }, [language, t]);
 
-  const GOOGLE_API_KEY = 'AIzaSyArdmspgrOxH-5S5ABU72Xv-7UCh5HmxyI';
-  const OPENWEATHERMAP_API_KEY = '74b1abc58a408ca6b11c27b8292797cb';
+  const GOOGLE_API_KEY =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.GOOGLE_MAPS_API_KEY ??
+    '';
+  const OPENWEATHERMAP_API_KEY =
+    process.env.OPENWEATHER_API_KEY ??
+    (Constants.expoConfig?.extra as Record<string, any> | undefined)?.openWeatherApiKey ??
+    '';
+
+  useEffect(() => {
+    if (!GOOGLE_API_KEY || !OPENWEATHERMAP_API_KEY) {
+      console.warn('Missing Google Maps or OpenWeather API key. Check your .env configuration.');
+    }
+  }, [GOOGLE_API_KEY, OPENWEATHERMAP_API_KEY]);
 
   // Fetch weather data based on location
   const fetchWeatherData = useCallback(async (latitude: number, longitude: number) => {
@@ -280,11 +363,12 @@ export default function HomeScreen() {
       setIsLoadingWeather(false);
     } catch (error) {
       console.error('Error fetching weather:', error);
-      setLocationError('Unable to fetch weather data');
+      setLocationError(t('home.weather.unavailableDescription'));
       setIsLoadingWeather(false);
     }
-  }, []);
+  }, [t]);
 
+  // --- Notification pipeline: fetch forecast, derive alerts, and push local notifications
   // Fetch 3-hour forecast and raise alerts if thresholds exceeded
   const fetchForecastAndAlert = useCallback(async (latitude: number, longitude: number) => {
     try {
@@ -293,13 +377,62 @@ export default function HomeScreen() {
       );
       const data = await res.json();
 
-  const triggers = evaluateForecast(data, defaultThresholds);
-  const now = Date.now();
-  // Capture current time once so we can ignore any forecast buckets that already happened
+      const triggers = evaluateForecast(data, defaultThresholds);
+      const enabledTypes = Object.entries(alertPreferences)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+
+      if (__DEV__) {
+        console.log('[alerts] triggers', triggers.map(t => ({ type: t.type, value: t.value, at: t.at })));
+        console.log('[alerts] enabled types', enabledTypes);
+      }
+
+      if (enabledTypes.length === 0) {
+        setAlerts([]);
+        lastTriggerHashRef.current = null;
+        return;
+      }
+
+      const allowedTypes = new Set(enabledTypes);
+      const filteredTriggers = triggers.filter(trigger => allowedTypes.has(trigger.type));
+
+      if (__DEV__) {
+        console.log('[alerts] filtered triggers', filteredTriggers.map(t => ({ type: t.type, value: t.value, at: t.at })));
+      }
+
+      if (filteredTriggers.length === 0) {
+        setAlerts([]);
+        lastTriggerHashRef.current = null;
+        return;
+      }
+      const now = Date.now();
+      // Capture current time once so we can ignore any forecast buckets that already happened
       const nowIso = new Date(now).toISOString();
 
+      const formatMetric = (input: number) =>
+        Number.isFinite(input)
+          ? Number(input).toFixed(1).replace(/\.0$/, '')
+          : String(input);
+
+      const getAlertDescription = (type: string, value: number, threshold: number) => {
+        const params = {
+          value: formatMetric(value),
+          threshold: formatMetric(threshold),
+        };
+        if (type === 'rain') {
+          return t('home.alerts.descriptions.rain', params);
+        }
+        if (type === 'wind') {
+          return t('home.alerts.descriptions.wind', params);
+        }
+        if (type === 'temp-high') {
+          return t('home.alerts.descriptions.tempHigh', params);
+        }
+        return t('home.alerts.descriptions.tempLow', params);
+      };
+
       // Group triggers by time block (collapse multiple conditions into one alert per time)
-      const severityRank = (s: 'low'|'medium'|'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
+      const severityRank = (s: 'low' | 'medium' | 'high') => (s === 'high' ? 3 : s === 'medium' ? 2 : 1);
       const bucketKeyFrom = (at: string) => {
         const d = new Date(at);
         if (isNaN(d.getTime())) return at;
@@ -312,9 +445,9 @@ export default function HomeScreen() {
         return d.toISOString();
       };
 
-      type Group = { at: string; byType: Map<string, { t: any; severity: 'low'|'medium'|'high' }> };
+      type Group = { at: string; byType: Map<string, { t: any; severity: 'low' | 'medium' | 'high' }> };
       const groups = new Map<string, Group>();
-      for (const t of triggers) {
+      for (const t of filteredTriggers) {
         const sev = computeSeverity(t.type, t.value, t.threshold);
         const key = bucketKeyFrom(t.at);
         const bucketTime = new Date(key).getTime();
@@ -340,7 +473,7 @@ export default function HomeScreen() {
         .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
         .map(g => {
           const entries = Array.from(g.byType.values());
-          let maxSev: 'low'|'medium'|'high' = 'low';
+          let maxSev: 'low' | 'medium' | 'high' = 'low';
           for (const it of entries) if (severityRank(it.severity) > severityRank(maxSev)) maxSev = it.severity;
 
           const atDate = new Date(g.at);
@@ -348,12 +481,9 @@ export default function HomeScreen() {
             ? g.at
             : atDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-          const lines = entries.map(({ t }) => {
-            if (t.type === 'rain') return `Heavy rain ~ ${t.value}mm/3h (≥ ${t.threshold}mm)`;
-            if (t.type === 'wind') return `High wind ${t.value} m/s (≥ ${t.threshold} m/s)`;
-            if (t.type === 'temp-high') return `High temp ${t.value}°C (≥ ${t.threshold}°C)`;
-            return `Low temp ${t.value}°C (≤ ${t.threshold}°C)`;
-          });
+          const lines = entries.map(({ t: trigger }) =>
+            getAlertDescription(trigger.type, trigger.value, trigger.threshold)
+          );
 
           // Choose icon: multi-hazard -> warning, else type-specific
           let icon = '⚠️';
@@ -362,12 +492,15 @@ export default function HomeScreen() {
             icon = t.type === 'rain' ? '🌧️' : t.type === 'wind' ? '💨' : t.type === 'temp-high' ? '🔥' : '❄️';
           }
 
-          const title = entries.length > 1 ? 'Weather Alert' : (
-            entries[0].t.type === 'rain' ? 'Heavy Rain Forecast' :
-            entries[0].t.type === 'wind' ? 'High Wind Forecast' :
-            entries[0].t.type === 'temp-high' ? 'High Temperature Forecast' :
-            'Low Temperature Forecast'
-          );
+          const title = entries.length > 1
+            ? t('home.alerts.multipleHazards')
+            : entries[0].t.type === 'rain'
+              ? t('home.alerts.titles.rain')
+              : entries[0].t.type === 'wind'
+                ? t('home.alerts.titles.wind')
+                : entries[0].t.type === 'temp-high'
+                  ? t('home.alerts.titles.tempHigh')
+                  : t('home.alerts.titles.tempLow');
 
           return {
             id: `grp-${g.at}`,
@@ -396,7 +529,7 @@ export default function HomeScreen() {
       // Use first 1–2 grouped alerts for notification summary
       const notifBody = mapped.length > 0
         ? mapped.slice(0, 2).map(a => a.description).join(' • ')
-        : 'Upcoming weather conditions exceed your thresholds.';
+        : t('home.alerts.notificationFallback');
 
       // Build hash from aggregated buckets and their types/values
       const hash = JSON.stringify(
@@ -406,13 +539,13 @@ export default function HomeScreen() {
         }).sort()
       );
       if (hash !== lastTriggerHashRef.current) {
-        await sendLocalNotification('Weather alert', notifBody);
+        await sendLocalNotification(t('home.alerts.multipleHazards'), notifBody);
         lastTriggerHashRef.current = hash;
       }
     } catch (e) {
       console.warn('Forecast check failed:', e);
     }
-  }, []);
+  }, [t, alertPreferences]);
 
   // Get user's location and fetch weather
   const getLocationAndWeather = useCallback(async () => {
@@ -422,7 +555,7 @@ export default function HomeScreen() {
 
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        setLocationError('Permission to access location was denied');
+        setLocationError(t('home.weather.permissionDenied'));
         setIsLoadingWeather(false);
         return;
       }
@@ -432,24 +565,24 @@ export default function HomeScreen() {
 
       await fetchWeatherData(latitude, longitude);
       // Also check forecast thresholds and notify locally if needed
-      fetchForecastAndAlert(latitude, longitude);
+      await fetchForecastAndAlert(latitude, longitude);
 
     } catch (error) {
       console.error('Error getting location:', error);
-      setLocationError('Unable to get location');
+      setLocationError(t('home.weather.unableToGetLocation'));
       setIsLoadingWeather(false);
     }
-  }, [fetchWeatherData, fetchForecastAndAlert]);
+  }, [fetchWeatherData, fetchForecastAndAlert, t]);
 
   // Enhanced progress calculation with real-time data
   const refreshProgress = useCallback(async () => {
     try {
       setRefreshing(true);
 
-    // Import all checklist sources and storage
-    const { getUserProgress } = await import('@/utils/storage');
-    const { checklistItems } = await import('@/utils/checklistData');
-    const { getCustomItems } = await import('@/utils/storage');
+      // Import all checklist sources and storage
+      const { getUserProgress } = await import('@/utils/storage');
+      const { checklistItems } = await import('@/utils/checklistData');
+      const { getCustomItems } = await import('@/utils/storage');
 
       // Get all checklist items (predefined, custom)
       const predefinedItems = checklistItems || [];
@@ -661,21 +794,21 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Animated Background Elements */}
       <View style={styles.backgroundElements}>
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1000)}
-          style={[styles.bgCircle, styles.bgCircle1]} 
+          style={[styles.bgCircle, styles.bgCircle1]}
         />
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1200).delay(200)}
-          style={[styles.bgCircle, styles.bgCircle2]} 
+          style={[styles.bgCircle, styles.bgCircle2]}
         />
-        <Animated.View 
+        <Animated.View
           entering={ZoomIn.duration(1400).delay(400)}
-          style={[styles.bgCircle, styles.bgCircle3]} 
+          style={[styles.bgCircle, styles.bgCircle3]}
         />
       </View>
 
-      <Animated.View 
+      <Animated.View
         style={styles.content}
         entering={SlideInDown.duration(800)}
       >
@@ -683,29 +816,41 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View>
-              <Animated.Text 
+              <Animated.Text
                 entering={FadeInUp.duration(600)}
-                style={styles.greeting}
+                style={[styles.greeting, isTamil && styles.greetingTamil]}
               >
                 {greeting}
               </Animated.Text>
-              <Animated.Text 
+              <Animated.Text
                 entering={FadeInUp.duration(600).delay(200)}
-                style={styles.subtitle}
+                style={[styles.subtitle, isTamil && styles.subtitleTamil]}
               >
-                Stay prepared, stay safe
+                {t('home.subtitle')}
               </Animated.Text>
             </View>
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.iconButton}>
                 <Ionicons name="notifications" size={24} color="#1f2937" />
                 {alerts.length > 0 && (
-                  <Badge count={alerts.length} style={styles.notificationBadge} />
+                  <Badge
+                    count={alerts.length}
+                    style={styles.notificationBadge}
+                  />
                 )}
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => router.push('/settings')}
+                onPress={() => {
+                  const current =
+                    typeof pathname === "string" && pathname.length > 0
+                      ? pathname
+                      : "/tabs";
+                  router.push({
+                    pathname: "/tabs/settings",
+                    params: { returnTo: encodeURIComponent(current) },
+                  });
+                }}
               >
                 <Ionicons name="settings" size={24} color="#1f2937" />
               </TouchableOpacity>
@@ -718,33 +863,45 @@ export default function HomeScreen() {
               {isLoadingWeather ? (
                 <View style={styles.weatherLoading}>
                   <ActivityIndicator color="#fff" size="small" />
-                  <Text style={styles.weatherLoadingText}>Getting weather data...</Text>
+                  <Text style={[styles.weatherLoadingText, isTamil && styles.weatherLoadingTextTamil]}>
+                    {t('home.weather.loading')}
+                  </Text>
                 </View>
               ) : locationError ? (
                 <View style={styles.weatherContent}>
-                  <MaterialCommunityIcons name="weather-cloudy-alert" size={32} color="#fff" />
+                  <MaterialCommunityIcons
+                    name="weather-cloudy-alert"
+                    size={32}
+                    color="#fff"
+                  />
                   <View style={styles.weatherText}>
-                    <Text style={styles.weatherTitle}>Weather Unavailable</Text>
-                    <Text style={styles.weatherDescription}>{locationError}</Text>
+                    <Text style={[styles.weatherTitle, isTamil && styles.weatherTitleTamil]}>{t('home.weather.unavailableTitle')}</Text>
+                    <Text style={[styles.weatherDescription, isTamil && styles.weatherDescriptionTamil]}>
+                      {locationError}
+                    </Text>
                   </View>
                 </View>
               ) : weather ? (
                 <View style={styles.weatherContent}>
-                  <MaterialCommunityIcons 
-                    name={getWeatherIcon(weather.condition)} 
-                    size={36} 
-                    color="#fff" 
+                  <MaterialCommunityIcons
+                    name={getWeatherIcon(weather.condition)}
+                    size={36}
+                    color="#fff"
                   />
                   <View style={styles.weatherText}>
-                    <Text style={styles.weatherTitle}>
+                    <Text style={[styles.weatherTitle, isTamil && styles.weatherTitleTamil]}>
                       {weather.temperature}°C • {weather.condition}
                     </Text>
-                    <Text style={styles.weatherDescription}>
+                    <Text style={[styles.weatherDescription, isTamil && styles.weatherDescriptionTamil]}>
                       {weather.location} • {weather.description}
                     </Text>
                     <View style={styles.weatherDetails}>
-                      <Text style={styles.weatherDetail}>💧 {weather.humidity}%</Text>
-                      <Text style={styles.weatherDetail}>💨 {weather.windSpeed} m/s</Text>
+                      <Text style={[styles.weatherDetail, isTamil && styles.weatherDetailTamil]}>
+                        {t('home.weather.humidity', { humidity: String(weather.humidity) })}
+                      </Text>
+                      <Text style={[styles.weatherDetail, isTamil && styles.weatherDetailTamil]}>
+                        {t('home.weather.wind', { wind: String(weather.windSpeed) })}
+                      </Text>
                     </View>
                   </View>
                 </View>
@@ -753,7 +910,7 @@ export default function HomeScreen() {
           </Animated.View>
         </View>
 
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -763,13 +920,25 @@ export default function HomeScreen() {
         >
           {__DEV__ && (
             <Card style={styles.devCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <Text style={styles.devTitle}>Dev: Test alert colors</Text>
-                <View style={{ flexDirection: 'row' }}>
-                  <TouchableOpacity onPress={injectSeverityTestAlerts} style={styles.devBtn}>
+                <View style={{ flexDirection: "row" }}>
+                  <TouchableOpacity
+                    onPress={injectSeverityTestAlerts}
+                    style={styles.devBtn}
+                  >
                     <Text style={styles.devBtnText}>Show test alerts</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={clearAlertsManually} style={[styles.devBtn, { backgroundColor: '#ef4444' }]}>
+                  <TouchableOpacity
+                    onPress={clearAlertsManually}
+                    style={[styles.devBtn, { backgroundColor: "#ef4444" }]}
+                  >
                     <Text style={styles.devBtnText}>Clear</Text>
                   </TouchableOpacity>
                 </View>
@@ -780,46 +949,70 @@ export default function HomeScreen() {
           {alerts.length > 0 && (
             <Animated.View entering={LightSpeedInLeft.duration(500)}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Active Alerts</Text>
+                <Text style={[styles.sectionTitle, isTamil && styles.sectionTitleTamil]}>{t('home.sections.alerts')}</Text>
                 <Badge count={alerts.length} />
               </View>
-              <View style={styles.alertsContainer}>
-                {alerts.map((alert, index) => (
-                  <Animated.View
-                    key={alert.id}
-                    entering={FlipInYLeft.delay(index * 150).duration(600)}
-                  >
-                    <Card style={styles.alertCard}>
-                      <LinearGradient
-                        colors={getSeverityColor(alert.severity) as [ColorValue, ColorValue, ...ColorValue[]]}
-                        style={styles.alertGradient}
-                      >
-                        <View style={styles.alertIcon}>
-                          <Text style={styles.alertEmoji}>{alert.icon}</Text>
-                        </View>
-                        <View style={styles.alertContent}>
-                          <Text style={styles.alertTitle}>{alert.title}</Text>
-                          <Text style={styles.alertDescription}>{alert.description}</Text>
-                          <Text style={styles.alertTimestamp}>{alert.timestamp}</Text>
-                        </View>
-                        <View style={styles.alertSeverity}>
-                          <View style={[
-                            styles.severityDot,
-                            { backgroundColor: alert.severity === 'high' ? '#fff' : '#fff' }
-                          ]} />
-                        </View>
-                      </LinearGradient>
-                    </Card>
-                  </Animated.View>
-                ))}
-              </View>
+
+              {/* Scrollable container (shows 3 alerts worth of height) */}
+              <ScrollView
+                style={{ maxHeight: 320 }} // adjust to fit ~3 alerts' height
+                contentContainerStyle={{ paddingBottom: 8 }}
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                <View style={styles.alertsContainer}>
+                  {alerts.map((alert, index) => (
+                    <Animated.View
+                      key={alert.id}
+                      entering={FlipInYLeft.delay(index * 150).duration(600)}
+                    >
+                      <Card style={styles.alertCard}>
+                        <LinearGradient
+                          colors={
+                            getSeverityColor(alert.severity) as [
+                              ColorValue,
+                              ColorValue,
+                              ...ColorValue[]
+                            ]
+                          }
+                          style={styles.alertGradient}
+                        >
+                          <View style={styles.alertIcon}>
+                            <Text style={styles.alertEmoji}>{alert.icon}</Text>
+                          </View>
+                          <View style={styles.alertContent}>
+                            <Text style={[styles.alertTitle, isTamil && styles.alertTitleTamil]}>{alert.title}</Text>
+                            <Text style={[styles.alertDescription, isTamil && styles.alertDescriptionTamil]}>
+                              {alert.description}
+                            </Text>
+                            <Text style={[styles.alertTimestamp, isTamil && styles.alertTimestampTamil]}>
+                              {alert.timestamp}
+                            </Text>
+                          </View>
+                          <View style={styles.alertSeverity}>
+                            <View
+                              style={[
+                                styles.severityDot,
+                                {
+                                  backgroundColor:
+                                    alert.severity === "high" ? "#fff" : "#fff",
+                                },
+                              ]}
+                            />
+                          </View>
+                        </LinearGradient>
+                      </Card>
+                    </Animated.View>
+                  ))}
+                </View>
+              </ScrollView>
             </Animated.View>
           )}
 
           {/* Quick Actions */}
           <Animated.View entering={FadeInUp.delay(200).duration(500)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
+              <Text style={[styles.sectionTitle, isTamil && styles.sectionTitleTamil]}>{t('home.sections.quickActions')}</Text>
             </View>
             <ScrollView
               horizontal
@@ -829,7 +1022,7 @@ export default function HomeScreen() {
             >
               {quickActions.map((action, index) => (
                 <Animated.View
-                  key={action.title}
+                  key={action.screen}
                   entering={ZoomIn.delay(300 + index * 100).duration(500)}
                   style={styles.quickActionContainer}
                 >
@@ -839,14 +1032,22 @@ export default function HomeScreen() {
                     activeOpacity={0.85}
                   >
                     <LinearGradient
-                      colors={action.gradient as [ColorValue, ColorValue, ...ColorValue[]]}
+                      colors={
+                        action.gradient as [
+                          ColorValue,
+                          ColorValue,
+                          ...ColorValue[]
+                        ]
+                      }
                       style={styles.quickActionCard}
                     >
-                      <View style={styles.quickActionIcon}>
-                        {action.icon}
-                      </View>
-                      <Text style={styles.quickActionTitle}>{action.title}</Text>
-                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                      <View style={styles.quickActionIcon}>{action.icon}</View>
+                      <Text style={[styles.quickActionTitle, isTamil && styles.quickActionTitleTamil]}>
+                        {action.title}
+                      </Text>
+                      <Text style={[styles.quickActionSubtitle, isTamil && styles.quickActionSubtitleTamil]}>
+                        {action.subtitle}
+                      </Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </Animated.View>
@@ -857,7 +1058,7 @@ export default function HomeScreen() {
           {/* Progress Section */}
           <Animated.View entering={FadeInUp.delay(400).duration(500)}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Progress</Text>
+              <Text style={[styles.sectionTitle, isTamil && styles.sectionTitleTamil]}>{t('home.sections.progress')}</Text>
               <TouchableOpacity onPress={refreshProgress}>
                 <Ionicons name="refresh" size={20} color={PRIMARY} />
               </TouchableOpacity>
@@ -865,32 +1066,59 @@ export default function HomeScreen() {
             <Card style={styles.progressCard}>
               <View style={styles.progressContent}>
                 <ProgressItem
-                  title="Preparedness"
-                  subtitle={`${prepProgress.completed}/${prepProgress.total} tasks`}
+                  title={t('home.progress.preparedness')}
+                  subtitle={t('home.progress.preparednessSubtitle', {
+                    completed: String(prepProgress.completed),
+                    total: String(prepProgress.total),
+                  })}
                   progress={prepProgress.percent}
-                  icon={<Feather name="check-circle" size={20} color={PRIMARY} />}
+                  icon={
+                    <Feather name="check-circle" size={20} color={PRIMARY} />
+                  }
                   color={PRIMARY}
+                  titleStyle={isTamil ? styles.progressItemTitleTamil : undefined}
+                  subtitleStyle={isTamil ? styles.progressItemSubtitleTamil : undefined}
                 />
                 <ProgressItem
-                  title="Learning"
-                  subtitle={`${learningProgress.completed}/${learningProgress.total} modules`}
+                  title={t('home.progress.learning')}
+                  subtitle={t('home.progress.learningSubtitle', {
+                    completed: String(learningProgress.completed),
+                    total: String(learningProgress.total),
+                  })}
                   progress={learningProgress.percent}
                   icon={<Ionicons name="book" size={20} color={YELLOW} />}
                   color={YELLOW}
+                  titleStyle={isTamil ? styles.progressItemTitleTamil : undefined}
+                  subtitleStyle={isTamil ? styles.progressItemSubtitleTamil : undefined}
                 />
                 <ProgressItem
-                  title="Training Game"
-                  subtitle={`${gameStats.victories} wins • ${gameStats.totalGames} games`}
-                  progress={gameStats.totalGames > 0 ? (gameStats.victories / gameStats.totalGames) * 100 : 0}
-                  icon={<Ionicons name="game-controller" size={20} color={ORANGE} />}
+                  title={t('home.progress.trainingGame')}
+                  subtitle={t('home.progress.trainingSubtitle', {
+                    victories: String(gameStats.victories),
+                    games: String(gameStats.totalGames),
+                  })}
+                  progress={
+                    gameStats.totalGames > 0
+                      ? (gameStats.victories / gameStats.totalGames) * 100
+                      : 0
+                  }
+                  icon={
+                    <Ionicons name="game-controller" size={20} color={ORANGE} />
+                  }
                   color={ORANGE}
+                  titleStyle={isTamil ? styles.progressItemTitleTamil : undefined}
+                  subtitleStyle={isTamil ? styles.progressItemSubtitleTamil : undefined}
                 />
                 <ProgressItem
-                  title="Badges"
-                  subtitle={`${badgesCount} earned`}
+                  title={t('home.progress.badges')}
+                  subtitle={t('home.progress.badgesSubtitle', {
+                    count: String(badgesCount),
+                  })}
                   progress={badgesCount > 0 ? (badgesCount / 10) * 100 : 0} // Assuming 10 total badges
                   icon={<Ionicons name="trophy" size={20} color="#8B5CF6" />}
                   color="#8B5CF6"
+                  titleStyle={isTamil ? styles.progressItemTitleTamil : undefined}
+                  subtitleStyle={isTamil ? styles.progressItemSubtitleTamil : undefined}
                 />
               </View>
             </Card>
@@ -899,15 +1127,22 @@ export default function HomeScreen() {
           {/* Hero Section */}
           <Animated.View entering={FadeInUp.delay(600).duration(500)}>
             <Card style={styles.heroCard}>
-              <LinearGradient colors={PRIMARY_GRADIENT as [ColorValue, ColorValue, ...ColorValue[]]} style={styles.heroGradient}>
+              <LinearGradient
+                colors={
+                  PRIMARY_GRADIENT as [ColorValue, ColorValue, ...ColorValue[]]
+                }
+                style={styles.heroGradient}
+              >
                 <View style={styles.heroContent}>
                   <View style={styles.heroIcon}>
                     <Feather name="shield" size={32} color="#fff" />
                   </View>
                   <View style={styles.heroText}>
-                    <Text style={styles.heroTitle}>Stay Prepared, Stay Safe</Text>
-                    <Text style={styles.heroSubtitle}>
-                      Your comprehensive emergency preparedness companion
+                    <Text style={[styles.heroTitle, isTamil && styles.heroTitleTamil]}>
+                      {t('home.hero.title')}
+                    </Text>
+                    <Text style={[styles.heroSubtitle, isTamil && styles.heroSubtitleTamil]}>
+                      {t('home.hero.subtitle')}
                     </Text>
                   </View>
                 </View>
@@ -988,10 +1223,18 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     letterSpacing: -0.5,
   },
+  greetingTamil: {
+    fontSize: 22,
+    lineHeight: 28,
+  },
   subtitle: {
     fontSize: 16,
     color: '#6b7280',
     marginTop: 4,
+  },
+  subtitleTamil: {
+    fontSize: 12,
+    lineHeight: 20,
   },
   headerActions: {
     flexDirection: 'row',
@@ -1032,6 +1275,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  weatherLoadingTextTamil: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
   weatherContent: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1046,10 +1293,18 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 4,
   },
+  weatherTitleTamil: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
   weatherDescription: {
     color: '#e0ffe0',
     fontSize: 14,
     marginBottom: 6,
+  },
+  weatherDescriptionTamil: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   weatherDetails: {
     flexDirection: 'row',
@@ -1058,6 +1313,10 @@ const styles = StyleSheet.create({
     color: '#e0ffe0',
     fontSize: 12,
     marginRight: 16,
+  },
+  weatherDetailTamil: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   scrollView: {
     flex: 1,
@@ -1076,6 +1335,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
+  },
+  sectionTitleTamil: {
+    fontSize: 18,
+    lineHeight: 24,
   },
   badge: {
     backgroundColor: ORANGE,
@@ -1136,14 +1399,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 2,
   },
+  alertTitleTamil: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   alertDescription: {
     color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 13,
     marginBottom: 4,
   },
+  alertDescriptionTamil: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
   alertTimestamp: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 11,
+  },
+  alertTimestampTamil: {
+    fontSize: 10,
+    lineHeight: 16,
   },
   alertSeverity: {
     marginLeft: 8,
@@ -1195,10 +1470,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 2,
   },
+  quickActionTitleTamil: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   quickActionSubtitle: {
     color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 11,
     textAlign: 'center',
+  },
+  quickActionSubtitleTamil: {
+    fontSize: 10,
+    lineHeight: 16,
   },
   progressCard: {
     borderRadius: 24,
@@ -1243,9 +1526,17 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 2,
   },
+  progressItemTitleTamil: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   progressItemSubtitle: {
     fontSize: 13,
     color: '#6b7280',
+  },
+  progressItemSubtitleTamil: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   progressRingContainer: {
     justifyContent: 'center',
@@ -1302,6 +1593,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 20,
   },
+  aiTipTextTamil: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
   heroCard: {
     borderRadius: 24,
     overflow: 'hidden',
@@ -1336,9 +1631,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginBottom: 4,
   },
+  heroTitleTamil: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
   heroSubtitle: {
     color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 14,
+  },
+  heroSubtitleTamil: {
+    fontSize: 13,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: CARD_BG,
