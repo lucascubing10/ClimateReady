@@ -32,6 +32,7 @@ type HazardConfig = {
   samples: Record<SeverityLevel, { headline: string; details: string }>; 
 };
 
+// Mock alert presets let users dry-run different hazard notifications
 const HAZARDS: HazardConfig[] = [
   {
     key: 'rain',
@@ -83,6 +84,7 @@ const HAZARDS: HazardConfig[] = [
   },
 ];
 
+// Dedicated screen for crafting and pushing mock weather alerts
 export default function MockAlertsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
