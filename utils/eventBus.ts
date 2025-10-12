@@ -1,6 +1,7 @@
 // utils/eventBus.ts
 // Lightweight cross-platform event bus (no Node EventEmitter dependency).
 // Fixes web error: _events.EventEmitter is not a constructor.
+import type { AlertPreferenceMap } from './alertPreferences';
 
 type Handler = (payload: any) => void;
 const listeners: Record<string, Set<Handler>> = {};
@@ -27,11 +28,17 @@ function on(event: string, handler: Handler) {
 export function emitPostCreated(post: any) { emit('post_created', { post }); }
 export function emitPostDeleted(id: string) { emit('post_deleted', { id }); }
 export function emitPostUpdated(post: any) { emit('post_updated', { post }); }
+export function emitAlertPreferencesUpdated(preferences: AlertPreferenceMap) {
+  emit('alert_preferences_updated', { preferences: { ...preferences } });
+}
 
 // Subscribe helpers - returns unsubscribe functions
 export function onPostCreated(cb: (post: any) => void) { return on('post_created', e => cb(e.post)); }
 export function onPostDeleted(cb: (id: string) => void) { return on('post_deleted', e => cb(e.id)); }
 export function onPostUpdated(cb: (post: any) => void) { return on('post_updated', e => cb(e.post)); }
+export function onAlertPreferencesUpdated(cb: (preferences: AlertPreferenceMap) => void) {
+  return on('alert_preferences_updated', e => cb(e.preferences));
+}
 
 // For debugging (optional): expose a way to inspect listeners in dev
 if (__DEV__) {

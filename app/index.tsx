@@ -23,6 +23,12 @@ import { getCustomItems, getAiRecommendation } from '@/utils/storage';
 import LottieView from 'lottie-react-native';
 import { evaluateForecast, defaultThresholds } from '@/utils/alerts/weatherThresholds';
 import { ensurePermissionsAsync, ensureAndroidChannelAsync, sendLocalNotification } from '@/utils/notifications';
+import {
+  AlertPreferenceMap,
+  DEFAULT_ALERT_PREFERENCES,
+  getAlertPreferences,
+} from '@/utils/alertPreferences';
+import { onAlertPreferencesUpdated } from '@/utils/eventBus';
 import { useLocalization } from '@/context/LocalizationContext';
 
 const { width } = Dimensions.get('window');
@@ -224,6 +230,7 @@ export default function HomeScreen() {
   const [progress, setProgress] = useState<any>(null);
   const [badges, setBadges] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferenceMap>(DEFAULT_ALERT_PREFERENCES);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
@@ -266,7 +273,32 @@ export default function HomeScreen() {
     registerNotifications();
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+    const loadPreferences = async () => {
+      try {
+        const prefs = await getAlertPreferences();
+        if (isActive) {
+          setAlertPreferences(prefs);
+        }
+      } catch (error) {
+        console.warn('[HomeScreen] Unable to load alert preferences', error);
+      }
+    };
+    loadPreferences();
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
+  useEffect(() => {
+    const unsubscribe = onAlertPreferencesUpdated((prefs) => {
+      setAlertPreferences(prefs);
+    });
+    return unsubscribe;
+  }, []);
+
+  
   // Greeting logic with emoji
   useEffect(() => {
     const hour = new Date().getHours();
@@ -343,8 +375,32 @@ export default function HomeScreen() {
       const data = await res.json();
 
       const triggers = evaluateForecast(data, defaultThresholds);
+      const enabledTypes = Object.entries(alertPreferences)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+
       if (__DEV__) {
         console.log('[alerts] triggers', triggers.map(t => ({ type: t.type, value: t.value, at: t.at })));
+        console.log('[alerts] enabled types', enabledTypes);
+      }
+
+      if (enabledTypes.length === 0) {
+        setAlerts([]);
+        lastTriggerHashRef.current = null;
+        return;
+      }
+
+      const allowedTypes = new Set(enabledTypes);
+      const filteredTriggers = triggers.filter(trigger => allowedTypes.has(trigger.type));
+
+      if (__DEV__) {
+        console.log('[alerts] filtered triggers', filteredTriggers.map(t => ({ type: t.type, value: t.value, at: t.at })));
+      }
+
+      if (filteredTriggers.length === 0) {
+        setAlerts([]);
+        lastTriggerHashRef.current = null;
+        return;
       }
       const now = Date.now();
       // Capture current time once so we can ignore any forecast buckets that already happened
@@ -388,7 +444,7 @@ export default function HomeScreen() {
 
       type Group = { at: string; byType: Map<string, { t: any; severity: 'low' | 'medium' | 'high' }> };
       const groups = new Map<string, Group>();
-      for (const t of triggers) {
+      for (const t of filteredTriggers) {
         const sev = computeSeverity(t.type, t.value, t.threshold);
         const key = bucketKeyFrom(t.at);
         const bucketTime = new Date(key).getTime();
@@ -486,7 +542,7 @@ export default function HomeScreen() {
     } catch (e) {
       console.warn('Forecast check failed:', e);
     }
-  }, [t]);
+  }, [t, alertPreferences]);
 
   // Get user's location and fetch weather
   const getLocationAndWeather = useCallback(async () => {

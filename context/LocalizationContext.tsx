@@ -56,6 +56,9 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         shareMedicalConditions: 'Share Medical Conditions',
         shareMedications: 'Share Medications',
         notifications: 'Notifications',
+  notificationsSummaryAll: 'All alerts enabled',
+  notificationsSummarySome: '{{count}} alerts enabled',
+  notificationsSummaryNone: 'No alerts enabled',
         darkMode: 'Dark Mode',
         locationServices: 'Location Services',
         language: 'Language',
@@ -73,6 +76,39 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         en: 'English',
         si: 'Sinhala',
         ta: 'Tamil',
+      },
+      notificationPreferences: {
+        title: 'Alert Preferences',
+        description: 'Choose which weather alerts you want to receive.',
+        helper: 'These choices apply to push notifications and the in-app alert list.',
+        hazards: {
+          rain: {
+            title: 'Heavy rain alerts',
+            description: 'Get notified when rainfall is expected to exceed your threshold.',
+          },
+          wind: {
+            title: 'High wind alerts',
+            description: 'Stay informed about strong winds that could affect safety.',
+          },
+          'temp-high': {
+            title: 'High temperature alerts',
+            description: 'Know when heat levels are forecast to reach risky levels.',
+          },
+          'temp-low': {
+            title: 'Low temperature alerts',
+            description: 'Receive updates when cold snaps are expected.',
+          },
+        },
+        actions: {
+          selectAll: 'Enable all',
+          deselectAll: 'Disable all',
+          save: 'Save preferences',
+        },
+        feedback: {
+          saved: 'Alert preferences updated',
+          noneSelected: 'Select at least one alert to stay informed.',
+          error: 'Unable to save preferences. Please try again.',
+        },
       },
     },
     home: {
@@ -176,6 +212,9 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         shareMedicalConditions: 'වෛද්‍ය තත්ව බෙදාගන්න',
         shareMedications: 'ඖෂධ තොරතුරු බෙදාගන්න',
         notifications: 'දැනුම්දීම්',
+  notificationsSummaryAll: 'සියලු දැනුම්දීම් සක්‍රියයි',
+  notificationsSummarySome: 'දැනුම්දීම් {{count}}ක් සක්‍රියයි',
+  notificationsSummaryNone: 'දැනුම්දීම් කිසිවක් සක්‍රිය කර නැත',
         darkMode: 'අඳුරු තීරු',
         locationServices: 'ස්ථාන සේවා',
         language: 'භාෂාව',
@@ -193,6 +232,39 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         en: 'ඉංග්‍රීසි',
         si: 'සිංහල',
         ta: 'දෙමළ',
+      },
+      notificationPreferences: {
+        title: 'දැනුම්දීම් කැමැත්ත',
+        description: 'ඔබට ලැබීමට කැමති කාලගුණ දැනුම්දීම් තෝරන්න.',
+        helper: 'මෙම තේරීම් තල්ලු දැනුම්දීම් සහ යෙදුමේ දැනුම් දැක්වීම් දෙකටම බලපායි.',
+        hazards: {
+          rain: {
+            title: 'බර වැසි දැනුම්දීම්',
+            description: 'වැසි ප්‍රමාණය ඔබේ සීමාව ඉක්මුවහොත් දැනුවත් වන්න.',
+          },
+          wind: {
+            title: 'උසස් සුළං දැනුම්දීම්',
+            description: 'බලවත් සුළං අවදානම් මට්ටම් ගැන සූදානම් වන්න.',
+          },
+          'temp-high': {
+            title: 'උණුසුම් උෂ්ණත්ව දැනුම්දීම්',
+            description: 'උෂ්ණත්වය අවදානම් මට්ටම් වෙත ළඟාවන විට දැනුවත් වන්න.',
+          },
+          'temp-low': {
+            title: 'අඩු උෂ්ණත්ව දැනුම්දීම්',
+            description: 'සිසිලට හුදකලා තත්ත්වයන් පෙර දැනගන්න.',
+          },
+        },
+        actions: {
+          selectAll: 'සියල්ල සක්‍රිය කරන්න',
+          deselectAll: 'සියල්ල අක්‍රිය කරන්න',
+          save: 'කැමැත්ත සුරකින්න',
+        },
+        feedback: {
+          saved: 'දැනුම්දීම් කැමැත්ත යාවත්කාල විය',
+          noneSelected: 'ආරක්ෂාව සඳහා අවම වශයෙන් එක් දැනුම්දීමක්වත් සක්‍රිය කරන්න.',
+          error: 'කැමැත්ත සුරක්ෂිත කිරීමට නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.',
+        },
       },
     },
     home: {
@@ -296,6 +368,9 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         shareMedicalConditions: 'மருத்துவ நிலைகளை பகிர்',
         shareMedications: 'மருந்து தகவலை பகிர்',
         notifications: 'அறிவிப்புகள்',
+  notificationsSummaryAll: 'அனைத்து எச்சரிக்கைகளும் இயக்கப்பட்டுள்ளது',
+  notificationsSummarySome: '{{count}} எச்சரிக்கைகள் இயக்கப்பட்டுள்ளது',
+  notificationsSummaryNone: 'எச்சரிக்கைகள் எதுவும் இயக்கப்படவில்லை',
         darkMode: 'இருள் பயன்முறை',
         locationServices: 'இட சேவைகள்',
         language: 'மொழி',
@@ -313,6 +388,39 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         en: 'ஆங்கிலம்',
         si: 'சிங்களம்',
         ta: 'தமிழ்',
+      },
+      notificationPreferences: {
+        title: 'எச்சரிக்கை முன்னுரிமைகள்',
+        description: 'நீங்கள் பெற விரும்பும் வானிலை எச்சரிக்கைகளைத் தேர்ந்தெடுக்கவும்.',
+        helper: 'இந்தத் தேர்வுகள் push அறிவிப்புகளுக்கும் செயலியின் எச்சரிக்கை பட்டியலுக்கும் பொருந்தும்.',
+        hazards: {
+          rain: {
+            title: 'தீவிர மழை எச்சரிக்கைகள்',
+            description: 'மழை உங்கள் வரம்பை மீறும் போது அறிவிப்பைப் பெறுங்கள்.',
+          },
+          wind: {
+            title: 'அதிக காற்று எச்சரிக்கைகள்',
+            description: 'பாதுகாப்பை பாதிக்கக்கூடிய பலமான காற்று பற்றித் தகவலறிந்திருங்கள்.',
+          },
+          'temp-high': {
+            title: 'அதிக வெப்பநிலை எச்சரிக்கைகள்',
+            description: 'வெப்பம் ஆபத்தான நிலையை அடையும் போது தெரிந்திருங்கள்.',
+          },
+          'temp-low': {
+            title: 'குறைந்த வெப்பநிலை எச்சரிக்கைகள்',
+            description: 'குளிர் அதிகரிக்கும் நிலைகளை முன்கூட்டியே உணருங்கள்.',
+          },
+        },
+        actions: {
+          selectAll: 'அனைத்தையும் இயக்கவும்',
+          deselectAll: 'அனைத்தையும் முடக்கவும்',
+          save: 'முன்னுரிமைகளை சேமிக்கவும்',
+        },
+        feedback: {
+          saved: 'எச்சரிக்கை முன்னுரிமைகள் புதுப்பிக்கப்பட்டது',
+          noneSelected: 'தகவலறிந்திருப்பதற்கு குறைந்தபட்சம் ஒரு எச்சரிக்கையை இயக்கவும்.',
+          error: 'முன்னுரிமைகளைச் சேமிக்க முடியவில்லை. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
+        },
       },
     },
     home: {
