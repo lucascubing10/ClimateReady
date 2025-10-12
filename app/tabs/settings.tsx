@@ -1,10 +1,21 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Modal,
+  Alert,
+} from 'react-native';
 import { useRouter, useLocalSearchParams, useNavigation, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { SOSSettings, DEFAULT_SOS_SETTINGS, saveSOSSettings, getSOSSettings } from '../../utils/sos/sosService';
+import { useLocalization, LanguageCode } from '../../context/LocalizationContext';
+import Constants from 'expo-constants';
 
 const PRIMARY = '#5ba24f';
 const SECONDARY = '#0284c7';
@@ -23,13 +34,16 @@ const SettingsSection = ({
   color?: string;
   children: React.ReactNode;
 }) => {
+  const { language } = useLocalization();
+  const isTamil = language === 'ta';
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-  <View style={[styles.iconContainer, { backgroundColor: color }]}>
+        <View style={[styles.iconContainer, { backgroundColor: color }]}>
           <Ionicons name={icon as any} color="#fff" size={20} />
         </View>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={[styles.sectionTitle, isTamil && styles.sectionTitleTamil]}>{title}</Text>
       </View>
       <View style={styles.sectionContent}>{children}</View>
     </View>
@@ -54,6 +68,9 @@ const SettingsItem = ({
   switchValue?: boolean;
   onToggle?: (value: boolean) => void;
 }) => {
+  const { language } = useLocalization();
+  const isTamil = language === 'ta';
+
   return (
     <TouchableOpacity
       style={styles.settingItem}
@@ -63,8 +80,10 @@ const SettingsItem = ({
       <View style={styles.settingContent}>
         {icon && <Ionicons name={icon as any} size={20} color="#555" style={styles.settingIcon} />}
         <View style={{ flex: 1 }}>
-          <Text style={styles.settingLabel}>{label}</Text>
-          {value && <Text style={styles.settingValue}>{value}</Text>}
+          <Text style={[styles.settingLabel, isTamil && styles.settingLabelTamil]}>{label}</Text>
+          {value && (
+            <Text style={[styles.settingValue, isTamil && styles.settingValueTamil]}>{value}</Text>
+          )}
         </View>
         {onToggle !== undefined && (
           <Switch
@@ -89,8 +108,13 @@ export default function SettingsScreen() {
     : (searchParams.returnTo as string | undefined);
   const pathname = usePathname();
   const { userProfile, logout } = useAuth();
+  const { t, language, setLanguage, availableLanguages, translateForLanguage } = useLocalization();
   const [sosSettings, setSOSSettings] = useState<SOSSettings>(DEFAULT_SOS_SETTINGS);
   const [darkMode, setDarkMode] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const isTamil = language === 'ta';
+
+  const appVersion = useMemo(() => Constants.expoConfig?.version ?? '1.0.0', []);
 
   const currentPath = useMemo(() => {
     if (typeof pathname === 'string' && pathname.length > 0) {
@@ -167,36 +191,60 @@ export default function SettingsScreen() {
     });
   };
 
+  const languageLabel = useMemo(() => t(`languages.${language}`), [language, t]);
+
+  const handleLanguageChange = useCallback(
+    async (code: LanguageCode) => {
+      try {
+        await setLanguage(code);
+        setLanguageModalVisible(false);
+        const successTitle = translateForLanguage(code, 'settings.title');
+        const languageName = translateForLanguage(code, `languages.${code}`);
+        const successMessage = translateForLanguage(code, 'settings.items.languageUpdated', {
+          language: languageName,
+        });
+        Alert.alert(successTitle, successMessage);
+      } catch (error) {
+        console.error('Failed to change language', error);
+        Alert.alert(t('settings.title'), t('settings.items.languageUpdateError'));
+      }
+    },
+    [setLanguage, t, translateForLanguage]
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <Ionicons name="chevron-back" size={24} color="#1f2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, isTamil && styles.headerTitleTamil]}>{t('settings.title')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.content}>
         {/* Account Settings */}
-        <SettingsSection title="Account" icon="person" color={PRIMARY}>
+        <SettingsSection title={t('settings.sections.account')} icon="person" color={PRIMARY}>
           <SettingsItem
-            label="View & Edit Profile"
+            label={t('settings.items.viewProfile')}
             icon="person-circle"
             onPress={() => router.push('/tabs/profile' as any)}
           />
           <SettingsItem
-            label="Change Password"
+            label={t('settings.items.changePassword')}
             icon="key"
             onPress={() => router.push('/auth/forgot-password' as any)}
           />
         </SettingsSection>
 
         {/* SOS Emergency Settings */}
-        <SettingsSection title="SOS Emergency" icon="alert-circle" color={DANGER}>
+        <SettingsSection title={t('settings.sections.sos')} icon="alert-circle" color={DANGER}>
           <SettingsItem
-            label="Emergency Contacts"
-            value={`${userProfile?.emergencyContacts?.length || 0} contacts added`}
+
+            label={t('settings.items.emergencyContacts')}
+            value={t('settings.items.emergencyContactsValue', {
+              count: String(userProfile?.emergencyContacts?.length || 0),
+            })}
             onPress={() =>
               router.push({
                 pathname: '/tabs/profile-edit/emergency-contacts',
@@ -205,7 +253,16 @@ export default function SettingsScreen() {
             }
           />
           <SettingsItem
-            label="SOS Settings"
+            label={t('settings.items.sosSettings')}
+            onPress={() =>
+              router.push({
+                pathname: '/tabs/profile-edit/emergency-contacts',
+                params: { returnTo: encodeURIComponent(currentPath) },
+              } as any)
+            }
+          />
+          <SettingsItem
+            label={t('settings.items.sosSettings')}
             onPress={() =>
               router.push({
                 pathname: '/tabs/sos-settings',
@@ -214,7 +271,7 @@ export default function SettingsScreen() {
             }
           />
           <SettingsItem
-            label="SOS History"
+            label={t('settings.items.sosHistory')}
             onPress={() =>
               router.push({
                 pathname: '/tabs/sos-history',
@@ -223,36 +280,48 @@ export default function SettingsScreen() {
             }
           />
           <SettingsItem
-            label="Share Blood Type"
+            label={t('settings.items.shareBloodType')}
             switchValue={sosSettings.shareBloodType}
             onToggle={() => toggleSOSSetting('shareBloodType')}
           />
           <SettingsItem
-            label="Share Medical Conditions"
+            label={t('settings.items.shareMedicalConditions')}
             switchValue={sosSettings.shareMedicalConditions}
             onToggle={() => toggleSOSSetting('shareMedicalConditions')}
           />
           <SettingsItem
-            label="Share Medications"
+            label={t('settings.items.shareMedications')}
             switchValue={sosSettings.shareMedications}
             onToggle={() => toggleSOSSetting('shareMedications')}
           />
         </SettingsSection>
 
         {/* App Settings */}
-        <SettingsSection title="App Settings" icon="settings" color={SECONDARY}>
-          <SettingsItem label="Notifications" onPress={() => {}} />
-          <SettingsItem label="Dark Mode" switchValue={darkMode} onToggle={toggleDarkMode} />
-          <SettingsItem label="Location Services" onPress={() => {}} />
-          <SettingsItem label="Language" value="English" onPress={() => {}} />
+        <SettingsSection title={t('settings.sections.app')} icon="settings" color={SECONDARY}>
+          <SettingsItem label={t('settings.items.notifications')} onPress={() => {}} />
+          <SettingsItem
+            label={t('settings.items.darkMode')}
+            switchValue={darkMode}
+            onToggle={toggleDarkMode}
+          />
+          <SettingsItem label={t('settings.items.locationServices')} onPress={() => {}} />
+          <SettingsItem
+            label={t('settings.items.language')}
+            value={languageLabel}
+            onPress={() => setLanguageModalVisible(true)}
+          />
         </SettingsSection>
 
         {/* About & Support */}
-        <SettingsSection title="About & Support" icon="information-circle" color="#6b7280">
-          <SettingsItem label="Privacy Policy" onPress={() => {}} />
-          <SettingsItem label="Terms of Service" onPress={() => {}} />
-          <SettingsItem label="Help & Support" onPress={() => {}} />
-          <SettingsItem label="About ClimateReady" value="Version 1.0.0" onPress={() => {}} />
+        <SettingsSection title={t('settings.sections.about')} icon="information-circle" color="#6b7280">
+          <SettingsItem label={t('settings.items.privacyPolicy')} onPress={() => {}} />
+          <SettingsItem label={t('settings.items.terms')} onPress={() => {}} />
+          <SettingsItem label={t('settings.items.helpSupport')} onPress={() => {}} />
+          <SettingsItem
+            label={t('settings.items.about')}
+            value={t('settings.items.version', { version: appVersion })}
+            onPress={() => {}}
+          />
         </SettingsSection>
 
         {/* Sign Out */}
@@ -264,9 +333,47 @@ export default function SettingsScreen() {
           }}
         >
           <Ionicons name="log-out" size={18} color={DANGER} />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('settings.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={languageModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>{t('settings.items.languageModalTitle')}</Text>
+            {availableLanguages.map((langOption) => {
+              const isSelected = language === langOption.code;
+              return (
+                <TouchableOpacity
+                  key={langOption.code}
+                  style={[styles.languageOption, isSelected && styles.languageOptionSelected]}
+                  onPress={() => {
+                    void handleLanguageChange(langOption.code);
+                  }}
+                >
+                  <Text
+                    style={[styles.languageOptionText, isSelected && styles.languageOptionTextSelected]}
+                  >
+                    {t(langOption.labelKey)}
+                  </Text>
+                  {isSelected && <Ionicons name="checkmark" size={20} color={PRIMARY} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setLanguageModalVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -294,6 +401,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
+  },
+  headerTitleTamil: {
+    fontSize: 18,
+    lineHeight: 22,
   },
   headerSpacer: {
     width: 36,
@@ -326,6 +437,10 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginLeft: 12,
   },
+  sectionTitleTamil: {
+    fontSize: 10,
+    lineHeight: 22,
+  },
   iconContainer: {
     width: 40,
     height: 40,
@@ -352,10 +467,18 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontWeight: '600',
   },
+  settingLabelTamil: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   settingValue: {
     fontSize: 14,
     color: '#6b7280',
     marginTop: 2,
+  },
+  settingValueTamil: {
+    fontSize: 12,
+    lineHeight: 18,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -376,5 +499,59 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 18,
     marginLeft: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    width: '100%',
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+    backgroundColor: '#f9fafb',
+  },
+  languageOptionSelected: {
+    backgroundColor: '#e6f4ea',
+  },
+  languageOptionText: {
+    fontSize: 16,
+    color: '#1f2937',
+    fontWeight: '600',
+  },
+  languageOptionTextSelected: {
+    color: PRIMARY,
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
   },
 });

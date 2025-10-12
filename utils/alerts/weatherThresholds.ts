@@ -8,7 +8,7 @@ export type Thresholds = {
 export const defaultThresholds: Thresholds = {
   heavyRainMm3h: 5,        // Adjust to taste
   highWindMs: 12,          // ~27 mph
-  highTempC: 35,
+  highTempC: 10,
   lowTempC: -5,
 };
 
