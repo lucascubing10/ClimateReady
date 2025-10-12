@@ -3,17 +3,20 @@ import { Slot, router, SplashScreen } from 'expo-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LocalizationProvider } from '../context/LocalizationContext';
 
 // Keep the splash screen visible while we check authentication
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <RootLayoutNav />
-      </SafeAreaProvider>
-    </AuthProvider>
+    <LocalizationProvider>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <RootLayoutNav />
+        </SafeAreaProvider>
+      </AuthProvider>
+    </LocalizationProvider>
   );
 }
 
