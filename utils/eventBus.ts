@@ -31,6 +31,9 @@ export function emitPostUpdated(post: any) { emit('post_updated', { post }); }
 export function emitAlertPreferencesUpdated(preferences: AlertPreferenceMap) {
   emit('alert_preferences_updated', { preferences: { ...preferences } });
 }
+export function emitAlertTextToSpeechUpdated(enabled: boolean) {
+  emit('alert_tts_updated', { enabled });
+}
 
 // Subscribe helpers - returns unsubscribe functions
 export function onPostCreated(cb: (post: any) => void) { return on('post_created', e => cb(e.post)); }
@@ -38,6 +41,9 @@ export function onPostDeleted(cb: (id: string) => void) { return on('post_delete
 export function onPostUpdated(cb: (post: any) => void) { return on('post_updated', e => cb(e.post)); }
 export function onAlertPreferencesUpdated(cb: (preferences: AlertPreferenceMap) => void) {
   return on('alert_preferences_updated', e => cb(e.preferences));
+}
+export function onAlertTextToSpeechUpdated(cb: (enabled: boolean) => void) {
+  return on('alert_tts_updated', e => cb(e.enabled));
 }
 
 // For debugging (optional): expose a way to inspect listeners in dev

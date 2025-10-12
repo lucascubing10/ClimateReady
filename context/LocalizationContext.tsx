@@ -45,6 +45,11 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         app: 'App Settings',
         about: 'About & Support',
       },
+        textToSpeech: {
+          title: 'எச்சரிக்கைகளை குரலால் தெரிவிக்க',
+          description: 'இதை இயக்கினால் வரும் காலநிலை எச்சரிக்கைகள் உரை-ஒலி மூலம் அறிவிக்கப்படும்.',
+          languageRestriction: 'இந்த வசதி ஆங்கிலத்தில் மட்டுமே கிடைக்கும்.',
+        },
       items: {
         viewProfile: 'View & Edit Profile',
         changePassword: 'Change Password',
@@ -98,6 +103,16 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
             title: 'Low temperature alerts',
             description: 'Receive updates when cold snaps are expected.',
           },
+        },
+        textToSpeech: {
+          title: 'Speak alerts aloud',
+          description: 'Have ClimateReady announce incoming weather alerts using Text to Speech.',
+          languageRestriction: 'Available in English only.',
+          testAction: 'Play sample alert',
+          testMessage: 'This is a sample ClimateReady alert. Severe weather may be approaching. Stay safe.',
+          testDisabled: 'Turn on Speak alerts aloud to play the sample alert.',
+          testVoiceUnavailable: 'No English voice is installed on this device. Install an English voice pack in system settings and try again.',
+          testError: 'Unable to play the sample alert right now. Please try again.',
         },
         actions: {
           selectAll: 'Enable all',
@@ -338,6 +353,16 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
             description: 'සිසිලට හුදකලා තත්ත්වයන් පෙර දැනගන්න.',
           },
         },
+        textToSpeech: {
+          title: 'දැනුම්දීම් ශබ්දයෙන් කියවන්න',
+          description: 'මෙය සක්‍රිය කරන විට ලැබෙන කාලගුණ දැනුම්දීම් ශබ්දයෙන් කියවනු ලැබේ.',
+          languageRestriction: 'මෙම විශේෂාංගය ඉංග්‍රීසි භාෂාවට පමණි.',
+          testAction: 'උදාහරණ දැනුම්දීම ඇසීමට',
+          testMessage: 'මෙය ClimateReady උදාහරණ දැනුම්දීමකි. දැඩි කාලගුණ තත්ත්වයක් ළඟා විය හැක. ආරක්ෂිතව සිටින්න.',
+          testDisabled: 'උදාහරණය ඇසීමට "දැනුම්දීම් ශබ්දයෙන් කියවන්න" සක්‍රිය කරන්න.',
+          testVoiceUnavailable: 'මෙම උපාංගයේ ඉංග්‍රීසි හඬ තෙක්ස්ට්-to-speech දත්ත නොපවතී. පද්ධති සැකසීම් වලින් ඉංග්‍රීසි හඬක් ස්ථාපනය කර නැවත උත්සාහ කරන්න.',
+          testError: 'උදාහරණ දැනුම්දීම වාදනය කළ නොහැකි විය. කරුණාකර නැවත උත්සාහ කරන්න.',
+        },
         actions: {
           selectAll: 'සියල්ල සක්‍රිය කරන්න',
           deselectAll: 'සියල්ල අක්‍රිය කරන්න',
@@ -576,6 +601,16 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
             title: 'குறைந்த வெப்பநிலை எச்சரிக்கைகள்',
             description: 'குளிர் அதிகரிக்கும் நிலைகளை முன்கூட்டியே உணருங்கள்.',
           },
+        },
+        textToSpeech: {
+          title: 'எச்சரிக்கைகளை குரலால் தெரிவிக்க',
+          description: 'இதை இயக்கினால் வரும் காலநிலை எச்சரிக்கைகள் உரை-ஒலி மூலம் அறிவிக்கப்படும்.',
+          languageRestriction: 'இந்த வசதி ஆங்கிலத்தில் மட்டுமே கிடைக்கும்.',
+          testAction: 'மாதிரி எச்சரிக்கையை கேட்க',
+          testMessage: 'இது ClimateReady மாதிரி எச்சரிக்கை. கடுமையான வானிலை வரலாம். பாதுகாப்பாக இருங்கள்.',
+          testDisabled: 'மாதிரி ஒலிக்க "எச்சரிக்கைகளை குரலால் தெரிவிக்க" என்பதை இயக்கவும்.',
+          testVoiceUnavailable: 'இந்த சாதனத்தில் ஆங்கில குரல் நிறுவப்படவில்லை. அமைப்பு அமைப்புகளில் ஆங்கிலக் குரலை நிறுவி மீண்டும் முயற்சிக்கவும்.',
+          testError: 'மாதிரி எச்சரிக்கையை இப்போது இயக்க முடியவில்லை. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
         },
         actions: {
           selectAll: 'அனைத்தையும் இயக்கவும்',
