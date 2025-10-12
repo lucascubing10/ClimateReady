@@ -19,21 +19,26 @@ const { width } = Dimensions.get('window');
 
 // Color palette matching your app
 const PRIMARY = '#5ba24f';
-const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'];
+const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'] as const;
 const YELLOW = '#fac609';
 const ORANGE = '#e5793a';
 const BG = '#dcefdd';
 const CARD_BG = '#ffffff';
 
 // Custom Button Component
-const CustomButton = ({ title, onPress, style, variant = 'primary' }: any) => {
+const CustomButton = ({ title, onPress, style, variant = 'primary', isLoading = false }: any) => {
   if (variant === 'secondary') {
     return (
       <TouchableOpacity 
         style={[styles.secondaryButton, style]} 
         onPress={onPress}
+        disabled={isLoading}
       >
-        <Text style={styles.secondaryButtonText}>{title}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={PRIMARY} />
+        ) : (
+          <Text style={styles.secondaryButtonText}>{title}</Text>
+        )}
       </TouchableOpacity>
     );
   }
@@ -42,14 +47,19 @@ const CustomButton = ({ title, onPress, style, variant = 'primary' }: any) => {
     <TouchableOpacity 
       style={[styles.primaryButton, style]} 
       onPress={onPress}
+      disabled={isLoading}
     >
       <LinearGradient
-        colors={PRIMARY_GRADIENT as unknown as readonly [import('react-native').ColorValue, import('react-native').ColorValue]}
+        colors={PRIMARY_GRADIENT}
         style={styles.buttonGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
       >
-        <Text style={styles.primaryButtonText}>{title}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.primaryButtonText}>{title}</Text>
+        )}
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -59,18 +69,31 @@ export default function EducationScreen() {
   const [educationalContent, setEducationalContent] = useState<EducationalContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [completedContent, setCompletedContent] = useState<string[]>(['edu-2']);
+  const [completedContent, setCompletedContent] = useState<string[]>([]);
   const [selectedContent, setSelectedContent] = useState<EducationalContent | null>(null);
+  const [contentLoading, setContentLoading] = useState(false);
 
   useEffect(() => {
-    const loadContent = async () => {
+    loadContent();
+  }, []);
+
+  const loadContent = async () => {
+    try {
       setLoading(true);
       const content = await fetchAllEducationalContent();
       setEducationalContent(content);
+      
+      // Load completed content from storage (you'll need to implement this)
+      // const savedCompleted = await AsyncStorage.getItem('completedEducationalContent');
+      // if (savedCompleted) {
+      //   setCompletedContent(JSON.parse(savedCompleted));
+      // }
+    } catch (error) {
+      console.error('Error loading educational content:', error);
+    } finally {
       setLoading(false);
-    };
-    loadContent();
-  }, []);
+    }
+  };
 
   const categories = [
     { id: 'all', name: 'All', icon: '📚', color: PRIMARY },
@@ -101,7 +124,9 @@ export default function EducationScreen() {
       infographic: '📊',
       video: '🎬',
       guide: '📖',
-      simulation: '🎮'
+      simulation: '🎮',
+      article: '📝',
+      tutorial: '🎯'
     };
     return icons[type as keyof typeof icons] || '📁';
   };
@@ -115,21 +140,30 @@ export default function EducationScreen() {
     }
   };
 
-  const toggleContentCompletion = (contentId: string) => {
-    setCompletedContent(prev => {
-      if (prev.includes(contentId)) {
-        return prev.filter(id => id !== contentId);
-      } else {
-        return [...prev, contentId];
-      }
-    });
+  const toggleContentCompletion = async (contentId: string) => {
+    const newCompleted = completedContent.includes(contentId)
+      ? completedContent.filter(id => id !== contentId)
+      : [...completedContent, contentId];
+    
+    setCompletedContent(newCompleted);
+    
+    // Save to storage (you'll need to implement this)
+    // await AsyncStorage.setItem('completedEducationalContent', JSON.stringify(newCompleted));
+  };
+
+  const handleContentSelect = async (content: EducationalContent) => {
+    setContentLoading(true);
+    // Simulate loading for better UX
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setSelectedContent(content);
+    setContentLoading(false);
   };
 
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={PRIMARY} />
-        <Text style={{ marginTop: 10, color: PRIMARY }}>Loading content...</Text>
+        <Text style={styles.loadingText}>Loading educational content...</Text>
       </View>
     );
   }
@@ -146,10 +180,7 @@ export default function EducationScreen() {
 
         <View style={styles.content}>
           {/* Header */}
-          <Animated.View 
-            entering={FadeInUp.duration(600)}
-            style={styles.header}
-          >
+          <View style={styles.header}>
             <TouchableOpacity onPress={() => setSelectedContent(null)} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color={PRIMARY} />
             </TouchableOpacity>
@@ -157,13 +188,10 @@ export default function EducationScreen() {
               <Text style={styles.title}>Educational Resources</Text>
               <Text style={styles.subtitle}>Learn essential preparedness skills</Text>
             </View>
-          </Animated.View>
+          </View>
 
           <ScrollView style={styles.detailContent} showsVerticalScrollIndicator={false}>
-            <Animated.View 
-              entering={FadeInUp.duration(600).delay(200)}
-              style={styles.detailCard}
-            >
+            <View style={styles.detailCard}>
               <Text style={styles.detailTitle}>{selectedContent.title}</Text>
               <Text style={styles.detailDescription}>{selectedContent.description}</Text>
 
@@ -187,10 +215,12 @@ export default function EducationScreen() {
 
               <View style={styles.contentSection}>
                 <Text style={styles.sectionTitle}>Content</Text>
-                <Text style={styles.contentText}>{selectedContent.content}</Text>
+                <Text style={styles.contentText}>
+                  {selectedContent.content || 'Content loading...'}
+                </Text>
               </View>
 
-              {selectedContent.resources.length > 0 && (
+              {selectedContent.resources && selectedContent.resources.length > 0 && (
                 <View style={styles.resourcesSection}>
                   <Text style={styles.sectionTitle}>Additional Resources</Text>
                   {selectedContent.resources.map((resource, index) => (
@@ -202,14 +232,16 @@ export default function EducationScreen() {
                 </View>
               )}
 
-              <View style={styles.tagsSection}>
-                <Text style={styles.sectionTitle}>Tags</Text>
-                <View style={styles.tagsContainer}>
-                  {selectedContent.tags.map(tag => (
-                    <Text key={tag} style={styles.tag}>#{tag}</Text>
-                  ))}
+              {selectedContent.tags && selectedContent.tags.length > 0 && (
+                <View style={styles.tagsSection}>
+                  <Text style={styles.sectionTitle}>Tags</Text>
+                  <View style={styles.tagsContainer}>
+                    {selectedContent.tags.map(tag => (
+                      <Text key={tag} style={styles.tag}>#{tag}</Text>
+                    ))}
+                  </View>
                 </View>
-              </View>
+              )}
 
               <CustomButton
                 title={completedContent.includes(selectedContent.id) ? '✓ Completed' : 'Mark as Complete'}
@@ -217,7 +249,7 @@ export default function EducationScreen() {
                 variant={completedContent.includes(selectedContent.id) ? 'secondary' : 'primary'}
                 style={styles.completeButton}
               />
-            </Animated.View>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -235,10 +267,7 @@ export default function EducationScreen() {
 
       <View style={styles.content}>
         {/* Header */}
-        <Animated.View 
-          entering={FadeInUp.duration(600)}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => router.push('/tabs/toolKit')} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={PRIMARY} />
           </TouchableOpacity>
@@ -246,13 +275,10 @@ export default function EducationScreen() {
             <Text style={styles.title}>Educational Resources</Text>
             <Text style={styles.subtitle}>Learn essential preparedness skills</Text>
           </View>
-        </Animated.View>
+        </View>
 
         {/* Progress Overview */}
-        <Animated.View 
-          entering={FadeInUp.duration(600).delay(200)}
-          style={styles.progressCard}
-        >
+        <View style={styles.progressCard}>
           <LinearGradient
             colors={["#fff", "#f8fafc"]}
             style={styles.progressGradient}
@@ -276,7 +302,7 @@ export default function EducationScreen() {
                 <View 
                   style={[
                     styles.progressBarFill, 
-                    { width: `${progress.percentage}%`, backgroundColor: PRIMARY }
+                    { width: `${progress.percentage}%` }
                   ]} 
                 />
               </View>
@@ -284,26 +310,32 @@ export default function EducationScreen() {
 
             <View style={styles.progressStats}>
               <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="checkmark-done" size={16} color={PRIMARY} />
+                </View>
                 <Text style={styles.statNumber}>{progress.completed}</Text>
                 <Text style={styles.statLabel}>Completed</Text>
               </View>
               <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="star" size={16} color={PRIMARY} />
+                </View>
                 <Text style={styles.statNumber}>{progress.points}</Text>
                 <Text style={styles.statLabel}>Points</Text>
               </View>
               <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="library" size={16} color={PRIMARY} />
+                </View>
                 <Text style={styles.statNumber}>{progress.total}</Text>
                 <Text style={styles.statLabel}>Total</Text>
               </View>
             </View>
           </LinearGradient>
-        </Animated.View>
+        </View>
 
         {/* Category Filter */}
-        <Animated.View 
-          entering={FadeInUp.duration(600).delay(300)}
-          style={styles.categorySection}
-        >
+        <View style={styles.categorySection}>
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -337,21 +369,21 @@ export default function EducationScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </Animated.View>
+        </View>
 
         {/* Content List */}
         <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-          {filteredContent.map((content, index) => (
-            <Animated.View
-              key={content.id}
-              entering={FadeInUp.duration(600).delay(400 + index * 100)}
-            >
+          {contentLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={PRIMARY} />
+              <Text style={styles.loadingText}>Loading content...</Text>
+            </View>
+          ) : filteredContent.length > 0 ? (
+            filteredContent.map((content, index) => (
               <TouchableOpacity 
-                style={[
-                  styles.contentCard,
-                  completedContent.includes(content.id) && styles.contentCardCompleted
-                ]}
-                onPress={() => setSelectedContent(content)}
+                key={content.id}
+                style={styles.contentCard}
+                onPress={() => handleContentSelect(content)}
               >
                 <LinearGradient
                   colors={completedContent.includes(content.id) ? ["#f0fdf4", "#dcfce7"] : ["#fff", "#f8fafc"]}
@@ -387,16 +419,35 @@ export default function EducationScreen() {
                       </View>
                     </View>
                     <CustomButton
-                      title="View"
-                      onPress={() => setSelectedContent(content)}
+                      title="Learn"
+                      onPress={() => handleContentSelect(content)}
                       variant="secondary"
                       style={styles.viewButton}
+                      isLoading={contentLoading}
                     />
                   </View>
                 </LinearGradient>
               </TouchableOpacity>
-            </Animated.View>
-          ))}
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="school-outline" size={48} color={PRIMARY} />
+              <Text style={styles.emptyStateTitle}>No Content Available</Text>
+              <Text style={styles.emptyStateText}>
+                {selectedCategory === 'all' 
+                  ? 'No educational content found. Please check back later.'
+                  : `No ${selectedCategory} content available. Try another category.`
+                }
+              </Text>
+              {selectedCategory !== 'all' && (
+                <CustomButton
+                  title="View All Content"
+                  onPress={() => setSelectedCategory('all')}
+                  style={styles.emptyStateButton}
+                />
+              )}
+            </View>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -525,6 +576,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
+    backgroundColor: PRIMARY,
     borderRadius: 6,
   },
   progressStats: {
@@ -534,15 +586,24 @@ const styles = StyleSheet.create({
   stat: {
     alignItems: 'center',
   },
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   statNumber: {
     fontSize: 18,
     fontWeight: '700',
     color: PRIMARY,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: '#6b7280',
-    marginTop: 4,
+    fontWeight: '500',
   },
   categorySection: {
     marginBottom: 16,
@@ -598,13 +659,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
-  },
-  contentCardCompleted: {
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
   },
   contentGradient: {
     padding: 16,
@@ -769,6 +823,47 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     marginTop: 8,
+  },
+  // Loading and Empty States
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: PRIMARY,
+    textAlign: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  emptyStateButton: {
+    minWidth: 160,
   },
   // Button Styles
   primaryButton: {

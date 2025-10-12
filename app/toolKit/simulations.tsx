@@ -21,8 +21,17 @@ import TsunamiGame from '@/components/game/TsunamiGame';
 import { GameStorage, GameResult } from '@/utils/gameStorage';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
+
+// Color palette matching your app
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT: [string, string] = ['#5ba24f', '#4a8c40'];
+const YELLOW = '#fac609';
+const ORANGE = '#e5793a';
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
 
 type GameMode = 'menu' | 'ai-game' | 'traditional' | 'results' | 'evacuation-dash';
 type ScenarioType = 'earthquake' | 'fire' | 'flood' | 'hurricane' | 'medical' | 'tsunami' | 'evacuation-dash';
@@ -94,7 +103,7 @@ export default function SimulationsScreen() {
       hurricane: '#2980b9',
       medical: '#e74c3c',
       tsunami: '#1abc9c',
-      'evacuation-dash': '#4caf50'
+      'evacuation-dash': PRIMARY
     };
     return colors[type];
   };
@@ -103,13 +112,43 @@ export default function SimulationsScreen() {
     return '⭐'.repeat(difficulty) + '⚪'.repeat(5 - difficulty);
   };
 
+  // Custom Button Component
+  const CustomButton = ({ title, onPress, style, variant = 'primary' }: any) => {
+    if (variant === 'secondary') {
+      return (
+        <TouchableOpacity 
+          style={[styles.secondaryButton, style]} 
+          onPress={onPress}
+        >
+          <Text style={styles.secondaryButtonText}>{title}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.primaryButton, style]} 
+        onPress={onPress}
+      >
+        <LinearGradient
+          colors={PRIMARY_GRADIENT}
+          style={styles.buttonGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Text style={styles.primaryButtonText}>{title}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  };
+
   // AI Game Scenarios
   const aiScenarios: { type: ScenarioType; title: string; description: string; color: string }[] = [
     {
       type: 'evacuation-dash',
       title: 'Evacuation Dash',
       description: 'A real-time decision simulator for evacuating from a disaster zone.',
-      color: '#4caf50'
+      color: PRIMARY
     },
     {
       type: 'earthquake',
@@ -181,166 +220,243 @@ export default function SimulationsScreen() {
   if (gameMode === 'results') {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.push('/tabs/toolKit')}>
-            <Ionicons name="arrow-back" size={24} color="#6366f1" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Training Complete</Text>
-          <View style={styles.headerSpacer} />
+        {/* Background Elements */}
+        <View style={styles.backgroundElements}>
+          <View style={[styles.bgCircle, styles.bgCircle1]} />
+          <View style={[styles.bgCircle, styles.bgCircle2]} />
+          <View style={[styles.bgCircle, styles.bgCircle3]} />
         </View>
 
-        <ScrollView style={styles.resultsContent}>
-          <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>Latest Performance</Text>
-            {recentGames.length > 0 ? (
-              <View style={styles.latestResult}>
-                <Text style={styles.latestScenario}>
-                  {getScenarioIcon(recentGames[0].scenarioType as ScenarioType)} {recentGames[0].scenarioTitle}
-                </Text>
-                <Text style={styles.latestScore}>Score: {recentGames[0].score}</Text>
-                <Text style={[
-                  styles.latestOutcome,
-                  { color: recentGames[0].victory ? '#4CAF50' : '#F44336' }
-                ]}>
-                  {recentGames[0].victory ? '🎉 Victory!' : '💀 Defeated'}
-                </Text>
-              </View>
-            ) : (
-              <Text style={styles.noResults}>No recent games</Text>
-            )}
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.push('/tabs/toolKit')}>
+              <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Training Complete</Text>
+              <Text style={styles.subtitle}>Great job on your simulation!</Text>
+            </View>
+            <View style={styles.headerSpacer} />
           </View>
 
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => setGameMode('menu')}
-            >
-              <Text style={styles.actionIcon}>🎮</Text>
-              <Text style={styles.actionTitle}>New Training</Text>
-              <Text style={styles.actionDesc}>Start another scenario</Text>
-            </TouchableOpacity>
+          <ScrollView style={styles.resultsContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.statsCard}>
+              <LinearGradient
+                colors={["#fff", "#f8fafc"]}
+                style={styles.statsGradient}
+              >
+                <Text style={styles.statsTitle}>Latest Performance</Text>
+                {recentGames.length > 0 ? (
+                  <View style={styles.latestResult}>
+                    <Text style={styles.latestScenario}>
+                      {getScenarioIcon(recentGames[0].scenarioType as ScenarioType)} {recentGames[0].scenarioTitle}
+                    </Text>
+                    <Text style={styles.latestScore}>Score: {recentGames[0].score}</Text>
+                    <View style={[
+                      styles.outcomeBadge,
+                      { backgroundColor: recentGames[0].victory ? '#e8f5e8' : '#fee2e2' }
+                    ]}>
+                      <Text style={[
+                        styles.latestOutcome,
+                        { color: recentGames[0].victory ? PRIMARY : '#dc2626' }
+                      ]}>
+                        {recentGames[0].victory ? '🎉 Victory!' : '💀 Defeated'}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.noResults}>No recent games</Text>
+                )}
+              </LinearGradient>
+            </View>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('../tabs/toolKit/game-results')}
-            >
-              <Text style={styles.actionIcon}>📊</Text>
-              <Text style={styles.actionTitle}>View Results</Text>
-              <Text style={styles.actionDesc}>See all statistics</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            <View style={styles.actionsGrid}>
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => setGameMode('menu')}
+              >
+                <LinearGradient
+                  colors={["#fff", "#f8fafc"]}
+                  style={styles.actionGradient}
+                >
+                  <Text style={styles.actionIcon}>🎮</Text>
+                  <Text style={styles.actionTitle}>New Training</Text>
+                  <Text style={styles.actionDesc}>Start another scenario</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.actionCard}
+                onPress={() => router.push('../tabs/toolKit/game-results')}
+              >
+                <LinearGradient
+                  colors={["#fff", "#f8fafc"]}
+                  style={styles.actionGradient}
+                >
+                  <Text style={styles.actionIcon}>📊</Text>
+                  <Text style={styles.actionTitle}>View Results</Text>
+                  <Text style={styles.actionDesc}>See all statistics</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#6366f1" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Disaster Training Simulator</Text>
-      </View>
-      <Text style={styles.subtitle}>
-        AI-powered emergency response training with realistic scenarios
-      </Text>
-      
-      {/* Quick Stats */}
-      <View style={styles.quickStats}>
-        <View style={styles.quickStat}>
-          <Text style={styles.quickStatNumber}>{gameStats.totalGames}</Text>
-          <Text style={styles.quickStatLabel}>Games</Text>
-        </View>
-        <View style={styles.quickStat}>
-          <Text style={styles.quickStatNumber}>{gameStats.victories}</Text>
-          <Text style={styles.quickStatLabel}>Wins</Text>
-        </View>
-        <View style={styles.quickStat}>
-          <Text style={styles.quickStatNumber}>{gameStats.bestScore}</Text>
-          <Text style={styles.quickStatLabel}>Best</Text>
-        </View>
+      {/* Background Elements */}
+      <View style={styles.backgroundElements}>
+        <View style={[styles.bgCircle, styles.bgCircle1]} />
+        <View style={[styles.bgCircle, styles.bgCircle2]} />
+        <View style={[styles.bgCircle, styles.bgCircle3]} />
       </View>
 
-      {/* AI Game Section */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🤖 AI-Powered Training</Text>
-          <Text style={styles.sectionDescription}>
-            Dynamic scenarios generated by AI with realistic consequences and adaptive difficulty
-          </Text>
-          
-          <View style={styles.scenariosGrid}>
-            {aiScenarios.map((scenario) => (
-              <TouchableOpacity
-                key={scenario.type}
-                style={[
-                  styles.scenarioCard,
-                  { borderLeftColor: scenario.color }
-                ]}
-                onPress={() => startAIGame(scenario)}
-              >
-                <View style={styles.scenarioHeader}>
-                  <Text style={styles.scenarioIcon}>{getScenarioIcon(scenario.type)}</Text>
-                  <View style={styles.scenarioInfo}>
-                    <Text style={styles.scenarioTitle}>{scenario.title}</Text>
-                    <Text style={styles.scenarioDesc}>{scenario.description}</Text>
-                  </View>
-                </View>
-                <View style={styles.scenarioFooter}>
-                  <Text style={styles.startTrainingText}>Start Training →</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: BG }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Disaster Training Simulator</Text>
+              <Text style={styles.subtitle}>
+                AI-powered emergency response training with realistic scenarios
+              </Text>
+            </View>
           </View>
-        </View>
-
-        {/* Recent Activity */}
-        {recentGames.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📈 Recent Activity</Text>
-            <View style={styles.recentGames}>
-              {recentGames.map((game, index) => (
-                <View key={game.id} style={styles.recentGameCard}>
-                  <Text style={styles.recentGameScenario}>
-                    {getScenarioIcon(game.scenarioType as ScenarioType)} {game.scenarioTitle}
-                  </Text>
-                  <View style={styles.recentGameStats}>
-                    <Text style={styles.recentGameScore}>{game.score} pts</Text>
-                    <Text style={[
-                      styles.recentGameOutcome,
-                      { color: game.victory ? '#4CAF50' : '#F44336' }
-                    ]}>
-                      {game.victory ? 'Won' : 'Lost'}
-                    </Text>
+          {/* Quick Stats */}
+          <View style={styles.statsOverview}>
+            <LinearGradient
+              colors={["#fff", "#f8fafc"]}
+              style={styles.statsGradient}
+            >
+              <View style={styles.statsContent}>
+                <View style={styles.stat}>
+                  <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}> 
+                    <Ionicons name="game-controller" size={20} color={PRIMARY} />
                   </View>
+                  <Text style={styles.statNumber}>{gameStats.totalGames}</Text>
+                  <Text style={styles.statLabel}>Games</Text>
                 </View>
+                <View style={styles.stat}>
+                  <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}> 
+                    <Ionicons name="trophy" size={20} color={PRIMARY} />
+                  </View>
+                  <Text style={styles.statNumber}>{gameStats.victories}</Text>
+                  <Text style={styles.statLabel}>Wins</Text>
+                </View>
+                <View style={styles.stat}>
+                  <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}> 
+                    <Ionicons name="star" size={20} color={PRIMARY} />
+                  </View>
+                  <Text style={styles.statNumber}>{gameStats.bestScore}</Text>
+                  <Text style={styles.statLabel}>Best</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+          {/* AI Game Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🤖 AI-Powered Training</Text>
+            <Text style={styles.sectionDescription}>
+              Dynamic scenarios generated by AI with realistic consequences and adaptive difficulty
+            </Text>
+            <View style={styles.scenariosGrid}>
+              {aiScenarios.map((scenario) => (
+                <TouchableOpacity
+                  key={scenario.type}
+                  style={styles.scenarioCard}
+                  onPress={() => startAIGame(scenario)}
+                >
+                  <LinearGradient
+                    colors={["#fff", "#f8fafc"]}
+                    style={styles.scenarioGradient}
+                  >
+                    <View style={styles.scenarioHeader}>
+                      <View style={[styles.scenarioIconContainer, { backgroundColor: '#e8f5e8' }]}> 
+                        <Text style={styles.scenarioIcon}>{getScenarioIcon(scenario.type)}</Text>
+                      </View>
+                      <View style={styles.scenarioInfo}>
+                        <Text style={styles.scenarioTitle}>{scenario.title}</Text>
+                        <Text style={styles.scenarioDesc}>{scenario.description}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.scenarioFooter}>
+                      <View style={[styles.startButton, { backgroundColor: PRIMARY }]}> 
+                        <Text style={styles.startTrainingText}>Start Training →</Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </TouchableOpacity>
               ))}
             </View>
-            
-            <TouchableOpacity 
-              style={styles.viewAllButton}
-              onPress={() => router.push('../tabs/toolKit/game-results')}
-            >
-              <Text style={styles.viewAllText}>View All Results →</Text>
-            </TouchableOpacity>
           </View>
-        )}
-
-        {/* Training Tips */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💡 Training Tips</Text>
-          <View style={styles.tipsCard}>
-            <Text style={styles.tip}>• Assess the situation before acting</Text>
-            <Text style={styles.tip}>• Prioritize life safety over property</Text>
-            <Text style={styles.tip}>• Use available resources wisely</Text>
-            <Text style={styles.tip}>• Stay calm and make deliberate decisions</Text>
-            <Text style={styles.tip}>• Practice different scenarios regularly</Text>
+          {/* Recent Activity */}
+          {recentGames.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>📈 Recent Activity</Text>
+              <View style={styles.recentGames}>
+                {recentGames.map((game, index) => (
+                  <View key={game.id} style={styles.recentGameCard}>
+                    <LinearGradient
+                      colors={["#fff", "#f8fafc"]}
+                      style={styles.recentGameGradient}
+                    >
+                      <Text style={styles.recentGameScenario}>
+                        {getScenarioIcon(game.scenarioType as ScenarioType)} {game.scenarioTitle}
+                      </Text>
+                      <View style={styles.recentGameStats}>
+                        <Text style={styles.recentGameScore}>{game.score} pts</Text>
+                        <View style={[
+                          styles.outcomeBadge,
+                          { backgroundColor: game.victory ? '#e8f5e8' : '#fee2e2' }
+                        ]}>
+                          <Text style={[
+                            styles.recentGameOutcome,
+                            { color: game.victory ? PRIMARY : '#dc2626' }
+                          ]}>
+                            {game.victory ? 'Won' : 'Lost'}
+                          </Text>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </View>
+                ))}
+              </View>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={() => router.push('../tabs/toolKit/game-results')}
+              >
+                <Text style={styles.viewAllText}>View All Results →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {/* Training Tips */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💡 Training Tips</Text>
+            <View style={styles.tipsCard}>
+              <LinearGradient
+                colors={["#fff", "#f8fafc"]}
+                style={styles.tipsGradient}
+              >
+                <Text style={styles.tip}>• Assess the situation before acting</Text>
+                <Text style={styles.tip}>• Prioritize life safety over property</Text>
+                <Text style={styles.tip}>• Use available resources wisely</Text>
+                <Text style={styles.tip}>• Stay calm and make deliberate decisions</Text>
+                <Text style={styles.tip}>• Practice different scenarios regularly</Text>
+              </LinearGradient>
+            </View>
           </View>
         </View>
       </ScrollView>
-
       {/* Difficulty Selection Modal */}
       <Modal
         visible={showDifficultyModal}
@@ -354,7 +470,6 @@ export default function SimulationsScreen() {
             <Text style={styles.modalSubtitle}>
               Choose how challenging you want the scenario to be
             </Text>
-
             {[1, 2, 3, 4, 5].map((level) => (
               <TouchableOpacity
                 key={level}
@@ -376,20 +491,18 @@ export default function SimulationsScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
-
             <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.modalCancel}
+              <CustomButton
+                title="Cancel"
                 onPress={() => setShowDifficultyModal(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.modalConfirm}
+                variant="secondary"
+                style={styles.modalCancel}
+              />
+              <CustomButton
+                title="Start Training"
                 onPress={confirmAIGame}
-              >
-                <Text style={styles.modalConfirmText}>Start Training</Text>
-              </TouchableOpacity>
+                style={styles.modalConfirm}
+              />
             </View>
           </View>
         </View>
@@ -401,66 +514,131 @@ export default function SimulationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: BG,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 0,
-    backgroundColor: 'white',
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
   },
-  backButton: {
-    marginRight: 8,
-    padding: 4,
-    borderRadius: 8,
-    backgroundColor: "#ede9fe",
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#6366f1',
-    textAlign: 'left',
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 16,
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
   },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  quickStat: {
-    alignItems: 'center',
-  },
-  quickStatNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2e7d32',
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
   },
   content: {
     flex: 1,
+    zIndex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#e8f5e8',
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    lineHeight: 22,
+  },
+  statsOverview: {
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  statsGradient: {
+    borderRadius: 24,
+    padding: 24,
+  },
+  statsContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: PRIMARY,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  scrollContent: {
+    flex: 1,
   },
   section: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e5e7eb',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: '#6b7280',
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -468,24 +646,32 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   scenarioCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+  },
+  scenarioGradient: {
+    padding: 16,
+    borderRadius: 16,
   },
   scenarioHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  scenarioIcon: {
-    fontSize: 24,
+  scenarioIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+  },
+  scenarioIcon: {
+    fontSize: 18,
   },
   scenarioInfo: {
     flex: 1,
@@ -493,19 +679,24 @@ const styles = StyleSheet.create({
   scenarioTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 4,
   },
   scenarioDesc: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: '#6b7280',
     lineHeight: 18,
   },
   scenarioFooter: {
     alignItems: 'flex-end',
   },
+  startButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
   startTrainingText: {
-    color: '#2e7d32',
+    color: '#fff',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -513,9 +704,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recentGameCard: {
-    backgroundColor: 'white',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  recentGameGradient: {
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -523,15 +721,21 @@ const styles = StyleSheet.create({
   recentGameScenario: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
   },
   recentGameStats: {
     alignItems: 'flex-end',
+    gap: 4,
   },
   recentGameScore: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2e7d32',
+    color: PRIMARY,
+  },
+  outcomeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   recentGameOutcome: {
     fontSize: 12,
@@ -543,39 +747,44 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   viewAllText: {
-    color: '#3498db',
+    color: PRIMARY,
     fontWeight: '600',
   },
   tipsCard: {
-    backgroundColor: 'white',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tipsGradient: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
   tip: {
     fontSize: 14,
-    color: '#2c3e50',
+    color: '#374151',
     marginBottom: 8,
     lineHeight: 20,
   },
   resultsContent: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 24,
   },
   statsCard: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
+    borderRadius: 20,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
   },
   statsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 16,
   },
   latestResult: {
@@ -584,22 +793,22 @@ const styles = StyleSheet.create({
   latestScenario: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 8,
   },
   latestScore: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2e7d32',
+    color: PRIMARY,
     marginBottom: 8,
   },
   latestOutcome: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   noResults: {
     textAlign: 'center',
-    color: '#7f8c8d',
+    color: '#6b7280',
     fontSize: 16,
   },
   actionsGrid: {
@@ -608,15 +817,17 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+  },
+  actionGradient: {
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
   },
   actionIcon: {
     fontSize: 32,
@@ -625,17 +836,13 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 4,
   },
   actionDesc: {
     fontSize: 12,
-    color: '#7f8c8d',
+    color: '#6b7280',
     textAlign: 'center',
-  },
-  backText: {
-    color: '#2e7d32',
-    fontWeight: '600',
   },
   headerSpacer: {
     width: 60,
@@ -654,17 +861,22 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 10,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2c3e50',
+    color: '#1f2937',
     marginBottom: 8,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 16,
-    color: '#7f8c8d',
+    color: '#6b7280',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
@@ -680,7 +892,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   difficultyOptionSelected: {
-    borderColor: '#2e7d32',
+    borderColor: PRIMARY,
     backgroundColor: '#e8f5e8',
   },
   difficultyStars: {
@@ -689,7 +901,7 @@ const styles = StyleSheet.create({
   difficultyLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2c3e50',
+    color: '#1f2937',
   },
   modalActions: {
     flexDirection: 'row',
@@ -698,26 +910,41 @@ const styles = StyleSheet.create({
   },
   modalCancel: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#f8f9fa',
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    color: '#666',
-    fontWeight: '600',
-    fontSize: 16,
   },
   modalConfirm: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: '#2e7d32',
-    alignItems: 'center',
   },
-  modalConfirmText: {
-    color: 'white',
-    fontWeight: '600',
+  // Button Styles
+  primaryButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
     fontSize: 16,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: '#e8f5e8',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: PRIMARY,
+  },
+  secondaryButtonText: {
+    color: PRIMARY,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
