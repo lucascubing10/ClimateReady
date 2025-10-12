@@ -1,7 +1,7 @@
 // utils/geminiService.ts
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI('AIzaSyBkmarMub5OToRrpfXbaTrHeQwIo3e0mC4'); // You'll need to get this from Google AI Studio
+const genAI = new GoogleGenerativeAI('AIzaSyCiuL5VrLx4aUqB5-CXRTf0xo_CtgcrMA8'); // You'll need to get this from Google AI Studio
 
 export interface ScenarioResponse {
   title: string;

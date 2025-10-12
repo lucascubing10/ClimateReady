@@ -1,5 +1,5 @@
 // app/(tabs)/toolkit/index.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Vibration } from 'react-native';
 import {
   View,
@@ -553,39 +553,43 @@ export default function ToolkitScreen() {
     }
   };
 
+  const isFetchingAi = useRef(false);
+  const lastAiKey = useRef<string | null>(null);
+
   // Load AI toolkit
   useEffect(() => {
     (async () => {
-      console.log("useEffect: Loading AI toolkit for disaster:", activeDisaster);
-      setAiLoading(true);
-      let userProfile = await AsyncStorage.getItem("householdProfile");
-      let parsedProfile = userProfile ? JSON.parse(userProfile) : null;
+      const profileStr = await AsyncStorage.getItem("householdProfile");
+      const parsedProfile = profileStr ? JSON.parse(profileStr) : null;
       setProfile(parsedProfile);
 
-      if (parsedProfile?.householdCompleted) {
-        const cached = await getAiRecommendation();
-        if (cached) {
-          console.log("AI Toolkit: Loaded from cache.");
-          setPersonalizedToolkit(JSON.parse(cached));
-          setAiLoading(false);
-          return;
-        }
-        try {
-          console.log("AI Toolkit: Fetching new recommendations.");
-          const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
-          setPersonalizedToolkit(recommendations);
-          await saveAiRecommendation(JSON.stringify(recommendations));
-        } catch (error) {
-          console.error("AI Toolkit: Error fetching recommendations:", error);
-          setPersonalizedToolkit([]);
-        }
-      } else {
-        console.log("AI Toolkit: Household profile not complete.");
+      // Only fetch when the household page is completed
+      if (!parsedProfile?.householdCompleted) return;
+
+      // Build a stable key for de-dupe (disaster + profile snapshot)
+      const aiKey = JSON.stringify({
+        d: activeDisaster ?? 'general',
+        p: parsedProfile?.householdCompleted ? parsedProfile : null,
+      });
+
+      if (isFetchingAi.current || lastAiKey.current === aiKey) return;
+      isFetchingAi.current = true;
+      lastAiKey.current = aiKey;
+
+      try {
+        setAiLoading(true);
+        // Direct call; remove local cache usage to avoid re-fetch loops
+        const recommendations = await getPersonalizedToolkit(parsedProfile, activeDisaster ?? undefined);
+        setPersonalizedToolkit(recommendations);
+      } catch (e) {
+        console.warn('AI Toolkit fetch failed:', e);
         setPersonalizedToolkit([]);
+      } finally {
+        setAiLoading(false);
+        isFetchingAi.current = false;
       }
-      setAiLoading(false);
     })();
-  }, [activeDisaster]);
+  }, [activeDisaster]); // keep deps minimal
 
   // Load progress when screen comes into focus
   useFocusEffect(

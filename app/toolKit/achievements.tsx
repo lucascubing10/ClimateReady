@@ -1,10 +1,30 @@
 // app/(tabs)/toolkit/achievements.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Animated,
+  Dimensions 
+} from 'react-native';
 import { badges, Badge, getEarnedBadges } from '@/utils/badges';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { getUserProgress } from '@/utils/storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
+
+const { width } = Dimensions.get('window');
+
+// Color palette matching your app
+const PRIMARY = '#5ba24f';
+const PRIMARY_GRADIENT = ['#5ba24f', '#4a8c40'];
+const YELLOW = '#fac609';
+const ORANGE = '#e5793a';
+const BG = '#dcefdd';
+const CARD_BG = '#ffffff';
 
 export default function AchievementsScreen() {
   const [activeTab, setActiveTab] = useState<'earned' | 'all'>('earned');
@@ -17,29 +37,34 @@ export default function AchievementsScreen() {
     totalPoints: 0
   });
 
-  // Mock animation values
+  // Animation values
   const scaleAnims = badges.reduce((acc, badge) => {
     acc[badge.id] = new Animated.Value(1);
-    
     return acc;
   }, {} as Record<string, Animated.Value>);
 
+  const loadProgress = async () => {
+    const progress = await getUserProgress();
+    setUserProgress({
+      completedItems: progress.completedItems,
+      totalPoints: progress.points
+    });
+    const badges = getEarnedBadges({
+      completedItems: progress.completedItems,
+      totalPoints: progress.points
+    });
+    setEarnedBadges(badges);
+  };
+
   useEffect(() => {
-    // Load user progress from persistent storage
-    const loadProgress = async () => {
-      const progress = await getUserProgress();
-      setUserProgress({
-        completedItems: progress.completedItems,
-        totalPoints: progress.points
-      });
-      const badges = getEarnedBadges({
-        completedItems: progress.completedItems,
-        totalPoints: progress.points
-      });
-      setEarnedBadges(badges);
-    };
     loadProgress();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProgress();
+    }, [])
+  );
 
   const animateBadge = (badgeId: string) => {
     Animated.sequence([
@@ -85,141 +110,188 @@ export default function AchievementsScreen() {
       key={badge.id}
       style={[
         styles.badgeCard,
-        isEarned ? styles.badgeCardEarned : styles.badgeCardLocked,
         { transform: [{ scale: isEarned ? scaleAnims[badge.id] : 1 }] }
       ]}
     >
-      <View style={styles.badgeHeader}>
-        <View style={[styles.badgeIcon, { backgroundColor: badge.color }]}>
-          <Text style={styles.badgeIconText}>{badge.icon}</Text>
-        </View>
-        <View style={styles.badgeInfo}>
-          <Text style={styles.badgeName}>{badge.name}</Text>
-          <Text style={styles.badgeDescription}>{badge.description}</Text>
-        </View>
-        {isEarned && (
-          <View style={styles.earnedIndicator}>
-            <Text style={styles.earnedText}>🎉 Earned!</Text>
+      <LinearGradient
+        colors={isEarned ? ["#f0fdf4", "#dcfce7"] : ["#fff", "#f8fafc"]}
+        style={styles.badgeGradient}
+      >
+        <View style={styles.badgeHeader}>
+          <View style={[styles.badgeIcon, { backgroundColor: badge.color }]}>
+            <Text style={styles.badgeIconText}>{badge.icon}</Text>
           </View>
-        )}
-      </View>
-
-      <View style={styles.progressSection}>
-        {!isEarned && (
-          <>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill,
-                  { width: `${getProgressForBadge(badge) * 100}%` }
-                ]} 
-              />
+          <View style={styles.badgeInfo}>
+            <Text style={styles.badgeName}>{badge.name}</Text>
+            <Text style={styles.badgeDescription}>{badge.description}</Text>
+          </View>
+          {isEarned && (
+            <View style={styles.earnedIndicator}>
+              <Ionicons name="trophy" size={16} color="#fff" />
+              <Text style={styles.earnedText}>Earned!</Text>
             </View>
-            <Text style={styles.progressText}>
-              {Math.round(getProgressForBadge(badge) * 100)}% complete
-            </Text>
-          </>
-        )}
-        
-        {isEarned && (
-          <View style={styles.achievementDate}>
-            <Text style={styles.dateText}>Earned today!</Text>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
 
-      <View style={styles.requirements}>
-        <Text style={styles.requirementsTitle}>Requirements:</Text>
-        <Text style={styles.requirementsText}>
-          {badge.requirements.type === 'checklist_completion' && `Complete ${badge.requirements.target} checklist items`}
-          {badge.requirements.type === 'category_mastery' && `Complete ${badge.requirements.target} ${badge.requirements.category} items`}
-          {badge.requirements.type === 'content_completion' && `Complete ${badge.requirements.target} educational modules`}
-          {badge.requirements.type === 'points' && `Earn ${badge.requirements.target} total points`}
-        </Text>
-      </View>
+        <View style={styles.progressSection}>
+          {!isEarned && (
+            <>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { width: `${getProgressForBadge(badge) * 100}%` }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Math.round(getProgressForBadge(badge) * 100)}% complete
+              </Text>
+            </>
+          )}
+          
+          {isEarned && (
+            <View style={styles.achievementDate}>
+              <Ionicons name="checkmark-circle" size={16} color={PRIMARY} />
+              <Text style={styles.dateText}>Completed!</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.requirements}>
+          <Text style={styles.requirementsTitle}>Requirements:</Text>
+          <Text style={styles.requirementsText}>
+            {badge.requirements.type === 'checklist_completion' && `Complete ${badge.requirements.target} checklist items`}
+            {badge.requirements.type === 'category_mastery' && `Complete ${badge.requirements.target} ${badge.requirements.category} items`}
+            {badge.requirements.type === 'content_completion' && `Complete ${badge.requirements.target} educational modules`}
+            {badge.requirements.type === 'points' && `Earn ${badge.requirements.target} total points`}
+          </Text>
+        </View>
+      </LinearGradient>
     </Animated.View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/tabs/toolKit')} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#6366f1" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Achievements</Text>
-      </View>
-      <Text style={styles.subtitle}>Track your preparedness progress</Text>
-      
-      <View style={styles.statsOverview}>
-        <View style={styles.stat}>
-          <Text style={styles.statNumber}>{earnedBadges.length}</Text>
-          <Text style={styles.statLabel}>Badges Earned</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statNumber}>{userProgress.totalPoints}</Text>
-          <Text style={styles.statLabel}>Total Points</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statNumber}>{Math.round((earnedBadges.length / badges.length) * 100)}%</Text>
-          <Text style={styles.statLabel}>Completion</Text>
-        </View>
+      {/* Background Elements */}
+      <View style={styles.backgroundElements}>
+        <View style={[styles.bgCircle, styles.bgCircle1]} />
+        <View style={[styles.bgCircle, styles.bgCircle2]} />
+        <View style={[styles.bgCircle, styles.bgCircle3]} />
       </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'earned' && styles.tabActive]}
-          onPress={() => setActiveTab('earned')}
-        >
-          <Text style={[styles.tabText, activeTab === 'earned' && styles.tabTextActive]}>
-            Earned ({earnedBadges.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'all' && styles.tabActive]}
-          onPress={() => setActiveTab('all')}
-        >
-          <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
-            All Badges ({badges.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.push('/tabs/toolKit')} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={PRIMARY} />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.title}>Achievements</Text>
+            <Text style={styles.subtitle}>Track your preparedness progress</Text>
+          </View>
+        </View>
 
-      {/* Badges List */}
-      <ScrollView style={styles.badgesContainer}>
-        {activeTab === 'earned' ? (
-          earnedBadgesList.length > 0 ? (
-            earnedBadgesList.map(badge => renderBadgeCard(badge, true))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>🏆</Text>
-              <Text style={styles.emptyStateTitle}>No Badges Yet</Text>
-              <Text style={styles.emptyStateText}>
-                Complete checklist items to earn your first badge!
-              </Text>
+        {/* Stats Overview */}
+        <View style={styles.statsOverview}>
+          <LinearGradient
+            colors={["#fff", "#f8fafc"]}
+            style={styles.statsGradient}
+          >
+            <View style={styles.statsContent}>
+              <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="trophy" size={20} color={PRIMARY} />
+                </View>
+                <Text style={styles.statNumber}>{earnedBadges.length}</Text>
+                <Text style={styles.statLabel}>Badges Earned</Text>
+              </View>
+              <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="star" size={20} color={PRIMARY} />
+                </View>
+                <Text style={styles.statNumber}>{userProgress.totalPoints}</Text>
+                <Text style={styles.statLabel}>Total Points</Text>
+              </View>
+              <View style={styles.stat}>
+                <View style={[styles.statIcon, { backgroundColor: '#e8f5e8' }]}>
+                  <Ionicons name="checkmark-done" size={20} color={PRIMARY} />
+                </View>
+                <Text style={styles.statNumber}>{Math.round((earnedBadges.length / badges.length) * 100)}%</Text>
+                <Text style={styles.statLabel}>Completion</Text>
+              </View>
             </View>
-          )
-        ) : (
-          <>
-            {/* Earned Badges */}
-            {earnedBadgesList.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Earned Badges</Text>
-                {earnedBadgesList.map(badge => renderBadgeCard(badge, true))}
+          </LinearGradient>
+        </View>
+
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'earned' && styles.tabActive]}
+            onPress={() => setActiveTab('earned')}
+          >
+            <Text style={[styles.tabText, activeTab === 'earned' && styles.tabTextActive]}>
+              Earned ({earnedBadges.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'all' && styles.tabActive]}
+            onPress={() => setActiveTab('all')}
+          >
+            <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
+              All Badges ({badges.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Badges List */}
+        <ScrollView style={styles.badgesContainer} showsVerticalScrollIndicator={false}>
+          {activeTab === 'earned' ? (
+            earnedBadgesList.length > 0 ? (
+              earnedBadgesList.map(badge => renderBadgeCard(badge, true))
+            ) : (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyStateIcon}>
+                  <Ionicons name="trophy-outline" size={48} color={PRIMARY} />
+                </View>
+                <Text style={styles.emptyStateTitle}>No Badges Yet</Text>
+                <Text style={styles.emptyStateText}>
+                  Complete checklist items to earn your first badge!
+                </Text>
+                <TouchableOpacity 
+                  style={styles.emptyStateButton}
+                  onPress={() => router.push('/tabs/toolKit')}
+                >
+                  <LinearGradient
+                    colors={PRIMARY_GRADIENT as unknown as readonly [import('react-native').ColorValue, import('react-native').ColorValue, ...import('react-native').ColorValue[]]}
+                    style={styles.emptyStateButtonGradient}
+                  >
+                    <Text style={styles.emptyStateButtonText}>Start Checklist</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
-            )}
-            
-            {/* Locked Badges */}
-            {lockedBadges.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Available Badges</Text>
-                {lockedBadges.map(badge => renderBadgeCard(badge, false))}
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+            )
+          ) : (
+            <>
+              {/* Earned Badges */}
+              {earnedBadgesList.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Earned Badges</Text>
+                  {earnedBadgesList.map(badge => renderBadgeCard(badge, true))}
+                </View>
+              )}
+              
+              {/* Locked Badges */}
+              {lockedBadges.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Available Badges</Text>
+                  {lockedBadges.map(badge => renderBadgeCard(badge, false))}
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -227,107 +299,170 @@ export default function AchievementsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: BG,
+  },
+  backgroundElements: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  bgCircle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.1,
+  },
+  bgCircle1: {
+    width: 300,
+    height: 300,
+    backgroundColor: PRIMARY,
+    top: -150,
+    right: -100,
+  },
+  bgCircle2: {
+    width: 200,
+    height: 200,
+    backgroundColor: YELLOW,
+    bottom: -50,
+    left: -50,
+  },
+  bgCircle3: {
+    width: 150,
+    height: 150,
+    backgroundColor: ORANGE,
+    top: '30%',
+    right: '20%',
+  },
+  content: {
+    flex: 1,
+    zIndex: 1,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    paddingBottom: 0,
-    backgroundColor: "white",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 16,
   },
   backButton: {
-    marginRight: 8,
-    padding: 4,
-    borderRadius: 8,
-    backgroundColor: "#ede9fe",
+    marginRight: 16,
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#e8f5e8',
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#6366f1",
-    textAlign: "left",
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1f2937',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#666",
-    marginBottom: 20,
-    textAlign: "left",
+    color: '#6b7280',
+    lineHeight: 22,
   },
   statsOverview: {
+    marginHorizontal: 24,
+    marginBottom: 20,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  statsGradient: {
+    borderRadius: 24,
+    padding: 24,
+  },
+  statsContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
   },
   stat: {
     alignItems: 'center',
   },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   statNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#2e7d32',
+    color: PRIMARY,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: CARD_BG,
+    marginHorizontal: 24,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tab: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 12,
     alignItems: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
+    borderRadius: 12,
   },
   tabActive: {
-    borderBottomColor: '#2e7d32',
+    backgroundColor: '#e8f5e8',
   },
   tabText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '600',
   },
   tabTextActive: {
-    color: '#2e7d32',
-    fontWeight: '600',
+    color: PRIMARY,
+    fontWeight: '700',
   },
   badgesContainer: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 24,
   },
   section: {
     marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1f2937',
     marginBottom: 12,
     marginLeft: 8,
   },
   badgeCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
-  badgeCardEarned: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
-  badgeCardLocked: {
-    opacity: 0.7,
+  badgeGradient: {
+    padding: 16,
+    borderRadius: 16,
   },
   badgeHeader: {
     flexDirection: 'row',
@@ -341,6 +476,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   badgeIconText: {
     fontSize: 20,
@@ -351,18 +491,22 @@ const styles = StyleSheet.create({
   badgeName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#1f2937',
     marginBottom: 4,
   },
   badgeDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#6b7280',
+    lineHeight: 18,
   },
   earnedIndicator: {
-    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PRIMARY,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    gap: 4,
   },
   earnedText: {
     color: 'white',
@@ -374,66 +518,96 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#e5e7eb',
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 4,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4CAF50',
+    backgroundColor: PRIMARY,
     borderRadius: 3,
   },
   progressText: {
     fontSize: 12,
-    color: '#666',
+    color: '#6b7280',
+    fontWeight: '500',
   },
   achievementDate: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 4,
   },
   dateText: {
     fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
+    color: PRIMARY,
+    fontWeight: '600',
   },
   requirements: {
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: '#f1f5f9',
     paddingTop: 12,
   },
   requirementsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#1f2937',
     marginBottom: 4,
   },
   requirementsText: {
     fontSize: 13,
-    color: '#666',
+    color: '#6b7280',
     lineHeight: 18,
   },
   emptyState: {
     alignItems: 'center',
     padding: 40,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: CARD_BG,
+    borderRadius: 20,
     marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
   },
   emptyStateIcon: {
-    fontSize: 48,
     marginBottom: 16,
   },
   emptyStateTitle: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1f2937',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#666',
+    color: '#6b7280',
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 20,
+  },
+  emptyStateButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  emptyStateButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
