@@ -12,7 +12,7 @@ import {
   SafeAreaView,
   TouchableOpacity
 } from 'react-native';
-import { Stack, Link, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { InputField } from '../../components/AuthComponents';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,6 +67,15 @@ export default function ForgotPasswordScreen() {
   const router = useRouter();
   
   const { resetPassword } = useAuth();
+
+  const handleCancel = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/auth/login');
+  };
   
   const validateEmail = () => {
     if (!email.trim()) {
@@ -111,7 +120,17 @@ export default function ForgotPasswordScreen() {
   
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'Forgot Password' }} />
+      <Stack.Screen
+        options={{
+          title: 'Forgot Password',
+          headerLeft: () => (
+            <TouchableOpacity style={styles.headerCancel} onPress={handleCancel}>
+              <Ionicons name="close" size={20} color={PRIMARY} />
+              <Text style={styles.headerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
@@ -212,12 +231,10 @@ export default function ForgotPasswordScreen() {
                 entering={FadeInUp.duration(600).delay(1000)}
                 style={styles.backLinkContainer}
               >
-                <Link href={'/auth/login'} asChild>
-                  <TouchableOpacity style={styles.backLink}>
-                    <Ionicons name="arrow-back" size={16} color={PRIMARY} />
-                    <Text style={styles.backLinkText}>Back to Login</Text>
-                  </TouchableOpacity>
-                </Link>
+                <TouchableOpacity style={styles.backLink} onPress={handleCancel}>
+                  <Ionicons name="close" size={16} color={PRIMARY} />
+                  <Text style={styles.backLinkText}>Cancel</Text>
+                </TouchableOpacity>
               </Animated.View>
             </Animated.View>
           )}
@@ -369,5 +386,17 @@ const styles = StyleSheet.create({
     color: PRIMARY,
     fontSize: 16,
     fontWeight: '500',
+  },
+  headerCancel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  headerCancelText: {
+    marginLeft: 6,
+    color: PRIMARY,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
