@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, FlatList, ActivityIndicator, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import dayjs from 'dayjs';
@@ -11,14 +11,7 @@ import CommunityNotificationsBell from '@/components/community/CommunityNotifica
 import { API_BASE } from '@/constants/env';
 import { useActiveUser } from '@/utils/activeUser';
 import { onPostCreated, onPostDeleted, onPostUpdated } from '@/utils/eventBus';
-
-const filters: { label: string; value: Category }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'General', value: 'general' },
-  { label: 'Flood', value: 'flood' },
-  { label: 'Heat Wave', value: 'heatwave' },
-  { label: 'Earthquake', value: 'earthquake' },
-];
+import { useLocalization } from '@/context/LocalizationContext';
 
 type ChipProps = { label: string; active?: boolean; onPress?: () => void; activeColor?: string };
 const FilterChip = ({ label, active, onPress, activeColor }: ChipProps) => (
@@ -32,7 +25,7 @@ const FilterChip = ({ label, active, onPress, activeColor }: ChipProps) => (
       marginRight: 8,
       marginBottom: 8,
       minHeight: 36,
-      justifyContent: 'center'
+      justifyContent: 'center',
     }}
     hitSlop={6}
   >
@@ -61,6 +54,29 @@ export default function CommunityList() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const r = useRouter();
+  const { t } = useLocalization();
+
+  const filterOptions: { label: string; value: Category }[] = useMemo(
+    () => [
+      { label: t('community.filters.all'), value: 'all' },
+      { label: t('community.filters.general'), value: 'general' },
+      { label: t('community.filters.flood'), value: 'flood' },
+      { label: t('community.filters.heatwave'), value: 'heatwave' },
+      { label: t('community.filters.earthquake'), value: 'earthquake' },
+    ],
+    [t]
+  );
+
+  const categoryLabels = useMemo(
+    () => ({
+      general: t('community.filters.general'),
+      flood: t('community.filters.flood'),
+      heatwave: t('community.filters.heatwave'),
+      earthquake: t('community.filters.earthquake'),
+    }),
+    [t]
+  );
+
 // Component that displays a smaller, fully visible image without aggressive cropping
 function PostImage({ uri }: { uri: string }) {
   const [ratio, setRatio] = useState<number | null>(null); // width/height
@@ -97,7 +113,7 @@ function PostImage({ uri }: { uri: string }) {
   );
 }
 
-  const load = async (opts?: { silent?: boolean }) => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = !!opts?.silent;
     if (!silent) setLoading(true);
     setError(null);
@@ -105,10 +121,10 @@ function PostImage({ uri }: { uri: string }) {
     if (Array.isArray(data)) {
       setItems(data);
     } else {
-      setError((data as any).error || 'Failed to load');
+      setError((data as any).error || t('community.errors.generic'));
     }
     if (!silent) setLoading(false);
-  };
+  }, [activeUserId, cat, mine, t]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -118,13 +134,13 @@ function PostImage({ uri }: { uri: string }) {
 
   useEffect(() => {
     load();
-  }, [cat, mine]);
+  }, [load]);
 
   // Reload when coming back to this screen (focus) to reflect deletes/edits from detail
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [cat, mine])
+    }, [load])
   );
 
   // Optimistic create/update/delete sync using cross-platform event bus
@@ -145,13 +161,13 @@ function PostImage({ uri }: { uri: string }) {
       unsubDelete();
       unsubUpdate();
     };
-  }, [cat, mine]);
+  }, [activeUserId, cat, mine]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* Filters */}
-  <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12, alignItems: 'center' }}>
-        {filters.map(f => (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12, alignItems: 'center' }}>
+        {filterOptions.map(f => (
           <FilterChip
             key={f.value}
             label={f.label}
@@ -160,7 +176,7 @@ function PostImage({ uri }: { uri: string }) {
           />
         ))}
         <FilterChip
-          label={mine ? 'My Posts ✓' : 'My Posts'}
+          label={mine ? t('community.mineLabelActive') : t('community.mineLabel')}
           active={mine}
           onPress={() => setMine(!mine)}
           activeColor="#16a34a"
@@ -171,7 +187,7 @@ function PostImage({ uri }: { uri: string }) {
           style={{ marginLeft: 'auto', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: '#0284c7', marginTop: 8 }}
           hitSlop={8}
         >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>+ Post</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>{t('community.createButton')}</Text>
         </Pressable>
         <CommunityNotificationsBell />
       </View>
@@ -181,10 +197,10 @@ function PostImage({ uri }: { uri: string }) {
       )}
       {!loading && error && (
         <View style={{ padding: 24, alignItems: 'center', gap: 12 }}>
-          <Text style={{ color: '#b91c1c', fontWeight: '600' }}>Failed to fetch posts</Text>
+          <Text style={{ color: '#b91c1c', fontWeight: '600' }}>{t('community.errors.title')}</Text>
           <Text style={{ color: '#64748b', fontSize: 12 }}>{error}</Text>
           <Pressable onPress={() => load()} style={{ backgroundColor: '#0284c7', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}>
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{t('community.errors.retry')}</Text>
           </Pressable>
         </View>
       )}
@@ -214,13 +230,13 @@ function PostImage({ uri }: { uri: string }) {
                     numberOfLines={1}
                     allowFontScaling={false}
                   >
-                    {item.category === 'heatwave' ? 'Heat Wave' : item.category}
+                    {categoryLabels[item.category as keyof typeof categoryLabels] || item.category}
                   </Text>
                 </View>
 
                 {item.resolved && (
                   <Text style={{ fontSize: 12, backgroundColor: '#fee2e2', color: '#b91c1c', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                    RESOLVED
+                    {t('community.statuses.resolved')}
                   </Text>
                 )}
                 {mine && item.blocked && (
@@ -230,14 +246,14 @@ function PostImage({ uri }: { uri: string }) {
                       allowFontScaling={false}
                       numberOfLines={1}
                     >
-                      BLOCKED
+                      {t('community.statuses.blocked')}
                     </Text>
                   </View>
                 )}
 
                 {item.status === 'pending' && (
                   <Text style={{ fontSize: 12, backgroundColor: '#fff7ed', color: '#c2410c', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
-                    PENDING REVIEW
+                    {t('community.statuses.pending')}
                   </Text>
                 )}
               </View>
@@ -247,7 +263,7 @@ function PostImage({ uri }: { uri: string }) {
               </Pressable>
 
               {item.imageUrl && (
-                  <PostImage uri={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_BASE}${item.imageUrl}`} />
+                <PostImage uri={item.imageUrl.startsWith('http') ? item.imageUrl : `${API_BASE}${item.imageUrl}`} />
               )}
 
               <View style={{ flexDirection: 'row', gap: 24, marginTop: 8, alignItems: 'center' }}>

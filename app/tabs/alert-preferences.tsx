@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Speech from 'expo-speech';
 import { useLocalization } from '@/context/LocalizationContext';
 import {
   ALERT_TYPE_ORDER,
@@ -20,8 +21,10 @@ import {
   getAlertPreferences,
   saveAlertPreferences,
   countEnabledPreferences,
+  getAlertTextToSpeechEnabled,
+  saveAlertTextToSpeechPreference,
 } from '@/utils/alertPreferences';
-import { emitAlertPreferencesUpdated } from '@/utils/eventBus';
+import { emitAlertPreferencesUpdated, emitAlertTextToSpeechUpdated } from '@/utils/eventBus';
 
 const hazardIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   rain: 'rainy-outline',
@@ -36,6 +39,8 @@ export default function AlertPreferencesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [preferences, setPreferences] = useState<AlertPreferenceMap>(DEFAULT_ALERT_PREFERENCES);
+  const [speechEnabled, setSpeechEnabled] = useState(false);
+  const [isTestingSpeech, setIsTestingSpeech] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,6 +49,10 @@ export default function AlertPreferencesScreen() {
         const stored = await getAlertPreferences();
         if (isMounted) {
           setPreferences(stored);
+        }
+        const speech = await getAlertTextToSpeechEnabled();
+        if (isMounted) {
+          setSpeechEnabled(language === 'en' ? speech : false);
         }
       } catch (error) {
         console.warn('[AlertPreferencesScreen] Unable to load preferences', error);
@@ -61,6 +70,7 @@ export default function AlertPreferencesScreen() {
   const enabledCount = useMemo(() => countEnabledPreferences(preferences), [preferences]);
   const allEnabled = enabledCount === ALERT_TYPE_ORDER.length;
   const noneEnabled = enabledCount === 0;
+  const isSpeechSupported = language === 'en';
 
   const handleToggle = (key: keyof AlertPreferenceMap) => {
     setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
@@ -86,8 +96,13 @@ export default function AlertPreferencesScreen() {
 
     setIsSaving(true);
     try {
-      await saveAlertPreferences(preferences);
+  const effectiveSpeech = isSpeechSupported ? speechEnabled : false;
+      await Promise.all([
+        saveAlertPreferences(preferences),
+        saveAlertTextToSpeechPreference(effectiveSpeech),
+      ]);
       emitAlertPreferencesUpdated(preferences);
+      emitAlertTextToSpeechUpdated(effectiveSpeech);
       Alert.alert(t('settings.notificationPreferences.title'), t('settings.notificationPreferences.feedback.saved'));
       router.back();
     } catch (error) {
@@ -98,6 +113,67 @@ export default function AlertPreferencesScreen() {
       );
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSpeechSupported && speechEnabled) {
+      setSpeechEnabled(false);
+    }
+  }, [isSpeechSupported, speechEnabled]);
+
+  const handleTestSpeech = async () => {
+    if (!isSpeechSupported) {
+      Alert.alert(
+        t('settings.notificationPreferences.title'),
+        t('settings.notificationPreferences.textToSpeech.languageRestriction')
+      );
+      return;
+    }
+
+    if (!speechEnabled) {
+      Alert.alert(
+        t('settings.notificationPreferences.title'),
+        t('settings.notificationPreferences.textToSpeech.testDisabled')
+      );
+      return;
+    }
+
+    setIsTestingSpeech(true);
+    try {
+      console.log('[AlertPreferencesScreen] Speech test triggered');
+      const voices = await Speech.getAvailableVoicesAsync();
+      const englishVoice = voices?.find(voice => voice?.language?.toLowerCase().startsWith('en'));
+
+      if (!englishVoice) {
+        console.warn('[AlertPreferencesScreen] No English TTS voice available', voices);
+        Alert.alert(
+          t('settings.notificationPreferences.title'),
+          t('settings.notificationPreferences.textToSpeech.testVoiceUnavailable')
+        );
+        return;
+      }
+
+      const message = t('settings.notificationPreferences.textToSpeech.testMessage');
+      await Speech.stop();
+      console.log('[AlertPreferencesScreen] Playing sample alert', {
+        voiceId: englishVoice.identifier,
+        language: englishVoice.language,
+      });
+      Speech.speak(message, {
+        language: englishVoice.language,
+        voice: englishVoice.identifier,
+        pitch: 1,
+        rate: 0.98,
+      });
+    } catch (error) {
+      console.warn('[AlertPreferencesScreen] Failed to play sample alert', error);
+      Alert.alert(
+        t('settings.notificationPreferences.title'),
+        t('settings.notificationPreferences.textToSpeech.testError')
+      );
+    } finally {
+      setIsTestingSpeech(false);
     }
   };
 
@@ -179,6 +255,68 @@ export default function AlertPreferencesScreen() {
                 </View>
               );
             })}
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.iconBadge}>
+                  <Ionicons name="volume-high-outline" size={20} color="#0f172a" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, language === 'ta' && styles.cardTitleTamil]}>
+                    {t('settings.notificationPreferences.textToSpeech.title')}
+                  </Text>
+                  <Text style={[styles.cardDescription, language === 'ta' && styles.cardDescriptionTamil]}>
+                    {t('settings.notificationPreferences.textToSpeech.description')}
+                  </Text>
+                  {!isSpeechSupported && (
+                    <View style={styles.noticePill}>
+                      <Ionicons name="alert-circle-outline" size={14} color="#b91c1c" style={{ marginRight: 6 }} />
+                      <Text style={styles.noticePillText}>
+                        {t('settings.notificationPreferences.textToSpeech.languageRestriction')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Switch
+                  value={isSpeechSupported ? speechEnabled : false}
+                  onValueChange={value => setSpeechEnabled(value)}
+                  disabled={!isSpeechSupported}
+                  trackColor={{ false: '#d1d5db', true: '#bae6fd' }}
+                  thumbColor={isSpeechSupported && speechEnabled ? '#0284c7' : '#f4f4f5'}
+                />
+              </View>
+              {isSpeechSupported && (
+                <TouchableOpacity
+                  style={[
+                    styles.testButton,
+                    (!speechEnabled || isTestingSpeech) && styles.testButtonDisabled,
+                  ]}
+                  onPress={handleTestSpeech}
+                  disabled={!speechEnabled || isTestingSpeech}
+                >
+                  {isTestingSpeech ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="play-outline"
+                        size={16}
+                        color={speechEnabled ? '#fff' : '#94a3b8'}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text
+                        style={[
+                          styles.testButtonText,
+                          (!speechEnabled || isTestingSpeech) && styles.testButtonTextDisabled,
+                        ]}
+                      >
+                        {t('settings.notificationPreferences.textToSpeech.testAction')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </ScrollView>
       )}
@@ -340,6 +478,40 @@ const styles = StyleSheet.create({
   cardDescriptionTamil: {
     fontSize: 12,
     lineHeight: 18,
+  },
+  noticePill: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#fee2e2',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  noticePillText: {
+    color: '#b91c1c',
+    fontSize: 12,
+    flex: 1,
+  },
+  testButton: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#0284c7',
+  },
+  testButtonDisabled: {
+    backgroundColor: '#e2e8f0',
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  testButtonTextDisabled: {
+    color: '#94a3b8',
   },
   footer: {
     padding: 20,

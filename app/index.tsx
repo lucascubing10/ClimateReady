@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue, TextStyle } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as Speech from 'expo-speech';
 import Animated, { FadeInUp, FadeInRight, SlideInDown, ZoomIn, BounceIn, LightSpeedInLeft, FlipInYLeft } from 'react-native-reanimated';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,8 +28,9 @@ import {
   AlertPreferenceMap,
   DEFAULT_ALERT_PREFERENCES,
   getAlertPreferences,
+  getAlertTextToSpeechEnabled,
 } from '@/utils/alertPreferences';
-import { onAlertPreferencesUpdated } from '@/utils/eventBus';
+import { onAlertPreferencesUpdated, onAlertTextToSpeechUpdated } from '@/utils/eventBus';
 import { useLocalization } from '@/context/LocalizationContext';
 
 const { width } = Dimensions.get('window');
@@ -234,6 +236,7 @@ export default function HomeScreen() {
   const [badges, setBadges] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [alertPreferences, setAlertPreferences] = useState<AlertPreferenceMap>(DEFAULT_ALERT_PREFERENCES);
+  const [speechEnabled, setSpeechEnabled] = useState(false);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(true);
@@ -280,12 +283,16 @@ export default function HomeScreen() {
     let isActive = true;
     const loadPreferences = async () => {
       try {
-        const prefs = await getAlertPreferences();
+        const [prefs, speechPref] = await Promise.all([
+          getAlertPreferences(),
+          getAlertTextToSpeechEnabled(),
+        ]);
         if (isActive) {
           setAlertPreferences(prefs);
+          setSpeechEnabled(Boolean(speechPref));
         }
       } catch (error) {
-        console.warn('[HomeScreen] Unable to load alert preferences', error);
+        console.warn('[HomeScreen] Unable to load alert preferences or speech setting', error);
       }
     };
     loadPreferences();
@@ -300,6 +307,19 @@ export default function HomeScreen() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAlertTextToSpeechUpdated((enabled) => {
+      setSpeechEnabled(Boolean(enabled));
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (language !== 'en' && speechEnabled) {
+      setSpeechEnabled(false);
+    }
+  }, [language, speechEnabled]);
 
   
   // Greeting logic with emoji
@@ -531,6 +551,8 @@ export default function HomeScreen() {
         ? mapped.slice(0, 2).map(a => a.description).join(' • ')
         : t('home.alerts.notificationFallback');
 
+      const shouldSpeak = language === 'en' && speechEnabled;
+
       // Build hash from aggregated buckets and their types/values
       const hash = JSON.stringify(
         Array.from(groups.values()).map(g => {
@@ -540,12 +562,30 @@ export default function HomeScreen() {
       );
       if (hash !== lastTriggerHashRef.current) {
         await sendLocalNotification(t('home.alerts.multipleHazards'), notifBody);
+        if (shouldSpeak) {
+          try {
+            const topEntries = mapped.length > 0 ? mapped.slice(0, Math.min(mapped.length, 2)) : [];
+            const speechTitle = topEntries.length === 1 ? topEntries[0].title : t('home.alerts.multipleHazards');
+            const speechDetails = topEntries
+              .map(alert => `${alert.title}. ${alert.description.replace(/ • /g, ', ')}`)
+              .join(' ');
+            const utterance = speechDetails ? `${speechTitle}. ${speechDetails}` : speechTitle;
+            Speech.stop();
+            Speech.speak(utterance, {
+              language: 'en-US',
+              pitch: 1,
+              rate: 0.98,
+            });
+          } catch (speechError) {
+            console.warn('[HomeScreen] Failed to speak alert notification', speechError);
+          }
+        }
         lastTriggerHashRef.current = hash;
       }
     } catch (e) {
       console.warn('Forecast check failed:', e);
     }
-  }, [t, alertPreferences]);
+  }, [t, alertPreferences, language, speechEnabled]);
 
   // Get user's location and fetch weather
   const getLocationAndWeather = useCallback(async () => {
@@ -573,6 +613,12 @@ export default function HomeScreen() {
       setIsLoadingWeather(false);
     }
   }, [fetchWeatherData, fetchForecastAndAlert, t]);
+
+  useEffect(() => {
+    if (!userLocation) return;
+    lastTriggerHashRef.current = null;
+    fetchForecastAndAlert(userLocation.latitude, userLocation.longitude);
+  }, [userLocation, fetchForecastAndAlert, alertPreferences, speechEnabled, language]);
 
   // Enhanced progress calculation with real-time data
   const refreshProgress = useCallback(async () => {

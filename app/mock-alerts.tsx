@@ -6,6 +6,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import type { ColorValue } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ensurePermissionsAsync, ensureAndroidChannelAsync, sendLocalNotification } from '@/utils/notifications';
+import { useLocalization } from '@/context/LocalizationContext';
 
 const SEVERITY_GRADIENTS: Record<'low' | 'medium' | 'high', [ColorValue, ColorValue]> = {
   low: ['#34d399', '#059669'],
@@ -13,73 +14,77 @@ const SEVERITY_GRADIENTS: Record<'low' | 'medium' | 'high', [ColorValue, ColorVa
   high: ['#ef4444', '#dc2626'],
 };
 
-const SEVERITY_LABELS: { value: SeverityLevel; title: string; subtitle: string }[] = [
-  { value: 'low', title: 'Low', subtitle: 'Advisory' },
-  { value: 'medium', title: 'Medium', subtitle: 'Watch' },
-  { value: 'high', title: 'High', subtitle: 'Warning' },
-];
+const SEVERITY_LEVELS: SeverityLevel[] = ['low', 'medium', 'high'];
 
 type SeverityLevel = 'low' | 'medium' | 'high';
 
 type HazardKey = 'rain' | 'wind' | 'temp-high' | 'temp-low';
 
-type HazardConfig = {
+type HazardDefinition = {
   key: HazardKey;
-  title: string;
-  description: string;
   icon: React.ReactNode;
   gradient: [ColorValue, ColorValue];
-  samples: Record<SeverityLevel, { headline: string; details: string }>; 
+  titleKey: string;
+  descriptionKey: string;
+  samples: Record<SeverityLevel, { headlineKey: string; detailsKey: string }>;
 };
 
-// Mock alert presets let users dry-run different hazard notifications
-const HAZARDS: HazardConfig[] = [
+type LocalizedHazard = {
+  key: HazardKey;
+  icon: React.ReactNode;
+  gradient: [ColorValue, ColorValue];
+  title: string;
+  description: string;
+  samples: Record<SeverityLevel, { headline: string; details: string }>;
+};
+
+const HAZARD_DEFINITIONS: HazardDefinition[] = [
   {
     key: 'rain',
-    title: 'Heavy Rainfall',
-    description: 'Simulate flash flood or torrential rain alerts to test your readiness.',
-    icon: <Ionicons name="rainy" size={28} color="#fff" />, 
+    icon: <Ionicons name="rainy" size={28} color="#fff" />,
     gradient: ['#38bdf8', '#1d4ed8'],
+    titleKey: 'mockAlerts.hazards.rain.title',
+    descriptionKey: 'mockAlerts.hazards.rain.description',
     samples: {
-      low: { headline: 'Light showers expected', details: 'Rainfall of 5mm within 3 hours. Keep an umbrella handy.' },
-      medium: { headline: 'Moderate rain inbound', details: 'Persistent rainfall may lead to slick roads. Review your flood plan.' },
-      high: { headline: 'Severe rain alert', details: 'Over 35mm rainfall in 3 hours. Move to higher ground immediately.' },
+      low: { headlineKey: 'mockAlerts.hazards.rain.samples.low.headline', detailsKey: 'mockAlerts.hazards.rain.samples.low.details' },
+      medium: { headlineKey: 'mockAlerts.hazards.rain.samples.medium.headline', detailsKey: 'mockAlerts.hazards.rain.samples.medium.details' },
+      high: { headlineKey: 'mockAlerts.hazards.rain.samples.high.headline', detailsKey: 'mockAlerts.hazards.rain.samples.high.details' },
     },
   },
   {
     key: 'wind',
-    title: 'Strong Winds',
-    description: 'Test alerts for high wind scenarios, from breezy conditions to destructive gusts.',
-    icon: <Feather name="wind" size={28} color="#fff" />, 
+    icon: <Feather name="wind" size={28} color="#fff" />,
     gradient: ['#a855f7', '#7c3aed'],
+    titleKey: 'mockAlerts.hazards.wind.title',
+    descriptionKey: 'mockAlerts.hazards.wind.description',
     samples: {
-      low: { headline: 'Breezy conditions', details: 'Wind speeds near 20 km/h. Secure light outdoor items.' },
-      medium: { headline: 'High wind watch', details: 'Gusts up to 60 km/h expected. Avoid open areas.' },
-      high: { headline: 'Damaging wind warning', details: 'Gusts exceeding 90 km/h. Stay indoors and avoid travel.' },
+      low: { headlineKey: 'mockAlerts.hazards.wind.samples.low.headline', detailsKey: 'mockAlerts.hazards.wind.samples.low.details' },
+      medium: { headlineKey: 'mockAlerts.hazards.wind.samples.medium.headline', detailsKey: 'mockAlerts.hazards.wind.samples.medium.details' },
+      high: { headlineKey: 'mockAlerts.hazards.wind.samples.high.headline', detailsKey: 'mockAlerts.hazards.wind.samples.high.details' },
     },
   },
   {
     key: 'temp-high',
-    title: 'Extreme Heat',
-    description: 'Check your response to heatwaves and heat advisory notifications.',
-    icon: <Ionicons name="sunny" size={28} color="#fff" />, 
+    icon: <Ionicons name="sunny" size={28} color="#fff" />,
     gradient: ['#f97316', '#ea580c'],
+    titleKey: 'mockAlerts.hazards.temp-high.title',
+    descriptionKey: 'mockAlerts.hazards.temp-high.description',
     samples: {
-      low: { headline: 'Warm conditions', details: 'Temperatures rising to 30°C. Stay hydrated.' },
-      medium: { headline: 'Heat advisory', details: 'Temps of 37°C expected. Limit outdoor activity.' },
-      high: { headline: 'Heat emergency', details: 'Temps beyond 42°C. Seek cooled shelter immediately.' },
+      low: { headlineKey: 'mockAlerts.hazards.temp-high.samples.low.headline', detailsKey: 'mockAlerts.hazards.temp-high.samples.low.details' },
+      medium: { headlineKey: 'mockAlerts.hazards.temp-high.samples.medium.headline', detailsKey: 'mockAlerts.hazards.temp-high.samples.medium.details' },
+      high: { headlineKey: 'mockAlerts.hazards.temp-high.samples.high.headline', detailsKey: 'mockAlerts.hazards.temp-high.samples.high.details' },
     },
   },
   {
     key: 'temp-low',
-    title: 'Extreme Cold',
-    description: 'Run cold-weather mock alerts, from chilly breezes to freezing storms.',
-    icon: <Ionicons name="snow" size={28} color="#fff" />, 
+    icon: <Ionicons name="snow" size={28} color="#fff" />,
     gradient: ['#38bdf8', '#0ea5e9'],
+    titleKey: 'mockAlerts.hazards.temp-low.title',
+    descriptionKey: 'mockAlerts.hazards.temp-low.description',
     samples: {
-      low: { headline: 'Chilly evening', details: 'Temperatures near 5°C. Dress in layers.' },
-      medium: { headline: 'Frost advisory', details: 'Below freezing expected overnight. Protect fragile plants.' },
-      high: { headline: 'Extreme cold warning', details: '−15°C wind chills. Limit time outdoors and check heating.' },
+      low: { headlineKey: 'mockAlerts.hazards.temp-low.samples.low.headline', detailsKey: 'mockAlerts.hazards.temp-low.samples.low.details' },
+      medium: { headlineKey: 'mockAlerts.hazards.temp-low.samples.medium.headline', detailsKey: 'mockAlerts.hazards.temp-low.samples.medium.details' },
+      high: { headlineKey: 'mockAlerts.hazards.temp-low.samples.high.headline', detailsKey: 'mockAlerts.hazards.temp-low.samples.high.details' },
     },
   },
 ];
@@ -88,12 +93,49 @@ const HAZARDS: HazardConfig[] = [
 export default function MockAlertsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { t } = useLocalization();
   const [severity, setSeverity] = useState<SeverityLevel>('medium');
   const [lastTriggered, setLastTriggered] = useState<{ hazard: HazardKey; severity: SeverityLevel } | null>(null);
 
+  const severityOptions = useMemo(
+    () =>
+      SEVERITY_LEVELS.map((level) => ({
+        value: level,
+        title: t(`mockAlerts.severities.${level}.title`),
+        subtitle: t(`mockAlerts.severities.${level}.subtitle`),
+      })),
+    [t]
+  );
+
+  const hazards = useMemo<LocalizedHazard[]>(
+    () =>
+      HAZARD_DEFINITIONS.map((def) => ({
+        key: def.key,
+        icon: def.icon,
+        gradient: def.gradient,
+        title: t(def.titleKey),
+        description: t(def.descriptionKey),
+        samples: {
+          low: {
+            headline: t(def.samples.low.headlineKey),
+            details: t(def.samples.low.detailsKey),
+          },
+          medium: {
+            headline: t(def.samples.medium.headlineKey),
+            details: t(def.samples.medium.detailsKey),
+          },
+          high: {
+            headline: t(def.samples.high.headlineKey),
+            details: t(def.samples.high.detailsKey),
+          },
+        },
+      })),
+    [t]
+  );
+
   const lastPreview = useMemo(() => {
     if (!lastTriggered) return null;
-    const hazard = HAZARDS.find((item) => item.key === lastTriggered.hazard);
+    const hazard = hazards.find((item) => item.key === lastTriggered.hazard);
     if (!hazard) return null;
     return {
       headline: hazard.samples[lastTriggered.severity].headline,
@@ -102,13 +144,16 @@ export default function MockAlertsScreen() {
       gradient: hazard.gradient,
       title: hazard.title,
     };
-  }, [lastTriggered]);
+  }, [hazards, lastTriggered]);
 
-  const handleTrigger = async (hazard: HazardConfig) => {
+  const handleTrigger = async (hazard: LocalizedHazard) => {
     try {
       const granted = await ensurePermissionsAsync();
       if (!granted) {
-        Alert.alert('Notifications disabled', 'Enable notifications in your settings to test mock alerts.');
+        Alert.alert(
+          t('mockAlerts.alerts.notificationsDisabledTitle'),
+          t('mockAlerts.alerts.notificationsDisabledBody')
+        );
         return;
       }
       await ensureAndroidChannelAsync();
@@ -121,7 +166,10 @@ export default function MockAlertsScreen() {
       setLastTriggered({ hazard: hazard.key, severity });
     } catch (error) {
       console.warn('Unable to send mock alert', error);
-      Alert.alert('Mock alert failed', 'Something went wrong while sending the notification. Please try again.');
+      Alert.alert(
+        t('mockAlerts.alerts.triggerErrorTitle'),
+        t('mockAlerts.alerts.triggerErrorBody')
+      );
     }
   };
 
@@ -136,17 +184,15 @@ export default function MockAlertsScreen() {
             <Ionicons name="chevron-back" size={24} color="#1f2937" />
           </TouchableOpacity>
           <View style={styles.headerTextWrapper}>
-            <Text style={styles.title}>Mock Alerts Lab</Text>
-            <Text style={styles.subtitle}>
-              Craft sample weather alerts, preview messaging, and push a notification to your device instantly.
-            </Text>
+            <Text style={styles.title}>{t('mockAlerts.title')}</Text>
+            <Text style={styles.subtitle}>{t('mockAlerts.subtitle')}</Text>
           </View>
         </View>
 
         <View style={styles.severitySection}>
-          <Text style={styles.sectionHeading}>Select Severity</Text>
+          <Text style={styles.sectionHeading}>{t('mockAlerts.severityHeading')}</Text>
           <View style={styles.severityChips}>
-            {SEVERITY_LABELS.map((item) => {
+            {severityOptions.map((item) => {
               const active = severity === item.value;
               return (
                 <TouchableOpacity
@@ -167,7 +213,7 @@ export default function MockAlertsScreen() {
         </View>
 
         <View style={styles.hazardList}>
-          {HAZARDS.map((hazard) => {
+          {hazards.map((hazard) => {
             const sample = hazard.samples[severity];
             const active = lastTriggered?.hazard === hazard.key;
             return (
@@ -195,7 +241,7 @@ export default function MockAlertsScreen() {
                   activeOpacity={0.85}
                 >
                   <Ionicons name="notifications" size={18} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.triggerButtonText}>Push test notification</Text>
+                  <Text style={styles.triggerButtonText}>{t('mockAlerts.triggerButton')}</Text>
                 </TouchableOpacity>
               </LinearGradient>
             );
@@ -204,7 +250,7 @@ export default function MockAlertsScreen() {
 
         {lastPreview && (
           <View style={styles.previewSection}>
-            <Text style={styles.sectionHeading}>Latest Preview</Text>
+            <Text style={styles.sectionHeading}>{t('mockAlerts.latestPreview')}</Text>
             <LinearGradient
               colors={lastPreview.gradient as [ColorValue, ColorValue]}
               style={styles.previewCard}
@@ -215,7 +261,11 @@ export default function MockAlertsScreen() {
                 <View style={styles.previewIcon}>{lastPreview.icon}</View>
                 <View style={styles.previewText}>
                   <Text style={styles.previewTitle}>{lastPreview.title}</Text>
-                  <Text style={styles.previewSeverity}>{severity.toUpperCase()} severity</Text>
+                  <Text style={styles.previewSeverity}>
+                    {t('mockAlerts.previewSeverity', {
+                      level: t(`mockAlerts.severities.${severity}.title`).toUpperCase(),
+                    })}
+                  </Text>
                 </View>
               </View>
               <Text style={styles.previewHeadline}>{lastPreview.headline}</Text>
