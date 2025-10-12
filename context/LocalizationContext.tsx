@@ -181,6 +181,89 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         subtitle: 'Your comprehensive emergency preparedness companion',
       },
     },
+    mockAlerts: {
+      title: 'Mock Alerts Lab',
+      subtitle: 'Craft sample weather alerts, preview messaging, and push a notification to your device instantly.',
+      severityHeading: 'Select Severity',
+      severities: {
+        low: { title: 'Low', subtitle: 'Advisory' },
+        medium: { title: 'Medium', subtitle: 'Watch' },
+        high: { title: 'High', subtitle: 'Warning' },
+      },
+      hazards: {
+        rain: {
+          title: 'Heavy Rainfall',
+          description: 'Simulate flash flood or torrential rain alerts to test your readiness.',
+          samples: {
+            low: { headline: 'Light showers expected', details: 'Rainfall of 5mm within 3 hours. Keep an umbrella handy.' },
+            medium: { headline: 'Moderate rain inbound', details: 'Persistent rainfall may lead to slick roads. Review your flood plan.' },
+            high: { headline: 'Severe rain alert', details: 'Over 35mm rainfall in 3 hours. Move to higher ground immediately.' },
+          },
+        },
+        wind: {
+          title: 'Strong Winds',
+          description: 'Test alerts for high wind scenarios, from breezy conditions to destructive gusts.',
+          samples: {
+            low: { headline: 'Breezy conditions', details: 'Wind speeds near 20 km/h. Secure light outdoor items.' },
+            medium: { headline: 'High wind watch', details: 'Gusts up to 60 km/h expected. Avoid open areas.' },
+            high: { headline: 'Damaging wind warning', details: 'Gusts exceeding 90 km/h. Stay indoors and avoid travel.' },
+          },
+        },
+        'temp-high': {
+          title: 'Extreme Heat',
+          description: 'Check your response to heatwaves and heat advisory notifications.',
+          samples: {
+            low: { headline: 'Warm conditions', details: 'Temperatures rising to 30°C. Stay hydrated.' },
+            medium: { headline: 'Heat advisory', details: 'Temps of 37°C expected. Limit outdoor activity.' },
+            high: { headline: 'Heat emergency', details: 'Temps beyond 42°C. Seek cooled shelter immediately.' },
+          },
+        },
+        'temp-low': {
+          title: 'Extreme Cold',
+          description: 'Run cold-weather mock alerts, from chilly breezes to freezing storms.',
+          samples: {
+            low: { headline: 'Chilly evening', details: 'Temperatures near 5°C. Dress in layers.' },
+            medium: { headline: 'Frost advisory', details: 'Below freezing expected overnight. Protect fragile plants.' },
+            high: { headline: 'Extreme cold warning', details: '−15°C wind chills. Limit time outdoors and check heating.' },
+          },
+        },
+      },
+      latestPreview: 'Latest Preview',
+      previewSeverity: '{{level}} severity',
+      triggerButton: 'Push test notification',
+      alerts: {
+        notificationsDisabledTitle: 'Notifications disabled',
+        notificationsDisabledBody: 'Enable notifications in your settings to test mock alerts.',
+        triggerErrorTitle: 'Mock alert failed',
+        triggerErrorBody: 'Something went wrong while sending the notification. Please try again.',
+      },
+    },
+    community: {
+      filters: {
+        all: 'All',
+        general: 'General',
+        flood: 'Flood',
+        heatwave: 'Heat Wave',
+        earthquake: 'Earthquake',
+      },
+      mineLabel: 'My Posts',
+      mineLabelActive: 'My Posts ✓',
+      createButton: '+ Post',
+      errors: {
+        title: 'Failed to fetch posts',
+        generic: 'Failed to load posts.',
+        retry: 'Retry',
+      },
+      statuses: {
+        resolved: 'RESOLVED',
+        blocked: 'BLOCKED',
+        pending: 'PENDING REVIEW',
+      },
+      labels: {
+        like: 'Like',
+        comments: 'Comments',
+      },
+    },
   },
   si: {
     languages: {
@@ -337,6 +420,89 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
         subtitle: 'ඔබගේ සම්පූර්ණ හදිසි සූදානම් සහාය',
       },
     },
+    mockAlerts: {
+      title: 'මොක් දැනුම්දීම් පරීක්ෂණශාලාව',
+      subtitle: 'ආදර්ශ කාලගුණ දැනුම්දීම් සාදමින් පණිවිඩ පෙරදසුන් බලන්න හා උපාංගයට ක්ෂණිකව දැනුම්දීම් යවන්න.',
+      severityHeading: 'දෘඩත්වය තෝරන්න',
+      severities: {
+        low: { title: 'අල්ප', subtitle: 'උපදෙස්' },
+        medium: { title: 'මධ්‍ය', subtitle: 'අවවාදය' },
+        high: { title: 'අධික', subtitle: 'අනතුරු ඇඟවීම' },
+      },
+      hazards: {
+        rain: {
+          title: 'දරුණු වැසි',
+          description: 'ඔබගේ සූදානම පරීක්ෂා කිරීමට හදිසි ගංවතුර හෝ තද වැසි දැනුම්දීම් අනුකලනය කරන්න.',
+          samples: {
+            low: { headline: 'සුළු වැසි බලාපොරොත්තුවේ', details: 'පැය 3 කින් මිලිමිටර් 5 ක වැසි. කුඩයක් සකස් කර ගන්න.' },
+            medium: { headline: 'මධ්‍යම වැසි ලඟාවේ', details: 'දිගු වැසි නිසා මාර්ග නම වැවී යා හැක. ඔබගේ ගංවතුර සැලසුම නැවත සලකා බලන්න.' },
+            high: { headline: 'දරුණු වැසි අනතුරු ඇඟවීම', details: 'පැය 3 කින් මිලිමිටර් 35 ට වඩා වැසි. වහාම උසස් ස්ථානයකට ගොස් සිටින්න.' },
+          },
+        },
+        wind: {
+          title: 'බලවත් සුළං',
+          description: 'සුළං තත්ත්වයන් සඳහා උචිත දැනුම්දීම් අත්හදා බැලීමට මෙම පැවැත්ම භාවිතා කරන්න.',
+          samples: {
+            low: { headline: 'සුළඟ වැඩිවෙමින්', details: 'කි.මී./පැ. 20 පමණ වේග. පැහැදිලිව තබා ඇති ද්‍රව්‍ය ආරක්ෂා කරන්න.' },
+            medium: { headline: 'උස් සුළං අවවාදය', details: 'ගස්වැල් 60 කි.මී./පැ. දක්වා බලාපොරොත්තු. විවෘත ප්‍රදේශ වලින් වැළකී සිටින්න.' },
+            high: { headline: 'අහිංසක නොවන සුළං අනතුරු', details: '90 කි.මී./පැ. ඉක්මවූ පීඩන සුළං. අභ්‍යන්තරයේ රඳවාගෙන ගමන් වළක්වා ගන්න.' },
+          },
+        },
+        'temp-high': {
+          title: 'අතිශයින් උණුසුම්',
+          description: 'උණුසුම් තරංග හා උණුසුම් අනතුරු ඇඟවීම්ට ඔබගේ ප්‍රතිචාරය පරීක්ෂා කරන්න.',
+          samples: {
+            low: { headline: 'උෂ්ණත්වය ඉහළට', details: 'සෙල්සියස් 30° පමණ උෂ්ණත්වය. ජලය බොන්න.' },
+            medium: { headline: 'උණුසුම් අනතුරු ඇඟවීම', details: 'සෙල්සියස් 37° බලාපොරොත්තු. පිටත ක්‍රියාකාරකම් සීමා කරන්න.' },
+            high: { headline: 'උෂ්ණ හදිසි තත්ත්වය', details: 'සෙල්සියස් 42° ඉක්මවයි. වහාම සීතල ස්ථානයකට ගොස් සිටින්න.' },
+          },
+        },
+        'temp-low': {
+          title: 'අතිශයින් සිසිල',
+          description: 'සිසිල සහ හිම වැසි තත්ත්වයන් සඳහා මොක් දැනුම්දීම් ක්‍රියාත්මක කරන්න.',
+          samples: {
+            low: { headline: 'සිසිලෙන් යුත් සැන්දෑව', details: 'සෙල්සියස් 5° සීමාවට ළඟා වෙයි. ස්තර කිහිපයක් පැළඳ ගන්න.' },
+            medium: { headline: 'හිම අවවාදය', details: 'උෂ්ණත්වය රාත්‍රියේදී ශූන්‍යයට අඩු වෙයි. බරපතල සම්පත් ආරක්ෂා කරන්න.' },
+            high: { headline: 'සිසිල හදිසි අනතුරු ඇඟවීම', details: '-15°සෙ. වායු සීතල. පිටත කාලය සීමා කර උෂ්ණත්ව පද්ධති පරීක්ෂා කරන්න.' },
+          },
+        },
+      },
+      latestPreview: 'නවතම පෙරදසුන',
+      previewSeverity: '{{level}} දෘඩත්වය',
+      triggerButton: 'මොක් දැනුම්දීමක් යවන්න',
+      alerts: {
+        notificationsDisabledTitle: 'දැනුම්දීම් අක්‍රියයි',
+        notificationsDisabledBody: 'මොක් දැනුම්දීම් පරීක්ෂා කිරීමට සැකසීම් වල දැනුම්දීම් සක්‍රිය කරන්න.',
+        triggerErrorTitle: 'මොක් දැනුම්දීම අසාර්ථකයි',
+        triggerErrorBody: 'දැනුම්දීම යැවීමේදී දෝෂයක් මතුවිය. කරුණාකර නැවත උත්සාහ කරන්න.',
+      },
+    },
+    community: {
+      filters: {
+        all: 'සියල්ල',
+        general: 'සාමාන්‍ය',
+        flood: 'ගංවතුර',
+        heatwave: 'උණුසුම් තරංගය',
+        earthquake: 'භූකම්පනය',
+      },
+      mineLabel: 'මගේ පළකරීම්',
+      mineLabelActive: 'මගේ පළකරීම් ✓',
+      createButton: '+ පළ කරන්න',
+      errors: {
+        title: 'පළකරීම් ලබා ගැනීමට අසාර්ථක විය',
+        generic: 'පළකරීම් ලබා ගැනීමට නොහැකි විය.',
+        retry: 'නැවත උත්සාහ කරන්න',
+      },
+      statuses: {
+        resolved: 'විසඳා ඇත',
+        blocked: 'අවහිර කර ඇත',
+        pending: 'සමාලෝචනය බලාපොරොත්තුවේ',
+      },
+      labels: {
+        like: 'අනුමත',
+        comments: 'අදහස්',
+      },
+    },
   },
   ta: {
     languages: {
@@ -491,6 +657,89 @@ const translations: Record<LanguageCode, TranslationDictionary> = {
       hero: {
         title: 'தயார் இருங்கள், பாதுகாப்பாக இருங்கள்',
         subtitle: 'உங்கள் முழுமையான அவசர தயாரிப்பு துணை',
+      },
+    },
+    mockAlerts: {
+      title: 'பாசிட் எச்சரிக்கை ஆய்வகம்',
+      subtitle: 'மாதிரி காலநிலை எச்சரிக்கைகளை உருவாக்கி, செய்திகள் முன்னோட்டமாக பார்க்கவும் மற்றும் உடனடியாக உங்கள் சாதனத்திற்கு அறிவிப்பை அனுப்புங்கள்.',
+      severityHeading: 'அபாய நிலையைத் தேர்ந்தெடுக்கவும்',
+      severities: {
+        low: { title: 'குறைந்த', subtitle: 'அறிவுரை' },
+        medium: { title: 'இடைநிலை', subtitle: 'கவனிப்பு' },
+        high: { title: 'உயர்', subtitle: 'எச்சரிக்கை' },
+      },
+      hazards: {
+        rain: {
+          title: 'கடுமையான மழை',
+          description: 'உங்கள் தயார்நிலையைப் பரிசோதிக்க திடீர் வெள்ளம் அல்லது கடும் மழை எச்சரிக்கைகளை உருவகப்படுத்துங்கள்.',
+          samples: {
+            low: { headline: 'இலேசான மழை எதிர்பார்க்கப்படுகிறது', details: '3 மணிநேரத்தில் 5மிமீ மழை. குடையை எடுத்துக்கொள்ளுங்கள்.' },
+            medium: { headline: 'மிதமான மழை நெருங்குகிறது', details: 'தொடர்ச்சியான மழையால் சாலைகள் இலகுவாகலாம். உங்கள் வெள்ளத் திட்டத்தை மறுபார்வை செய்யுங்கள்.' },
+            high: { headline: 'கடுமையான மழை எச்சரிக்கை', details: '3 மணிநேரத்தில் 35மிமீ-ஐ கடந்த மழை. உடனே உயர்ந்த இடத்துக்குச் செல்லுங்கள்.' },
+          },
+        },
+        wind: {
+          title: 'வலுவான காற்று',
+          description: 'மெல்லிய காற்றில் இருந்து அழிவை ஏற்படுத்தும் புயல் வரை உள்ள சூழ்நிலைகளுக்கு எச்சரிக்கைகளைச் சோதியுங்கள்.',
+          samples: {
+            low: { headline: 'மிதமான காற்று நிலை', details: '20 கிமீ/மணி காற்று. எளிதில் அசையும் பொருள்களை பாதுகாக்கவும்.' },
+            medium: { headline: 'உயர் காற்று கவனிப்பு', details: '60 கிமீ/மணி வரை காற்றடிகள். திறந்த இடங்களைத் தவிர்க்கவும்.' },
+            high: { headline: 'அழிக்கும் காற்று எச்சரிக்கை', details: '90 கிமீ/மணிக்கு மேற்பட்ட காற்றடிகள். வீட்டுக்குள் இருக்கவும் மற்றும் பயணத்தைத் தவிர்க்கவும்.' },
+          },
+        },
+        'temp-high': {
+          title: 'அதிக சூடு',
+          description: 'வெயில்காற்று மற்றும் வெப்ப எச்சரிக்கைகளுக்கு உங்கள் பிரதிகளைச் சோதியுங்கள்.',
+          samples: {
+            low: { headline: 'சூடான நிலை', details: 'வெப்பநிலை 30°C வரை உயரும். தண்ணீர் குடியுங்கள்.' },
+            medium: { headline: 'வெப்ப எச்சரிக்கை', details: '37°C வரை வெப்பம் எதிர்பார்க்கப்படுகிறது. வெளிப்புற செயல்பாடுகளை குறைக்கவும்.' },
+            high: { headline: 'வெப்ப அவசர நிலை', details: '42°C-ஐ கடந்த வெப்பம். உடனே குளிர்ந்த இடத்தை நாடுங்கள்.' },
+          },
+        },
+        'temp-low': {
+          title: 'அதிக குளிர்',
+          description: 'சீற்றமான காற்று முதல் பனிப்புயல் வரை குளிர்கால எச்சரிக்கைகளை இயக்குங்கள்.',
+          samples: {
+            low: { headline: 'சிறு குளிர் மாலை', details: 'வெப்பநிலை 5°Cக்கு அருகில். பல அடுக்குகள் அணியுங்கள்.' },
+            medium: { headline: 'பனி எச்சரிக்கை', details: 'இரவில் உறைபனி நிலைக்கு கீழ் விழும். நெகிழ்வான செடிகளை பாதுகாக்கவும்.' },
+            high: { headline: 'பரம குளிர் எச்சரிக்கை', details: '-15°C காற்றழுத்தம். வெளியில் இருப்பதைத் தவிர்த்து சூடூட்டலைச் சரிபார்க்கவும்.' },
+          },
+        },
+      },
+      latestPreview: 'சமீபத்திய முன்னோட்டம்',
+      previewSeverity: '{{level}} அபாய நிலை',
+      triggerButton: 'சோதனை அறிவிப்பை அனுப்புங்கள்',
+      alerts: {
+        notificationsDisabledTitle: 'அறிவிப்புகள் முடக்கப்பட்டுள்ளன',
+        notificationsDisabledBody: 'மொக் எச்சரிக்கைகளைச் சோதிக்க அமைப்புகளில் அறிவிப்புகளை இயக்குங்கள்.',
+        triggerErrorTitle: 'மொக் எச்சரிக்கை தோல்வியடைந்தது',
+        triggerErrorBody: 'அறிவிப்பை அனுப்பும்போது பிழை ஏற்பட்டது. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
+      },
+    },
+    community: {
+      filters: {
+        all: 'அனைத்தும்',
+        general: 'பொது',
+        flood: 'வெள்ளம்',
+        heatwave: 'வெயில் அலை',
+        earthquake: 'நிலநடுக்கம்',
+      },
+      mineLabel: 'என் பதிவுகள்',
+      mineLabelActive: 'என் பதிவுகள் ✓',
+      createButton: '+ பதிவு',
+      errors: {
+        title: 'பதிவுகளை பெற முடியவில்லை',
+        generic: 'பதிவுகளை ஏற்ற முடியவில்லை.',
+        retry: 'மீண்டும் முயற்சிக்கவும்',
+      },
+      statuses: {
+        resolved: 'தீர்க்கப்பட்டது',
+        blocked: 'தடைக்கப்பட்டது',
+        pending: 'மதிப்பாய்வு நிலுவையில்',
+      },
+      labels: {
+        like: 'விருப்பு',
+        comments: 'கருத்துகள்',
       },
     },
   },
