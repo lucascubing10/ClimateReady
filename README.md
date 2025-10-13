@@ -14,7 +14,7 @@ ClimateReady is a mobile-first climate resilience companion. The Expo and React 
 ## Architecture at a Glance
 - **Mobile app (`app/`)** – Expo SDK 54, React Native 0.81, Expo Router navigation, TypeScript throughout.
 - **Backend server (`server/`)** – Express + MongoDB Atlas servicing community posts, moderation, and sockets.
-- **SOS tracker (`sos-live-tracker-map/`)** – Vite + React web client consuming Firestore for real-time maps.
+- **SOS tracker (`sos-live-tracker-map/`)** – Vite + React web client consuming Firestore for real-time maps. The source lives in a companion repository at [`R-Tharanka/sos-live-tracker-map`](https://github.com/R-Tharanka/sos-live-tracker-map.git) and is vendored here for local development.
 - **Shared libraries** – Firebase Auth + Firestore, Socket.io, Expo Notifications, Google Maps/Places SDKs.
 
 ## Tech Stack
@@ -44,7 +44,7 @@ ClimateReady is a mobile-first climate resilience companion. The Expo and React 
 
 ## Setup
 ```powershell
-git clone https://github.com/NIKKAvRULZ/ClimateReady.git
+git clone https://github.com/R-Tharanka/ClimateReady.git
 cd ClimateReady
 npm install
 ```
@@ -115,6 +115,7 @@ npm run dev
 - Consumes Firestore documents keyed by SOS session IDs with token validation (`src/utils/TokenValidator`).
 - Provides debugging tools (`TokenDebugHelper`, `SosDebugDashboard`) to verify emergency access links.
 - Built with Vite; production builds (`npm run build`) output to `sos-live-tracker-map/dist` and deploy cleanly to Vercel (see `vercel.json`).
+- Source of truth: [`https://github.com/R-Tharanka/sos-live-tracker-map`](https://github.com/R-Tharanka/sos-live-tracker-map.git). Keep this submodule clone in sync with upstream for the latest fixes.
 
 ## Testing & Quality
 - `npm run lint` – ESLint with Expo configuration for TypeScript.
