@@ -1,0 +1,20 @@
+# Root Expo App Environment
+APP_NAME=ClimateReady
+APP_SLUG=climateready
+APP_VERSION=1.0.0
+APP_SCHEME=climateready
+OPENWEATHER_API_KEY=your_openweather_api_key
+ANDROID_PACKAGE_NAME=com.yourcompany.climateready
+ANDROID_ICON_BG_COLOR=#5ba24f
+EAS_PROJECT_ID=your_eas_project_id
+SOS_WEB_APP_URL=https://your-sos-tracker.example
+EXPO_PROJECT_ID=your_expo_project_id
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+EXPO_PUBLIC_API_BASE=https://your-api-base.example
+
+# Server Environment
+PORT=4000
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/defaultdb?retryWrites=true&w=majority
+CLIENT_ORIGIN=http://localhost:8081
+HUGGINGFACE_API_KEY=your_huggingface_api_key

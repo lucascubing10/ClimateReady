@@ -1,0 +1,5 @@
+PORT=4000
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/<database>?retryWrites=true&w=majority
+CLIENT_ORIGIN=http://localhost:8081
+HUGGINGFACE_API_KEY=your_huggingface_api_key
+HF_MODERATION_MODEL=unitary/toxic-bert
