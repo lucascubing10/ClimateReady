@@ -57,6 +57,12 @@ adb uninstall com.yourcompany.climateready
 
 # Sideload the freshly built development APK onto the connected device
 adb install -r android\app\build\outputs\apk\development\app-development.apk
+
+# Clear the device log buffer before capturing a fresh session
+adb logcat -c
+
+# Stream React Native / Expo logs plus native crashes
+adb logcat -s ReactNativeJS ReactNative Expo AndroidRuntime
 ```
 
 ## Environment helpers
