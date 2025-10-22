@@ -77,41 +77,41 @@ export default function CommunityList() {
     [t]
   );
 
-// Component that displays a smaller, fully visible image without aggressive cropping
-function PostImage({ uri }: { uri: string }) {
-  const [ratio, setRatio] = useState<number | null>(null); // width/height
-  return (
-    <View
-      style={{
-        backgroundColor: '#f1f5f9',
-        borderRadius: 12,
-        marginTop: 6,
-        overflow: 'hidden',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 4,
-      }}
-    >
-      <Image
-        source={{ uri }}
+  // Component that displays a smaller, fully visible image without aggressive cropping
+  function PostImage({ uri }: { uri: string }) {
+    const [ratio, setRatio] = useState<number | null>(null); // width/height
+    return (
+      <View
         style={{
-          width: '100%',
-          aspectRatio: ratio || 1.6, // placeholder aspect ratio until real one loads
-          maxHeight: 160,
+          backgroundColor: '#f1f5f9',
+          borderRadius: 12,
+          marginTop: 6,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 4,
         }}
-        resizeMode="contain"
-        onLoad={(e) => {
-          const meta: any = e.nativeEvent?.source;
-          if (meta?.width && meta?.height) {
-            const r = meta.width / meta.height;
-            // Clamp ratio to avoid extreme tall images stretching layout
-            if (r > 0) setRatio(Math.min(Math.max(r, 0.6), 2.5));
-          }
-        }}
-      />
-    </View>
-  );
-}
+      >
+        <Image
+          source={{ uri }}
+          style={{
+            width: '100%',
+            aspectRatio: ratio || 1.6, // placeholder aspect ratio until real one loads
+            maxHeight: 200,
+          }}
+          resizeMode="contain"
+          onLoad={(e) => {
+            const meta: any = e.nativeEvent?.source;
+            if (meta?.width && meta?.height) {
+              const r = meta.width / meta.height;
+              // Clamp ratio to avoid extreme tall images stretching layout
+              if (r > 0) setRatio(Math.min(Math.max(r, 0.6), 2.5));
+            }
+          }}
+        />
+      </View>
+    );
+  }
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     const silent = !!opts?.silent;
@@ -215,25 +215,34 @@ function PostImage({ uri }: { uri: string }) {
             <View
               style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, gap: 6 }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text>{item.username?.[0]}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#0f172a', textTransform: 'uppercase', textAlign: 'center', width: '100%', lineHeight: 36 }}>
+                      {item.username?.[0] || ''}
+                    </Text>
+                  </View>
+                  <Text style={{ fontWeight: '700', color: '#0f172a', flexShrink: 1 }} numberOfLines={1}>
+                    {item.username}
+                  </Text>
                 </View>
-                <Text style={{ fontWeight: '700', color: '#0f172a' }}>{item.username}</Text>
-                <Text style={{ color: '#64748b' }}>• {dayjs(item.createdAt).fromNow?.() || ''}</Text>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={{ color: '#64748b', fontSize: 12 }} allowFontScaling={false}>
+                    {dayjs(item.createdAt).fromNow?.() || ''}
+                  </Text>
+                  <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, minWidth: 74, alignItems: 'center', marginTop: 1 }}>
+                    <Text
+                      style={{ fontSize: 12, fontWeight: '600', color: '#0f172a', textTransform: 'capitalize', letterSpacing: 0.2 }}
+                      numberOfLines={1}
+                      allowFontScaling={false}
+                    >
+                      {categoryLabels[item.category as keyof typeof categoryLabels] || item.category}
+                    </Text>
+                  </View>
+                </View>
               </View>
 
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, minWidth: 74, alignItems: 'center' }}>
-                  <Text
-                    style={{ fontSize: 12, fontWeight: '600', color: '#0f172a', textTransform: 'capitalize', letterSpacing: 0.2 }}
-                    numberOfLines={1}
-                    allowFontScaling={false}
-                  >
-                    {categoryLabels[item.category as keyof typeof categoryLabels] || item.category}
-                  </Text>
-                </View>
-
                 {item.resolved && (
                   <Text style={{ fontSize: 12, backgroundColor: '#fee2e2', color: '#b91c1c', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
                     {t('community.statuses.resolved')}
