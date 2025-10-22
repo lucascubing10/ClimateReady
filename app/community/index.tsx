@@ -97,7 +97,7 @@ export default function CommunityList() {
           style={{
             width: '100%',
             aspectRatio: ratio || 1.6, // placeholder aspect ratio until real one loads
-            maxHeight: 200,
+            maxHeight: 180,
           }}
           resizeMode="contain"
           onLoad={(e) => {
@@ -209,7 +209,7 @@ export default function CommunityList() {
         <FlatList
           data={items}
           keyExtractor={(it) => it._id}
-          contentContainerStyle={{ padding: 12, gap: 12 }}
+          contentContainerStyle={{ padding: 12, gap: 16 }}
           refreshing={refreshing}
           onRefresh={onRefresh}
           renderItem={({ item }) => (
