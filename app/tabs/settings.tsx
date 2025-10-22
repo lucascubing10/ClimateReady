@@ -289,7 +289,6 @@ export default function SettingsScreen() {
         {/* SOS Emergency Settings */}
         <SettingsSection title={t('settings.sections.sos')} icon="alert-circle" color={DANGER}>
           <SettingsItem
-
             label={t('settings.items.emergencyContacts')}
             value={t('settings.items.emergencyContactsValue', {
               count: String(userProfile?.emergencyContacts?.length || 0),
@@ -301,7 +300,7 @@ export default function SettingsScreen() {
               } as any)
             }
           />
-          <SettingsItem
+          {/* <SettingsItem
             label={t('settings.items.sosSettings')}
             onPress={() =>
               router.push({
@@ -309,7 +308,7 @@ export default function SettingsScreen() {
                 params: { returnTo: encodeURIComponent(currentPath) },
               } as any)
             }
-          />
+          /> */}
           <SettingsItem
             label={t('settings.items.sosSettings')}
             onPress={() =>

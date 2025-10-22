@@ -63,7 +63,7 @@ export default function PostDetail() {
             if (requestSeq.current === seq && again?.comments?.length) {
               setData(again);
             }
-          } catch {}
+          } catch { }
         }, 600);
       }
     } catch (e) {
@@ -85,9 +85,9 @@ export default function PostDetail() {
         const currentPostId = String(id);
         const res = await Api.getPostComments(currentPostId);
         if (res?.comments && Array.isArray(res.comments)) {
-          setData((d:any) => d && d.post ? { ...d, comments: res.comments } : d);
+          setData((d: any) => d && d.post ? { ...d, comments: res.comments } : d);
         }
-      } catch {}
+      } catch { }
     }, 10000);
     return () => { if (commentsPollRef.current) clearInterval(commentsPollRef.current); };
   }, [id]);
@@ -145,8 +145,8 @@ export default function PostDetail() {
     try {
       setDeleting(true);
       console.log('[UI] performDelete -> calling Api.deletePost');
-  if (!activeUserId) return Alert.alert('Not authorized');
-  const res = await Api.deletePost(post._id, activeUserId);
+      if (!activeUserId) return Alert.alert('Not authorized');
+      const res = await Api.deletePost(post._id, activeUserId);
       console.log('[UI] delete result', res);
       if (res?.ok) {
         emitPostDeleted(post._id);
@@ -218,7 +218,7 @@ export default function PostDetail() {
               style={{ backgroundColor: '#f1f5f9', borderRadius: 12, padding: 10, minHeight: 100, marginTop: 8 }}
             />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, marginBottom: 10 }}>
-              {['general','flood','heatwave','earthquake'].map(c => {
+              {['general', 'flood', 'heatwave', 'earthquake'].map(c => {
                 const active = editCategory === c;
                 const label = c === 'heatwave' ? 'Heat Wave' : c.charAt(0).toUpperCase() + c.slice(1);
                 return (
@@ -271,41 +271,41 @@ export default function PostDetail() {
           <Text style={{ color: '#64748b', marginVertical: 8 }}>{post.text}</Text>
         )}
 
-          {post.imageUrl && (
-            <Pressable onPress={() => setShowFull(true)}>
-              <View
-                style={{
-                  borderRadius: 14,
-                  overflow: 'hidden',
-                  backgroundColor: '#f1f5f9',
-                  marginBottom: 8,
-                  justifyContent: 'center',
-                  alignItems: 'center',
+        {post.imageUrl && (
+          <Pressable onPress={() => setShowFull(true)}>
+            <View
+              style={{
+                borderRadius: 14,
+                overflow: 'hidden',
+                backgroundColor: '#f1f5f9',
+                marginBottom: 8,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Image
+                source={{ uri: post.imageUrl.startsWith('http') ? post.imageUrl : `${API_BASE}${post.imageUrl}` }}
+                style={
+                  imgRatio
+                    ? (Platform.OS === 'web'
+                      ? { width: '100%', aspectRatio: imgRatio }
+                      : { width: '100%', height: Math.min(400, Math.max(180, 300 * (1 / imgRatio))) })
+                    : { width: '100%', height: 220 }
+                }
+                resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
+                onLoad={(e) => {
+                  const { width, height } = (e.nativeEvent.source || {}) as any;
+                  if (width && height) setImgRatio(width / height);
                 }}
-              >
-                <Image
-                  source={{ uri: post.imageUrl.startsWith('http') ? post.imageUrl : `${API_BASE}${post.imageUrl}` }}
-                  style={
-                    imgRatio
-                      ? (Platform.OS === 'web'
-                          ? { width: '100%', aspectRatio: imgRatio }
-                          : { width: '100%', height: Math.min(400, Math.max(180, 300 * (1 / imgRatio))) })
-                      : { width: '100%', height: 220 }
-                  }
-                  resizeMode={Platform.OS === 'web' ? 'contain' : 'cover'}
-                  onLoad={(e) => {
-                    const { width, height } = (e.nativeEvent.source || {}) as any;
-                    if (width && height) setImgRatio(width / height);
-                  }}
-                />
-                <View style={{ position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
-                  <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view</Text>
-                </View>
+              />
+              <View style={{ position: 'absolute', right: 8, bottom: 8, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 }}>
+                <Text style={{ color: '#fff', fontSize: 12 }}>Tap to view</Text>
               </View>
-            </Pressable>
-          )}
+            </View>
+          </Pressable>
+        )}
 
-  <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
           <View style={{ backgroundColor: '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, alignSelf: 'flex-start' }}>
             <Text
               style={{ fontSize: 12, fontWeight: '600', color: '#0f172a', letterSpacing: 0.2, textTransform: 'capitalize' }}
@@ -343,9 +343,9 @@ export default function PostDetail() {
               if (!activeUserId) return Alert.alert('Login required');
               // optimistic
               const liked = post.likedBy?.includes(activeUserId);
-              setData((d: any) => d ? { ...d, post: { ...d.post, upvotes: d.post.upvotes + (liked ? -1 : 1), likedBy: liked ? d.post.likedBy.filter((u:string)=>u!==activeUserId) : [...(d.post.likedBy||[]), activeUserId] } } : d);
+              setData((d: any) => d ? { ...d, post: { ...d.post, upvotes: d.post.upvotes + (liked ? -1 : 1), likedBy: liked ? d.post.likedBy.filter((u: string) => u !== activeUserId) : [...(d.post.likedBy || []), activeUserId] } } : d);
               const res = await Api.upvote(post._id, activeUserId);
-              if (res?.post) setData((d:any)=> ({ ...d, post: res.post }));
+              if (res?.post) setData((d: any) => ({ ...d, post: res.post }));
             }}
           >
             <Text>{activeUserId && post.likedBy?.includes(activeUserId) ? '💖' : '❤️'} {post.upvotes}</Text>

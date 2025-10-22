@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   filterDrawerHandle: {
     width: FILTER_HANDLE_WIDTH,
     height: 120,
-    marginLeft: 0,
+    marginLeft: 8,
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
     backgroundColor: '#fff',
