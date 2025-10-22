@@ -214,7 +214,17 @@ export default function CommunityList() {
           onRefresh={onRefresh}
           renderItem={({ item }) => (
             <View
-              style={{ backgroundColor: '#fff', borderRadius: 16, padding: 14, gap: 6 }}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                padding: 14,
+                gap: 6,
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowOffset: { width: 0, height: 4 },
+                shadowRadius: 6,
+                elevation: 2,
+              }}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
