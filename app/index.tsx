@@ -747,8 +747,8 @@ export default function HomeScreen() {
 
   const navigateToScreen = (screen: 'safe-zone' | 'toolkit' | 'community' | 'mock-alerts') => {
     const routeMap: Record<typeof screen, string> = {
-      'safe-zone': '/safe-zone',
-      'toolkit': '/toolkit',
+      'safe-zone': '/tabs/safeZones',
+      'toolkit': '/tabs/toolKit',
       'community': '/community',
       'mock-alerts': '/mock-alerts',
     };
