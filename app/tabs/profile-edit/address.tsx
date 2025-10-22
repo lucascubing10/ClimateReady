@@ -205,6 +205,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 1,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -237,6 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   saveButton: {
-    marginBottom: 16,
+    margin: 0,
+    // marginBottom: 16,
   },
 });
