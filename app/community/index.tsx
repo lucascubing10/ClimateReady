@@ -181,15 +181,16 @@ export default function CommunityList() {
           onPress={() => setMine(!mine)}
           activeColor="#16a34a"
         />
-        <View style={{ marginLeft: 'auto' }} />
-        <Pressable
-          onPress={() => r.push('/community/create' as any)}
-          style={{ marginLeft: 'auto', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: '#0284c7', marginTop: 8 }}
-          hitSlop={8}
-        >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>{t('community.createButton')}</Text>
-        </Pressable>
-        <CommunityNotificationsBell />
+        <View style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Pressable
+            onPress={() => r.push('/community/create' as any)}
+            style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: '#0284c7' }}
+            hitSlop={8}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }} allowFontScaling={false}>{t('community.createButton')}</Text>
+          </Pressable>
+          <CommunityNotificationsBell />
+        </View>
       </View>
 
       {loading && (

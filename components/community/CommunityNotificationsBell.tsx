@@ -64,8 +64,18 @@ export default function CommunityNotificationsBell() {
 
   return (
     <>
-      <Pressable onPress={openModal} style={{ padding: 6, marginRight: 8 }}>
-        <Ionicons name="notifications" size={24} color="#0284c7" />
+      <Pressable
+        onPress={openModal}
+        style={{
+          padding: 8,
+          marginRight: 8,
+          backgroundColor: '#e0f2fe',
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name="notifications" size={22} color="#0284c7" />
         {unread > 0 && (
           <View style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#dc2626', minWidth: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
             <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{unread}</Text>
